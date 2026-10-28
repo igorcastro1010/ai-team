@@ -7,13 +7,14 @@ import re
 import secrets
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 import keyring
 
 SERVICE = "AI TEAM / GitHub App"
 OWNER = "igorcastro1010"
+PROJECT_URL = f"https://github.com/{OWNER}/ai-team"
 
 
 class AppVault:
@@ -83,11 +84,11 @@ class AppVault:
 def app_manifest(redirect_url):
     return {
         "name": "AI TEAM - igorcastro1010",
-        "url": "https://github.com/igorcastro1010/ai-team",
+        "url": PROJECT_URL,
         "description": "Agentes supervisionados. Validação inicial somente no repositório ai-team.",
         "public": False,
         "redirect_url": redirect_url,
-        "hook_attributes": {"url": "https://github.com/igorcastro1010/ai-team", "active": False},
+        "hook_attributes": {"url": PROJECT_URL, "active": False},
         "default_events": [],
         "default_permissions": {
             "contents": "write",
@@ -97,6 +98,52 @@ def app_manifest(redirect_url):
         },
         "request_oauth_on_install": False,
     }
+
+
+def registration_form(redirect_url, state):
+    """Serialize the validated manifest into a POST form, never a GitHub GET link."""
+    manifest = app_manifest(redirect_url)
+    callback = urlsplit(redirect_url)
+    if (
+        manifest.get("url") != PROJECT_URL
+        or manifest.get("hook_attributes") != {"url": PROJECT_URL, "active": False}
+        or manifest.get("redirect_url") != redirect_url
+        or callback.scheme != "http"
+        or callback.hostname != "127.0.0.1"
+        or not callback.port
+        or callback.username is not None
+        or callback.password is not None
+        or callback.path != "/callback"
+        or callback.query
+        or callback.fragment
+    ):
+        raise ValueError("Configuração do manifesto inválida; registro não será enviado")
+    encoded = html.escape(json.dumps(manifest, ensure_ascii=False, allow_nan=False), quote=True)
+    action = html.escape(
+        "https://github.com/settings/apps/new?" + urlencode({"state": state}), quote=True
+    )
+    return (
+        f'<form method="post" action="{action}" '
+        'enctype="application/x-www-form-urlencoded" accept-charset="UTF-8">'
+        f'<input type="hidden" name="manifest" value="{encoded}">'
+        '<button>Criar GitHub App privada</button></form>'
+    )
+
+
+def existing_app_page(app):
+    slug = app["slug"]
+    if not re.fullmatch(r"[a-z0-9-]{1,100}", slug):
+        raise ValueError("Identificação da App inválida no cofre")
+    return (
+        "<p>AI TEAM / INTEGRAÇÃO PRÓPRIA</p><h1>App já registrada.</h1>"
+        f"<p>A configuração de <strong>{slug}</strong> está no cofre do executor. "
+        "O cadastro existente será preservado.</p>"
+        f'<p><a href="https://github.com/apps/{slug}/installations/new">'
+        "Revisar instalação no GitHub</a></p>"
+        "<p>Escolha <strong>Only select repositories → ai-team</strong>. "
+        "Se já estiver instalada, revise a seleção existente.</p>"
+        "<p>Instalação e operações da API ainda precisam ser homologadas.</p>"
+    )
 
 
 class SetupFlow:
@@ -148,7 +195,9 @@ font:600 16px system-ui;cursor:pointer}small{color:#b5c4a7}li{margin:12px 0}</st
 
 def main():
     vault = AppVault()
-    vault.preflight()
+    existing = vault.load()
+    if existing is None:
+        vault.preflight()
     flow = SetupFlow(vault)
     completed = False
 
@@ -186,11 +235,11 @@ def main():
                 return
             parsed = urlsplit(self.path)
             if parsed.path == f"/start/{flow.state}" and not flow.used:
-                manifest = html.escape(
-                    json.dumps(
-                        app_manifest(f"http://127.0.0.1:{self.server.server_port}/callback")
-                    ),
-                    quote=True,
+                if existing is not None:
+                    self.send_page(200, existing_app_page(existing))
+                    return
+                form = registration_form(
+                    f"http://127.0.0.1:{self.server.server_port}/callback", flow.state
                 )
                 self.send_page(
                     200,
@@ -203,13 +252,19 @@ não aparecerá na página, no chat ou em arquivos do projeto.</p>
 <li>Sem administração, pagamentos, exclusão de repositórios ou workflows.</li>
 <li>App privada, sem webhooks e sem acesso público.</li>
 <li>Na instalação, escolha <strong>Only select repositories → ai-team</strong>.</li></ul>
-<form method="post" action="https://github.com/settings/apps/new?state={flow.state}">
-<input type="hidden" name="manifest" value="{manifest}">
-<button>Criar GitHub App privada</button></form>
+<p>Primeiro, <a href="https://github.com/login" target="_blank" rel="noopener noreferrer">entre
+no GitHub</a> com a conta <strong>{OWNER}</strong>. Depois volte a esta página e clique abaixo.</p>
+{form}
+<p><small>O botão envia o manifesto por POST. Abrir ou recarregar o endereço
+<code>github.com/settings/apps/new</code> diretamente não envia a configuração.
+Se aparecer “url wasn't supplied”, volte a esta página e use o botão novamente.</small></p>
 <p><small>Este serviço temporário escuta somente em 127.0.0.1 e expira em 15 minutos.
 O registro não faz commit, pull request ou deploy.</small></p>""",
                 )
             elif parsed.path == "/callback":
+                if existing is not None:
+                    self.send_page(409, "<h1>App já configurada. Cadastro preservado.</h1>")
+                    return
                 query = parse_qs(parsed.query)
                 try:
                     url = flow.complete(query.get("state", [""])[0], query.get("code", [""])[0])
