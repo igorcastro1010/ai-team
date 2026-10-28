@@ -7,7 +7,7 @@ AGENTS = [
             "Transforma solicitações em planos, distribui trabalho e consolida resultados."
         ),
         "tools": ["planejar", "delegar", "relatar"],
-        "status": "planned",
+        "status": "available",
         "limit": "Sem execução de ferramentas externas nesta versão",
     },
     {
@@ -15,8 +15,8 @@ AGENTS = [
         "name": "DEV",
         "role": "Engenharia e integrações",
         "description": "Prepara alterações de código em ambientes isolados e revisáveis.",
-        "tools": ["ler código", "propor alterações"],
-        "status": "planned",
+        "tools": ["propor código", "especificar integrações"],
+        "status": "available",
         "limit": "Sem acesso a checkouts ou shell nesta versão",
     },
     {
@@ -25,7 +25,7 @@ AGENTS = [
         "role": "Produto e experiência",
         "description": "Define interfaces, linguagem visual e critérios de acessibilidade.",
         "tools": ["especificar UI", "revisar experiência"],
-        "status": "planned",
+        "status": "available",
         "limit": "Sem publicação de arquivos nesta versão",
     },
     {
@@ -34,7 +34,7 @@ AGENTS = [
         "role": "Qualidade e revisão",
         "description": "Verifica evidências, critérios de aceite e riscos antes da entrega.",
         "tools": ["revisar resultados", "relatar riscos"],
-        "status": "planned",
+        "status": "available",
         "limit": "Sem execução de testes de projetos externos nesta versão",
     },
 ]

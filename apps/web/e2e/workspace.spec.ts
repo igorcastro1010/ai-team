@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { views, type View } from "../lib/navigation";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");
@@ -65,6 +67,9 @@ test("login e painel sem violações WCAG A/AA detectadas", async ({ page }) => 
   await login(page);
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
   await page.screenshot({ path: "../../artifacts/overview-desktop.png", fullPage: true });
+  await page.goto("/ceo");
+  await expect(page.getByLabel("O que você quer construir?")).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
 });
 
 test("logout revoga acesso e encerra sessão no navegador", async ({ page }) => {
@@ -72,4 +77,39 @@ test("logout revoga acesso e encerra sessão no navegador", async ({ page }) => 
   await page.getByRole("button", { name: "Sair do workspace" }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect((await page.request.get("/api/control/workspace")).status()).toBe(401);
+});
+
+test("CEO registra pedido e permite revisar, aprovar e cancelar com confirmação", async ({ page }) => {
+  await login(page);
+  const created = await page.request.post("/api/control/projects", {
+    headers: { origin: "http://localhost:3100" }, data: { name: "Projeto CEO E2E", mode: "manual" },
+  });
+  expect(created.status()).toBe(201);
+  await page.goto("/ceo");
+  await page.getByLabel("Projeto da solicitação").selectOption({ label: "Projeto CEO E2E" });
+  await page.getByLabel("O que você quer construir?").fill("Planejar interface de exemplo para revisão E2E.");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Enviar ao CEO" }).click();
+  const runCard = page.getByTestId("run-card").filter({ hasText: "Planejar interface de exemplo" });
+  await expect(runCard.getByText("Na fila", { exact: true })).toBeVisible();
+  const root = path.resolve(__dirname, "../../..");
+  const python = path.join(root, ".venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+  execFileSync(python, ["-c", "import sys; sys.path.insert(0, 'services/api/tests'); from test_workflow import TestProvider; from ai_team.worker import Worker; from ai_team.db import Database; from ai_team.config import Settings; s=Settings(); assert Worker(Database(s),s,TestProvider()).once()"], {
+    cwd: root, env: { ...process.env, AI_TEAM_DATABASE_URL: process.env.AI_TEAM_E2E_DB, AI_TEAM_ENVIRONMENT: "test" },
+  });
+  await page.goto("/aprovacoes");
+  await expect(page.getByText("Proposta textual, sem execução externa.")).toBeVisible();
+  await page.screenshot({ path: "../../artifacts/approval-desktop.png", fullPage: true });
+  await page.getByRole("button", { name: "Aprovar próxima etapa" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
+  await expect(page.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Aprovar próxima etapa" }).click();
+  await dialog.getByRole("button", { name: "Autorizar elaboração", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.goto("/execucoes");
+  await expect(runCard.getByText("Na fila", { exact: true })).toBeVisible();
+  await runCard.getByRole("button", { name: "Cancelar execução", exact: true }).click();
+  await dialog.getByRole("button", { name: "Cancelar execução", exact: true }).click();
+  await expect(runCard.getByText("Cancelada", { exact: true })).toBeVisible();
 });

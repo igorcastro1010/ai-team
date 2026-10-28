@@ -128,7 +128,10 @@ def test_validation_and_invalid_transitions_do_not_write(client):
 def test_integration_status_never_claims_tested_without_probe(client):
     login(client)
     statuses = client.get("/integrations").json()
-    assert all(item["status"] in {"not_configured", "configured", "planned"} for item in statuses)
+    assert all(
+        item["status"] in {"not_configured", "configured", "planned", "available"}
+        for item in statuses
+    )
     assert all(item["verified_at"] is None for item in statuses)
 
 

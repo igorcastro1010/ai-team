@@ -11,6 +11,8 @@ from .config import Settings
 from .db import Database
 from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
+from .run_routes import RunView
+from .run_routes import router as runs_router
 from .schemas import (
     EventView,
     LoginInput,
@@ -20,6 +22,7 @@ from .schemas import (
     TaskUpdate,
     TaskView,
 )
+from .workflow import WorkflowStore
 
 TRANSITIONS = {
     "backlog": {"in_progress"},
@@ -41,11 +44,12 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
     app.state.database, app.state.settings = database, settings
+    app.include_router(runs_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -61,7 +65,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": "0.2.0"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -192,15 +196,15 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @app.get("/workspace")
     def workspace(owner: Owner):
         return {
-            "version": "0.1.0",
+            "version": "0.2.0",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
             "events": [EventView.model_validate(e) for e in events(owner)],
             "agents": AGENTS,
-            "runs": [],
-            "approvals": [],
-            "usage": {"requests": 0, "tokens": 0, "cost_usd": None},
+            "runs": [RunView.model_validate(run) for run in WorkflowStore(database).all()],
+            "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
+            "usage": WorkflowStore(database).usage(),
             "integrations": integrations(owner),
         }
 

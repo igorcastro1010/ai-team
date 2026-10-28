@@ -1,7 +1,7 @@
 import time
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -63,3 +63,28 @@ class Event(Base):
     summary: Mapped[str] = mapped_column(String(300))
     actor: Mapped[str] = mapped_column(String(80), default="owner")
     created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()), index=True)
+
+
+class Run(Base):
+    __tablename__ = "runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    prompt: Mapped[str] = mapped_column(Text)
+    mode: Mapped[str] = mapped_column(String(20))
+    scope: Mapped[str] = mapped_column(String(30), default="draft_only")
+    status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
+    stage: Mapped[int] = mapped_column(Integer, default=0)
+    steps: Mapped[list] = mapped_column(JSON, default=list)
+    calls: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str] = mapped_column(String(300), default="")
+    lease_token: Mapped[str] = mapped_column(String(36), default="")
+    lease_expires_at: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()), index=True)
+
+
+class WorkerHeartbeat(Base):
+    __tablename__ = "worker_heartbeats"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    last_seen: Mapped[int] = mapped_column(Integer, index=True)

@@ -18,10 +18,15 @@ export type Task = { id: string; title: string; description: string; agent: stri
 export type Event = { id: string; kind: string; summary: string; actor: string; resource_id: string; created_at: number };
 export type Agent = { id: string; name: string; role: string; description: string; tools: string[]; limit: string; status: string };
 export type Integration = { id: string; name: string; status: string; description: string; verified_at: number | null };
+export type Run = {
+  id: string; project_id: string; prompt: string; mode: string; scope: string; status: string;
+  stage: number; calls: number; input_tokens: number; output_tokens: number; error: string;
+  created_at: number; steps: { stage: number; agent: string; summary: string; deliverable: string; input_tokens: number; output_tokens: number }[];
+};
 export type Workspace = {
   version: string; owner: string; projects: Project[]; tasks: Task[]; events: Event[];
-  agents: Agent[]; integrations: Integration[]; runs: unknown[]; approvals: unknown[];
-  usage: { requests: number; tokens: number; cost_usd: number | null };
+  agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
+  usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
 };
 
 export const statusLabel: Record<TaskStatus, string> = {

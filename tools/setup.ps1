@@ -4,8 +4,10 @@ Set-Location -LiteralPath $projectRoot
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     throw 'Instale uv (https://docs.astral.sh/uv/) e tente novamente.'
 }
-uv venv --python 3.12 .venv
-if ($LASTEXITCODE -ne 0) { throw 'Falha ao criar ambiente Python.' }
+if (-not (Test-Path -LiteralPath '.venv\Scripts\python.exe')) {
+    uv venv --python 3.12 .venv
+    if ($LASTEXITCODE -ne 0) { throw 'Falha ao criar ambiente Python.' }
+}
 uv pip sync --python .venv\Scripts\python.exe services\api\requirements.lock
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao instalar dependências Python.' }
 uv pip install --python .venv\Scripts\python.exe --no-deps -e services/api

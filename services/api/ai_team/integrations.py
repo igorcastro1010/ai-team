@@ -10,10 +10,10 @@ def integration_statuses():
         {
             "id": "codex",
             "name": "Codex",
-            "status": "planned",
+            "status": "available",
             "verified_at": None,
             "description": (
-                "V0.4 · SDK/CLI oficial em executor próprio. Sem acesso à sessão do Desktop."
+                "CLI oficial para planos e pareceres. Login próprio e worker necessários."
             ),
         },
         {

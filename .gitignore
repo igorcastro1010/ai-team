@@ -23,3 +23,4 @@ dist/
 .vercel/
 .coverage
 *.tsbuildinfo
+apps/web/next-env.d.ts

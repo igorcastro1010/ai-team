@@ -26,3 +26,16 @@ V0.2: LangGraph, fila persistente, executor Codex com autenticação própria e 
 
 ### Preparação de credenciais
 Adicionado comando próprio de login e status. Dois testes adicionais verificam ambiente filtrado, contexto separado e armazenamento obrigatório em keyring (18 testes no total). Probe real `login status` retornou `Not logged in` no contexto AI TEAM, confirmando ausência de herança automática do Desktop. Fluxo de dispositivo iniciado para interação do proprietário; autenticação e inferência não declaradas funcionais antes de sua conclusão.
+
+## V0.2 — execução textual supervisionada
+- Login próprio concluído pelo proprietário e confirmado por probe, com armazenamento no keyring.
+- CEO, DEV, DESIGNER e QA orquestrados por LangGraph; planejamento, delegação local, propostas, revisão e consolidação reais pelo CLI oficial.
+- Solicitações, fila, etapas, artefatos, aprovações e consumo persistentes no banco. Worker separado, cancelamento, leases e proteção contra execução duplicada.
+- Modos manual, supervisionado e automático limitado ao escopo textual consentido; decisões vinculadas à etapa e auditadas.
+- Painel CEO, execuções e aprovações funcionais; scripts Windows inicializam também o worker.
+- Backend: 36 testes automatizados; E2E: 6 fluxos, incluindo solicitação, revisão, confirmação, aprovação e cancelamento; sem inferência real no CI.
+- Inferência real: cenário sintético autenticado, cinco workers em processos separados, cinco etapas concluídas, 56.953 tokens reportados. Cenário real adicional verificou recusa de leitura de canário fora do workspace.
+- Lint, build e typecheck verificados; revisão independente e correções descritas em [segurança V0.2](v02-security-review.md).
+
+### Limites e próximos passos
+V0.2 entrega planos e pareceres textuais; não modifica código em outros repositórios nem executa testes desses projetos. GitHub operacional (V0.3) será via GitHub App com instalação por repositório, escolhido pelo usuário; teste inicial restrito ao novo `ai-team`. App e instalação precisam ser provisionados e validados. Vercel, Supabase hospedado, agendamento e publicação permanecem para os marcos seguintes. Nenhum deploy realizado.

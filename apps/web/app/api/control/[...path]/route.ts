@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const allowed = /^(auth\/(login|logout|me)|workspace|projects|tasks(?:\/[a-zA-Z0-9-]+)?|events|integrations)$/;
+const allowed = /^(auth\/(login|logout|me)|workspace|projects|tasks(?:\/[a-zA-Z0-9-]+)?|events|integrations|runs(?:\/[a-zA-Z0-9-]+(?:\/(decision|cancel|resume))?)?)$/;
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;

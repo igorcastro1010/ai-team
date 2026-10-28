@@ -1,6 +1,6 @@
 # AI TEAM
 
-Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.1: controle e persistência reais; execução de IA e integrações externas ainda não habilitadas.**
+Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.2: CEO e especialistas geram planos, propostas e revisões reais pelo Codex, com fila persistente e aprovações.** Alterações em repositórios e deploys ainda não estão habilitados.
 
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.
@@ -8,6 +8,9 @@ Sala de operações em português para projetos, tarefas e agentes de IA. Plataf
 - Quadro com transições validadas, armazenamento persistente e histórico de auditoria.
 - Visão geral, papéis dos quatro agentes, status das integrações e relatório JSON.
 - Interface responsiva, formulários acessíveis e bloqueio de acesso sem login.
+- Conversa por solicitações com o CEO: planejamento, delegação de tarefas locais, DEV, DESIGNER, QA e consolidação.
+- Worker separado, checkpoints SQL por etapa, status, cancelamento e artefatos textuais persistentes.
+- Modos manual, supervisionado e automático restrito ao escopo textual consentido. Decisões vinculadas à etapa, protegidas contra replay.
 
 ## Windows: instalar e abrir
 Requisitos: Git, Node.js 22 ou 24 LTS e [uv](https://docs.astral.sh/uv/). Python 3.12 será localizado/instalado pelo uv.
@@ -21,7 +24,7 @@ cd ai-team
 
 O instalador solicita uma senha com pelo menos 12 caracteres, sem exibí-la ou gravá-la em claro. Depois abra [localhost:3000](http://localhost:3000), usuário `admin`. Para outro nome: `ai-team create-owner --username NOME` no ambiente virtual, antes do cadastro inicial. Não existe senha padrão nem registro público.
 
-API escuta apenas em 127.0.0.1:8000; painel em 127.0.0.1:3000. O script mantém a API oculta e encerra o processo que iniciou ao fechar o painel. O modo de desenvolvimento não é uma instalação de produção. Não há EXE ou serviço Windows instalado.
+API escuta apenas em 127.0.0.1:8000; painel em 127.0.0.1:3000. O script mantém API e worker ocultos e encerra os processos que iniciou ao fechar o painel. O modo de desenvolvimento não é uma instalação de produção. Não há EXE ou serviço Windows instalado.
 
 ### Instalação manual / Linux
 ```sh
@@ -33,6 +36,8 @@ npm ci
 .venv/Scripts/python.exe -m uvicorn ai_team.main:app --host 127.0.0.1 --port 8000
 # Em outro terminal:
 npm run dev
+# Em um terceiro terminal, após login próprio do Codex:
+.venv/Scripts/python.exe -m ai_team.worker
 ```
 No Linux substitua `.venv/Scripts/python.exe` por `.venv/bin/python`. Se houver restrição local a scripts PowerShell, execute os comandos manualmente; não é necessário alterar a política do sistema.
 
@@ -44,7 +49,7 @@ SQLite local: `.data/ai-team.db`. Não apague este arquivo para atualizar. Backu
 ## PostgreSQL / Supabase
 Use `AI_TEAM_DATABASE_URL=postgresql+psycopg://.../postgres?sslmode=require` no servidor privado. Inicialize explicitamente com `ai-team init-db`, depois cadastre o proprietário. As tabelas ficam no schema `ai_team`, sem permissão de PUBLIC. Não adicione esse schema aos expostos pelo PostgREST/Supabase Data API. O painel conversa exclusivamente com FastAPI; não recebe service_role ou senha do banco.
 
-V0.1 oferece criação inicial de schema; ainda não migra instalações de versões futuras automaticamente. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
+V0.2 adiciona as tabelas `runs` e `worker_heartbeats` sem remover dados da V0.1. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
 
 ## Verificação
 ```powershell
@@ -63,13 +68,13 @@ docs/               arquitetura, pesquisa, marcos e evidências
 
 ## Evolução e limites
 - V0.1: base local funcional.
-- V0.2: CEO, especialistas, LangGraph e tarefas executadas por worker.
+- V0.2: entregue — CEO, especialistas, LangGraph, fila, propostas e revisão textual por worker.
 - V0.3: GitHub com recursos permitidos e fluxo de desenvolvimento.
 - V0.4: Codex e Vercel com mecanismos oficiais homologados.
 - V0.5: automações, relatórios de execução e limites de uso.
 - V1.0: homologação, segurança de produção e publicação autorizada.
 
-Nenhum deploy é feito pela V0.1. Preferências de modo são persistidas, mas ainda não autorizam execução externa. Não há leitura de outros projetos, execução de shell, exclusões, pagamentos ou acesso à sessão local do Codex. Integrações planejadas aparecem como planejadas. Veja [desenho](docs/superpowers/specs/2026-10-27-ai-team-design.md), [skills](docs/skills.md) e [releases](docs/releases.md).
+Nenhum deploy é feito pela plataforma nesta versão. A autorização automática vale somente para elaboração textual dentro da solicitação consentida. Não há leitura de outros projetos, execução de shell pelo agente, exclusões, pagamentos ou acesso à sessão local do Codex. Integrações futuras aparecem como planejadas. Veja [desenho](docs/superpowers/specs/2026-10-27-ai-team-design.md), [skills](docs/skills.md) e [releases](docs/releases.md).
 
 ### Preparação do executor Codex
 O usuário escolheu login próprio do Codex. `tools/login-codex.ps1` inicia o fluxo oficial por código de dispositivo em contexto separado (`%LOCALAPPDATA%/AI-Team/codex`). As credenciais usam obrigatoriamente o cofre do sistema, sem fallback para arquivo de tokens. A sessão e o diretório do Desktop não são lidos ou copiados. É necessário um executável nativo oficial `codex` no PATH; a versão encontrada e os parâmetros devem ser homologados antes de executar agentes. No ambiente de desenvolvimento atual, o binário oficial foi detectado.
@@ -79,4 +84,22 @@ O usuário escolheu login próprio do Codex. `tools/login-codex.ps1` inicia o fl
 .venv\Scripts\python.exe -m ai_team.codex_access status
 ```
 
-Esse preparo ainda não habilita ferramentas ou execução de tarefas. O login depende da interação do proprietário no site oficial. Não envie códigos de acesso, tokens ou arquivos de autenticação a outras pessoas.
+Após login, inicie o worker com `tools/start.ps1` (junto do painel) ou `tools/worker.ps1` (isolado). O painel indica quando o worker está online; pedidos ficam persistidos na fila enquanto ele está desligado. Não envie códigos de acesso, tokens ou arquivos de autenticação a outras pessoas.
+
+## Como executar uma solicitação
+1. Crie um projeto e selecione o modo de autonomia.
+2. Em **Conversa com CEO**, escolha o projeto, descreva o objetivo e marque o consentimento de envio ao Codex. Não inclua dados sensíveis.
+3. O CEO gera o plano e propõe tarefas. Em modo supervisionado, revise o artefato e autorize a continuação em **Aprovações**. Em modo manual, cada próxima etapa depende de sua decisão.
+4. DEV e DESIGNER produzem propostas, QA faz revisão documental, CEO consolida. Os resultados ficam em **Execuções** e na conversa. Tarefas propostas não são marcadas como concluídas automaticamente.
+
+Limites por solicitação: 5 chamadas, 120 segundos por chamada, contexto de pedido até 5.000 caracteres e artefatos limitados. Antes de iniciar outra chamada, o worker verifica o consumo acumulado de 50.000 tokens. Uma chamada em andamento pode ultrapassar esse limiar; não é teto financeiro rígido. Custo monetário permanece indisponível; os tokens exibidos vêm do CLI. Chamadas malsucedidas também podem consumir os limites da conta, mesmo sem relatório de tokens.
+
+Não há repetição automática de chamadas falhas. Queda de worker durante uma etapa deixa a execução incerta; após a lease de 180s, o próximo worker a marca como falha. Cancelamento preserva histórico e interrompe o processo local; uma requisição já enviada ao provedor pode consumir uso até ser encerrada. Somente pedidos bloqueados por falta de configuração podem ser retomados; uma falha exige nova solicitação consentida.
+
+A interface mostra as últimas 200 execuções/eventos. Aprovações são consultadas separadamente, das mais antigas às mais recentes, para não desaparecerem atrás do histórico concluído.
+
+### Homologação real opt-in
+```powershell
+.venv\Scripts\python.exe tools/smoke_codex.py --real
+```
+Esse comando consome até cinco chamadas reais, usa um banco temporário exclusivo e um projeto sintético, testa API autenticada + worker em cinco processos separados + decisão de teste e grava evidência em `artifacts/codex-smoke.json` (ignorado no Git). Os testes comuns e o CI usam provedores de teste e não fazem inferência paga. Validado no Windows com o CLI oficial disponível; compatibilidade de outro binário deve ser verificada sem flexibilizar as permissões.
