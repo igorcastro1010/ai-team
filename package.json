@@ -1,0 +1,14 @@
+{
+  "name": "ai-team",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/web"],
+  "scripts": {
+    "dev": "npm run dev --workspace @ai-team/web",
+    "build": "npm run build --workspace @ai-team/web",
+    "lint": "npm run lint --workspace @ai-team/web",
+    "typecheck": "npm run typecheck --workspace @ai-team/web",
+    "test:e2e": "npm run test:e2e --workspace @ai-team/web"
+  },
+  "engines": { "node": ">=22 <25" }
+}

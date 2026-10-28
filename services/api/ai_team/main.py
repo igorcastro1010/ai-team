@@ -1,0 +1,210 @@
+from contextlib import asynccontextmanager
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import JSONResponse
+from sqlalchemy import select, update
+
+from .agents import AGENTS
+from .auth import COOKIE_NAME, authenticate, digest, require_owner
+from .config import Settings
+from .db import Database
+from .integrations import integration_statuses
+from .models import AuthSession, Event, Project, Task
+from .schemas import (
+    EventView,
+    LoginInput,
+    ProjectInput,
+    ProjectView,
+    TaskInput,
+    TaskUpdate,
+    TaskView,
+)
+
+TRANSITIONS = {
+    "backlog": {"in_progress"},
+    "in_progress": {"backlog", "review"},
+    "review": {"in_progress", "done"},
+    "done": {"backlog"},
+}
+
+
+def create_app(settings: Settings | None = None, database: Database | None = None) -> FastAPI:
+    settings = settings or Settings()
+    database = database or Database(settings)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        if settings.environment != "production":
+            database.initialize()
+        yield
+
+    app = FastAPI(
+        title="AI TEAM",
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url=None if settings.environment == "production" else "/docs",
+    )
+    app.state.database, app.state.settings = database, settings
+
+    @app.middleware("http")
+    async def protect_origin(request: Request, call_next):
+        if request.method in {"POST", "PATCH", "PUT", "DELETE"}:
+            if request.headers.get("origin") != settings.public_origin:
+                return JSONResponse({"detail": "Origem não autorizada"}, status_code=403)
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    Owner = Annotated[str, Depends(require_owner)]
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "version": "0.1.0"}
+
+    @app.post("/auth/login")
+    def login(data: LoginInput, response: Response):
+        with database.session() as db:
+            db.info["session_ttl"] = settings.session_ttl_seconds
+            token = authenticate(db, data.username, data.password)
+        response.set_cookie(
+            COOKIE_NAME,
+            token,
+            httponly=True,
+            samesite="strict",
+            secure=settings.environment == "production",
+            max_age=settings.session_ttl_seconds,
+            path="/",
+        )
+        return {"username": data.username.strip()}
+
+    @app.get("/auth/me")
+    def me(owner: Owner):
+        return {"username": owner}
+
+    @app.post("/auth/logout", status_code=204)
+    def logout(request: Request, response: Response, owner: Owner):
+        with database.session() as db:
+            session = db.get(AuthSession, digest(request.cookies[COOKIE_NAME]))
+            db.delete(session)
+            db.add(Event(kind="auth.logout", summary="Sessão encerrada", actor=owner))
+            db.commit()
+        response.delete_cookie(
+            COOKIE_NAME,
+            path="/",
+            httponly=True,
+            samesite="strict",
+            secure=settings.environment == "production",
+        )
+
+    @app.get("/projects", response_model=list[ProjectView])
+    def projects(owner: Owner):
+        with database.session() as db:
+            return list(db.scalars(select(Project).order_by(Project.created_at.desc())))
+
+    @app.post("/projects", response_model=ProjectView, status_code=201)
+    def add_project(data: ProjectInput, owner: Owner):
+        with database.session() as db:
+            project = Project(**data.model_dump())
+            db.add(project)
+            db.flush()
+            db.add(
+                Event(
+                    kind="project.created",
+                    resource_id=project.id,
+                    summary=f"Projeto criado: {project.name}",
+                    actor=owner,
+                )
+            )
+            db.commit()
+            return project
+
+    @app.get("/tasks", response_model=list[TaskView])
+    def tasks(owner: Owner):
+        with database.session() as db:
+            return list(db.scalars(select(Task).order_by(Task.created_at.desc())))
+
+    @app.post("/tasks", response_model=TaskView, status_code=201)
+    def add_task(data: TaskInput, owner: Owner):
+        with database.session() as db:
+            if not db.get(Project, data.project_id):
+                raise HTTPException(404, "Projeto não encontrado")
+            task = Task(**data.model_dump())
+            db.add(task)
+            db.flush()
+            db.add(
+                Event(
+                    kind="task.created",
+                    resource_id=task.id,
+                    summary=f"Tarefa criada: {task.title}",
+                    actor=owner,
+                )
+            )
+            db.commit()
+            return task
+
+    @app.patch("/tasks/{task_id}", response_model=TaskView)
+    def move_task(task_id: str, data: TaskUpdate, owner: Owner):
+        with database.session() as db:
+            task = db.get(Task, task_id)
+            if not task:
+                raise HTTPException(404, "Tarefa não encontrada")
+            previous = task.status
+            if data.status not in TRANSITIONS[previous]:
+                raise HTTPException(409, "Transição inválida. Atualize o quadro e tente novamente.")
+            changed = db.execute(
+                update(Task)
+                .where(Task.id == task_id, Task.status == previous)
+                .values(status=data.status)
+            )
+            if changed.rowcount != 1:
+                raise HTTPException(409, "Tarefa alterada por outra sessão. Atualize o quadro.")
+            db.add(
+                Event(
+                    kind="task.moved",
+                    resource_id=task.id,
+                    summary=f"Atualização manual: {previous} → {data.status}",
+                    actor=owner,
+                )
+            )
+            db.commit()
+            db.refresh(task)
+            return task
+
+    @app.get("/events", response_model=list[EventView])
+    def events(owner: Owner):
+        with database.session() as db:
+            return list(db.scalars(select(Event).order_by(Event.sequence.desc()).limit(200)))
+
+    @app.get("/integrations")
+    def integrations(owner: Owner):
+        result = integration_statuses()
+        if database.engine.dialect.name == "postgresql":
+            for item in result:
+                if item["id"] == "supabase":
+                    item["status"] = "configured"
+                    item["description"] = (
+                        "PostgreSQL configurado. Provedor Supabase não homologado."
+                    )
+        return result
+
+    @app.get("/workspace")
+    def workspace(owner: Owner):
+        return {
+            "version": "0.1.0",
+            "owner": owner,
+            "projects": [ProjectView.model_validate(p) for p in projects(owner)],
+            "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
+            "events": [EventView.model_validate(e) for e in events(owner)],
+            "agents": AGENTS,
+            "runs": [],
+            "approvals": [],
+            "usage": {"requests": 0, "tokens": 0, "cost_usd": None},
+            "integrations": integrations(owner),
+        }
+
+    return app
+
+
+app = create_app()

@@ -1,0 +1,29 @@
+name: Quality gates
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.9.5'
+          python-version: '3.12'
+      - run: uv venv --python 3.12 .venv
+      - run: uv pip sync services/api/requirements.lock
+      - run: uv pip install --no-deps -e services/api
+      - run: npm ci
+      - run: .venv/bin/python -m pytest services/api/tests -q
+      - run: .venv/bin/python -m ruff check services/api
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
