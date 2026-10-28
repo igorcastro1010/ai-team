@@ -103,3 +103,6 @@ A interface mostra as últimas 200 execuções/eventos. Aprovações são consul
 .venv\Scripts\python.exe tools/smoke_codex.py --real
 ```
 Esse comando consome até cinco chamadas reais, usa um banco temporário exclusivo e um projeto sintético, testa API autenticada + worker em cinco processos separados + decisão de teste e grava evidência em `artifacts/codex-smoke.json` (ignorado no Git). Os testes comuns e o CI usam provedores de teste e não fazem inferência paga. Validado no Windows com o CLI oficial disponível; compatibilidade de outro binário deve ser verificada sem flexibilizar as permissões.
+
+### Próxima integração: GitHub App
+O preparo de registro está em `tools/setup-github-app.ps1`. Veja [permissões e instalação](docs/github-app-setup.md). A V0.3 operacional depende de criar a App privada e instalar somente no repositório `ai-team`, antes de homologar chamadas reais. Não envie chaves no chat.

@@ -39,3 +39,11 @@ Adicionado comando próprio de login e status. Dois testes adicionais verificam 
 
 ### Limites e próximos passos
 V0.2 entrega planos e pareceres textuais; não modifica código em outros repositórios nem executa testes desses projetos. GitHub operacional (V0.3) será via GitHub App com instalação por repositório, escolhido pelo usuário; teste inicial restrito ao novo `ai-team`. App e instalação precisam ser provisionados e validados. Vercel, Supabase hospedado, agendamento e publicação permanecem para os marcos seguintes. Nenhum deploy realizado.
+
+## Preparação V0.3 — registro de GitHub App
+- Fluxo oficial de manifesto para App privada, confirmação no GitHub e instalação seletiva pelo proprietário.
+- Callback loopback com estado aleatório, prazo, uso único, validação de Host e conta; sem logs de códigos ou segredos.
+- Cofre nativo obrigatório, gravação em partes e descarte de segredos OAuth/webhook não utilizados.
+- Revisão independente identificou URL obrigatória no manifesto de webhook, mesmo desativado; teste de regressão falhou antes da correção e passou depois.
+- Verificação: 41 testes Python e lint aprovados. O teste de cofre real escreveu, leu e removeu apenas uma entrada temporária de preflight.
+- GitHub App e instalação ainda pendentes de validação real. Esta preparação não habilita ferramentas nos agentes e não conclui a V0.3.
