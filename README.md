@@ -70,3 +70,13 @@ docs/               arquitetura, pesquisa, marcos e evidências
 - V1.0: homologação, segurança de produção e publicação autorizada.
 
 Nenhum deploy é feito pela V0.1. Preferências de modo são persistidas, mas ainda não autorizam execução externa. Não há leitura de outros projetos, execução de shell, exclusões, pagamentos ou acesso à sessão local do Codex. Integrações planejadas aparecem como planejadas. Veja [desenho](docs/superpowers/specs/2026-10-27-ai-team-design.md), [skills](docs/skills.md) e [releases](docs/releases.md).
+
+### Preparação do executor Codex
+O usuário escolheu login próprio do Codex. `tools/login-codex.ps1` inicia o fluxo oficial por código de dispositivo em contexto separado (`%LOCALAPPDATA%/AI-Team/codex`). As credenciais usam obrigatoriamente o cofre do sistema, sem fallback para arquivo de tokens. A sessão e o diretório do Desktop não são lidos ou copiados. É necessário um executável nativo oficial `codex` no PATH; a versão encontrada e os parâmetros devem ser homologados antes de executar agentes. No ambiente de desenvolvimento atual, o binário oficial foi detectado.
+
+```powershell
+.\tools\login-codex.ps1
+.venv\Scripts\python.exe -m ai_team.codex_access status
+```
+
+Esse preparo ainda não habilita ferramentas ou execução de tarefas. O login depende da interação do proprietário no site oficial. Não envie códigos de acesso, tokens ou arquivos de autenticação a outras pessoas.
