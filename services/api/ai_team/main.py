@@ -15,6 +15,9 @@ from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
 from .run_routes import RunView
 from .run_routes import router as runs_router
+from .schedule_routes import ScheduleView
+from .schedule_routes import router as schedule_router
+from .schedules import ScheduleStore
 from .schemas import (
     EventView,
     LoginInput,
@@ -56,6 +59,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(runs_router)
     app.include_router(github_router)
     app.include_router(vercel_router)
+    app.include_router(schedule_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -232,6 +236,9 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),
             "vercel": observation_snapshot(database),
+            "schedules": [
+                ScheduleView.model_validate(row) for row in ScheduleStore(database).all()
+            ],
         }
 
     return app
