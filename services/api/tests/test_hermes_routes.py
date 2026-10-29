@@ -14,14 +14,23 @@ def test_hermes_is_owner_only_and_csrf_protected(client):
 
 def test_inspection_persists_sanitized_observation_without_inference(client, monkeypatch):
     import ai_team.hermes_routes as routes
+
     calls = []
+
     class Reader:
         def __init__(self, settings):
             pass
+
         def inspect(self):
             calls.append(True)
-            return {"status": "reachable", "checked_at": 123,
-                    "text_only": True, "inference_verified": False, "secret": "private-key"}
+            return {
+                "status": "reachable",
+                "checked_at": 123,
+                "text_only": True,
+                "inference_verified": False,
+                "secret": "private-key",
+            }
+
     monkeypatch.setattr(routes, "HermesClient", Reader)
     login(client)
     assert client.get("/hermes").json()["connection"] is None

@@ -36,7 +36,12 @@ def inspect(request: Request, owner: Owner):
     ).model_dump()
     with request.app.state.database.session() as db:
         db.merge(ProviderObservation(id="hermes", details=result))
-        db.add(Event(kind="hermes.inspected", actor=owner,
-                     summary=f"Diagnóstico Hermes: {result['status']}; sem inferência"))
+        db.add(
+            Event(
+                kind="hermes.inspected",
+                actor=owner,
+                summary=f"Diagnóstico Hermes: {result['status']}; sem inferência",
+            )
+        )
         db.commit()
     return result

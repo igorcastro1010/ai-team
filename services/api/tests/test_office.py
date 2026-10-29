@@ -4,8 +4,16 @@ from ai_team.office import office_snapshot
 
 
 def run(**changes):
-    values = dict(id="test", executor="hermes", status="running", stage=1,
-                  steps=[], error="", created_at=100, lease_expires_at=9999999999)
+    values = dict(
+        id="test",
+        executor="hermes",
+        status="running",
+        stage=1,
+        steps=[],
+        error="",
+        created_at=100,
+        lease_expires_at=9999999999,
+    )
     return SimpleNamespace(**(values | changes))
 
 
@@ -20,8 +28,11 @@ def test_office_never_animates_without_valid_worker_evidence():
 def test_office_uses_persisted_stage_and_approval_owner():
     snapshot = office_snapshot([run()], worker_online=True)
     assert next(agent for agent in snapshot if agent["id"] == "DEV")["animate"] is True
-    awaiting = run(status="awaiting_approval", stage=1, steps=[
-        {"agent": "CEO", "summary": "Plano", "deliverable": "Artefato persistido"}])
+    awaiting = run(
+        status="awaiting_approval",
+        stage=1,
+        steps=[{"agent": "CEO", "summary": "Plano", "deliverable": "Artefato persistido"}],
+    )
     snapshot = office_snapshot([awaiting], worker_online=True)
     ceo = next(agent for agent in snapshot if agent["id"] == "CEO")
     assert ceo["status"] == "awaiting_approval"
@@ -40,8 +51,24 @@ def test_expired_lease_never_animates_and_prepared_roles_have_no_fake_history():
 
 
 def test_active_work_has_priority_over_more_recent_terminal_history():
-    snapshot = office_snapshot([
-        run(id="recent", status="failed", created_at=200),
-        run(id="active", created_at=100),
-    ], worker_online=True)
+    snapshot = office_snapshot(
+        [
+            run(id="recent", status="failed", created_at=200),
+            run(id="active", created_at=100),
+        ],
+        worker_online=True,
+    )
     assert next(agent for agent in snapshot if agent["id"] == "DEV")["run_id"] == "active"
+
+
+def test_running_has_priority_over_newer_queued_work():
+    snapshot = office_snapshot(
+        [
+            run(id="queued", status="queued", created_at=200),
+            run(id="active", created_at=100),
+        ],
+        worker_online=True,
+    )
+    dev = next(agent for agent in snapshot if agent["id"] == "DEV")
+    assert dev["run_id"] == "active"
+    assert dev["animate"]
