@@ -52,7 +52,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.4.0",
+        version="0.5.0",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
@@ -77,7 +77,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.4.0"}
+        return {"status": "ok", "version": "0.5.0"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -226,7 +226,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @app.get("/workspace")
     def workspace(owner: Owner):
         return {
-            "version": "0.4.0",
+            "version": "0.5.0",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],

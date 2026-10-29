@@ -72,3 +72,15 @@ V0.4: manter o mecanismo Codex oficial já homologado e configurar acesso Vercel
 
 ### Limites e próximo marco
 Nenhuma publicação foi realizada. O cliente implementa somente consultas, embora a credencial possa conceder escrita no provedor. Estados de deploy não vazios são cobertos por simulação, sem homologação real. Credenciais não são entregues aos agentes. V0.5 (recorrência e relatórios), PostgreSQL hospedado e instalação em outro PC continuam pendentes. O primeiro cadastro admin do banco de uso real precisa ser concluído pelo proprietário no terminal seguro.
+
+
+## V0.5 — recorrências e relatórios
+- Agendas imutáveis com consentimento, modo próprio, até cinco ocorrências, intervalo de 1 hora a 7 dias, início nos próximos sete dias e validade de 30 dias. Cancelamento e auditoria preservam histórico.
+- Scheduler separado do HTTP, com CAS/transação única e proteção contra duplicação, sobreposição e recuperação em lote após indisponibilidade. Script Windows inicia e encerra também esse processo.
+- Relatórios SQL abrangem todo o banco; histórico paginado com cursor e exportação da página, sem prompts, respostas, leases ou sessões.
+- Verificação local: 106 testes Python, lint Python/Next.js, typecheck, build e 10 E2E aprovados. Testes cobrem dois schedulers, cancelamento concorrente, rollback, expiração, atraso, modo congelado, encaminhamento para cinco etapas de worker sintético, 205 execuções paginadas e exportação JSON.
+- Processo scheduler real testado em banco temporário; nenhuma agenda criada no workspace real, nenhuma chamada IA paga e nenhuma publicação nesta versão.
+- Skills: planejamento/execução, TDD/revisão/verificação, Supabase Postgres, UI/UX Pro Max, Vercel React e Playwright. [Revisão e limites](v05-security-review.md).
+
+### Próximos passos
+V1.0 exige homologar PostgreSQL privado, instalação fora deste PC e hospedagem segura de API/worker/scheduler. Publicação continua dependente de autorização específica. O cadastro admin do workspace real ainda deve ser concluído pelo proprietário no terminal seguro. Os agentes continuam produzindo planos e pareceres textuais; não executam código arbitrário em outros projetos. Custos monetários e serviço permanente do Windows não são implementados.

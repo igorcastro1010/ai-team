@@ -1,6 +1,6 @@
 # AI TEAM
 
-Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.4: Codex próprio, propostas GitHub supervisionadas e consultas Vercel autenticadas.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
+Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.
@@ -10,6 +10,8 @@ Sala de operações em português para projetos, tarefas e agentes de IA. Plataf
 - Interface responsiva, formulários acessíveis e bloqueio de acesso sem login.
 - Conversa por solicitações com o CEO: planejamento, delegação de tarefas locais, DEV, DESIGNER, QA e consolidação.
 - Worker separado, checkpoints SQL por etapa, status, cancelamento e artefatos textuais persistentes.
+- Agendamentos textuais com consentimento, até cinco ocorrências, validade de 30 dias e scheduler separado.
+- Relatórios com totais completos do banco, histórico paginado e exportação JSON da página.
 - Modos manual, supervisionado e automático restrito ao escopo textual consentido. Decisões vinculadas à etapa, protegidas contra replay.
 
 ## Windows: instalar e abrir
@@ -24,7 +26,7 @@ cd ai-team
 
 O instalador solicita uma senha com pelo menos 12 caracteres, sem exibí-la ou gravá-la em claro. Depois abra [localhost:3000](http://localhost:3000), usuário `admin`. Para outro nome: `ai-team create-owner --username NOME` no ambiente virtual, antes do cadastro inicial. Não existe senha padrão nem registro público.
 
-API escuta apenas em 127.0.0.1:8000; painel em 127.0.0.1:3000. O script mantém API e worker ocultos e encerra os processos que iniciou ao fechar o painel. O modo de desenvolvimento não é uma instalação de produção. Não há EXE ou serviço Windows instalado.
+API escuta apenas em 127.0.0.1:8000; painel em 127.0.0.1:3000. O script mantém API, worker e scheduler ocultos e encerra os processos que iniciou ao fechar o painel. O modo de desenvolvimento não é uma instalação de produção. Não há EXE ou serviço Windows instalado.
 
 ### Instalação manual / Linux
 ```sh
@@ -38,6 +40,8 @@ npm ci
 npm run dev
 # Em um terceiro terminal, após login próprio do Codex:
 .venv/Scripts/python.exe -m ai_team.worker
+# Em um quarto terminal:
+.venv/Scripts/python.exe -m ai_team.scheduler
 ```
 No Linux substitua `.venv/Scripts/python.exe` por `.venv/bin/python`. Se houver restrição local a scripts PowerShell, execute os comandos manualmente; não é necessário alterar a política do sistema.
 
@@ -49,7 +53,7 @@ SQLite local: `.data/ai-team.db`. Não apague este arquivo para atualizar. Backu
 ## PostgreSQL / Supabase
 Use `AI_TEAM_DATABASE_URL=postgresql+psycopg://.../postgres?sslmode=require` no servidor privado. Inicialize explicitamente com `ai-team init-db`, depois cadastre o proprietário. As tabelas ficam no schema `ai_team`, sem permissão de PUBLIC. Não adicione esse schema aos expostos pelo PostgREST/Supabase Data API. O painel conversa exclusivamente com FastAPI; não recebe service_role ou senha do banco.
 
-V0.2 adiciona `runs` e `worker_heartbeats`; V0.3 adiciona `github_actions` e `github_verification`; V0.4 adiciona `provider_observations`, sem remover dados existentes. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
+V0.2 adiciona `runs` e `worker_heartbeats`; V0.3 adiciona `github_actions` e `github_verification`; V0.4 adiciona `provider_observations`; V0.5 adiciona `schedules` e `schedule_occurrences`, sem remover dados existentes. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
 
 ## Verificação
 ```powershell
@@ -71,7 +75,7 @@ docs/               arquitetura, pesquisa, marcos e evidências
 - V0.2: entregue — CEO, especialistas, LangGraph, fila, propostas e revisão textual por worker.
 - V0.3: entregue — GitHub App própria e propostas revisadas de branch/documento/issue/PR, somente no ai-team.
 - V0.4: entregue — Codex oficial preservado e consulta Vercel própria ao projeto autorizado, sem publicação.
-- V0.5: automações, relatórios de execução e limites de uso.
+- V0.5: entregue — recorrências textuais limitadas, scheduler separado e relatórios paginados.
 - V1.0: homologação, segurança de produção e publicação autorizada.
 
 Nenhum deploy é feito pela plataforma nesta versão. A autorização automática vale somente para elaboração textual dentro da solicitação consentida. Não há leitura de outros projetos, execução de shell pelo agente, exclusões, pagamentos ou acesso à sessão local do Codex. Integrações futuras aparecem como planejadas. Veja [desenho](docs/superpowers/specs/2026-10-27-ai-team-design.md), [skills](docs/skills.md) e [releases](docs/releases.md).
@@ -115,3 +119,7 @@ Homologação real opt-in: `.venv\Scripts\python.exe tools/smoke_github.py --rea
 
 ### V0.4: Vercel própria, somente consultas
 Configuração segura: `powershell -NoProfile -File .\tools\setup-vercel.ps1`. Consulte [escopo, cofre e limites](docs/vercel-setup.md). Credencial própria validada e projeto vazio criado com autorização; nenhum deploy realizado. No painel Integrações, use **Consultar Vercel** para registrar o estado e os últimos deploys do ai-team. O cliente só implementa GET e verifica o ID do projeto vinculado.
+
+### Recorrências e relatórios V0.5
+
+Abra **Agendamentos** para autorizar projeto, solicitação, modo, início e frequência. A instalação não cria agendas automaticamente. Veja [limites e execução Windows](docs/schedules.md) e [revisão de segurança](docs/v05-security-review.md). Em **Relatórios**, os totais abrangem todo o banco; o histórico e a exportação JSON representam uma página de até 50 execuções por vez. Prompts e credenciais não são exportados. Não há inferência paga nos testes desta versão.
