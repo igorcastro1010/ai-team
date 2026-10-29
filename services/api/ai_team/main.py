@@ -13,6 +13,7 @@ from .github_actions import GitHubStore
 from .github_routes import router as github_router
 from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
+from .report_routes import router as report_router
 from .run_routes import RunView
 from .run_routes import router as runs_router
 from .schedule_routes import ScheduleView
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(github_router)
     app.include_router(vercel_router)
     app.include_router(schedule_router)
+    app.include_router(report_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
