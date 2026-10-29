@@ -1,0 +1,77 @@
+name: PostgreSQL integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, codex/hermes-integration]
+    paths:
+      - '.github/workflows/postgres-integration.yml'
+      - 'services/api/**'
+  pull_request:
+    paths:
+      - '.github/workflows/postgres-integration.yml'
+      - 'services/api/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgres-integration-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    services:
+      postgres:
+        # Official postgres:17.11-bookworm index resolved and checksum-verified 2026-10-29.
+        image: postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+        env:
+          POSTGRES_DB: ai_team_ci
+          POSTGRES_USER: ai_team_ci_admin
+          # Disposable CI-only password; never a user/production credential.
+          POSTGRES_PASSWORD: ci-only-disposable-postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U ai_team_ci_admin -d ai_team_ci"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+          --cpus 2 --memory 1g --pids-limit 128
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.9.5'
+          python-version: '3.12'
+      - run: uv venv --python 3.12 .venv
+      - run: uv pip sync services/api/requirements.lock
+      - run: uv pip install --no-deps -e services/api
+      - name: Verify against real ephemeral PostgreSQL (no inference)
+        env:
+          CI: 'true'
+          AI_TEAM_POSTGRES_CI: fresh-ephemeral
+          POSTGRES_CI_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          timeout 180 .venv/bin/python - <<'PY'
+          import os
+          import sys
+          from sqlalchemy.engine import URL
+
+          # Construct the disposable URL inside the process; never echo it into Actions logs.
+          url = URL.create(
+              "postgresql+psycopg",
+              username="ai_team_ci_admin",
+              password="ci-only-disposable-postgres",
+              host="127.0.0.1",
+              port=int(os.environ["POSTGRES_CI_PORT"]),
+              database="ai_team_ci",
+          )
+          environment = os.environ | {
+              "AI_TEAM_TEST_POSTGRES_URL": url.render_as_string(hide_password=False),
+          }
+          os.execve(sys.executable, [
+              sys.executable, "-m", "pytest",
+              "services/api/tests/test_postgres_integration.py", "-q", "--tb=short",
+          ], environment)
+          PY
