@@ -37,6 +37,12 @@ def test_no_network_without_configuration():
     assert client.inspect()["status"] == "not_configured"
 
 
+def test_configuration_validation_errors_hide_secret_input():
+    with pytest.raises(ValidationError) as error:
+        Settings(hermes_key="short-private-secret")
+    assert "short-private-secret" not in str(error.value)
+
+
 def make_client(handler):
     return HermesClient(settings(), transport=httpx.MockTransport(handler))
 
