@@ -1,5 +1,9 @@
 # Compatibilidade PostgreSQL no CI
 
+**Evidência observada:** [run 40924442533](https://github.com/igorcastro1010/ai-team/actions/runs/40924442533)
+aprovado no commit `b426c0c0ae6d03e15d63ae05271da5da7b1f9339`:
+cinco testes passaram em 2,49 segundos contra o serviço PostgreSQL real.
+
 O workflow `.github/workflows/postgres-integration.yml` executa cinco testes com
 PostgreSQL real em serviço descartável do GitHub Actions. As credenciais são
 sintéticas, exclusivas do CI; não há provisionamento hospedado, inferência ou Telegram.

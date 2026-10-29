@@ -1,5 +1,23 @@
 # Evidências e limites — 29/10/2026
 
+## Continuação: journal e operação supervisionada
+
+- Suíte local: **168 testes Python e 18 E2E aprovados**; Ruff, ESLint,
+  TypeScript e build aprovados. Os cinco testes PostgreSQL são opt-in e ficam
+  ignorados localmente sem banco de CI explícito.
+- [Runtime Hermes oficial](https://github.com/igorcastro1010/ai-team/actions/runs/40922239576):
+  gateway, autenticação, política sem ferramentas, sete perfis reconhecidos e
+  persistência de SessionDB após recriação aprovados, sem inferência.
+- [PostgreSQL real](https://github.com/igorcastro1010/ai-team/actions/runs/40924442533):
+  cinco testes aprovados com login de aplicação restrito, schema privado,
+  preservação de dados, autenticação/consentimento e concorrência do journal.
+- Novas regressões: admissão incerta, unicidade de estágio entre workers,
+  cancelamento sem confirmação, respostas tardias, consumo monotônico e
+  histórico paginado estável durante atualizações. Revisão independente aplicada.
+
+Esses testes não enviaram mensagens Telegram nem comprovaram inferência ou
+delegação nativa. A validação PostgreSQL descartável não instala ou migra Supabase.
+
 ## Verificação local
 
 - Base anterior: 107 testes Python aprovados antes da implementação.
@@ -38,15 +56,21 @@ Corrigidos e cobertos por regressão:
 
 ## Homologação externa pendente
 
+Atualização da continuação: o [runtime oficial em CI](https://github.com/igorcastro1010/ai-team/actions/runs/40922239576)
+passou em gateway, autenticação HTTP, política efetiva, sete perfis reconhecidos
+pelo Hermes e SessionDB preservado após recriação. A ausência de Docker local
+não impediu essa homologação em runner Linux descartável. Isso não comprova
+inferência, delegação nativa, Telegram ou operação de produção.
+
 Docker não encontrado no PATH. Runtime Hermes, provedor e Telegram não foram
 configurados nesta instalação. Tentativa opt-in de `smoke_hermes.py --real`
 encerrou com diagnóstico de executor indisponível, antes de inferência. Não houve
 envio de mensagens, delegação nativa, gastos de modelo, merge ou deploy.
 
-Ainda é necessário comprovar gateway e imagem em execução, inferência/modelo,
-consumo reportado, cancelamento remoto, reinicialização e volumes, Bot Mode,
-subagentes, autorização/pairing e mensagens Telegram reais. PostgreSQL privado,
-sandbox de código e produção também não foram homologados nesta entrega.
+Ainda é necessário comprovar inferência/modelo,
+consumo reportado e cancelamento de inferência real, Bot Mode,
+subagentes, autorização/pairing e mensagens Telegram reais. O ambiente PostgreSQL
+hospedado, sandbox de código e produção também não foram homologados nesta entrega.
 
 O mecanismo de stop é best effort: erro de rede pode deixar execução remota
 incerta. Nenhuma readmissão automática é feita. Limiares locais de tokens e tempo

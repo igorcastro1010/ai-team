@@ -1,5 +1,10 @@
 # Smoke do runtime oficial Hermes no CI
 
+**Homologação observada:** [run 40922239576](https://github.com/igorcastro1010/ai-team/actions/runs/40922239576)
+concluído com sucesso no commit `823e45761cecee851f0fbd63d6e1b5be05831723`.
+Gateway, autenticação, política efetiva, sete perfis nativos e persistência
+de SessionDB após recriação passaram. Nenhuma inferência foi executada.
+
 O workflow `.github/workflows/hermes-runtime.yml` executa somente o serviço
 `hermes` do Compose em runner Linux amd64 descartável. Não inicia API, worker,
 scheduler, Telegram nem inferência. Não recebe credenciais de provedor ou
@@ -72,7 +77,8 @@ dependência direta do core dessa imagem. O provisionador agora usa a API
 oficial quando disponível, mantendo PyYAML para desenvolvimento local. Não há
 instalação adicional ou alteração na imagem. O smoke passou a emitir subetapas
 fixas e categorias de erro permitidas, sem mensagens ou nomes de módulos vindos
-de exceções. Uma nova execução deve confirmar a correção e completar o teste.
+de exceções. O run aprovado acima confirmou a correção e completou as duas
+fases do teste, incluindo recriação e leitura dos dados preservados.
 
 Contratos conferidos diretamente no código oficial no commit
 [`e298669b44ce032a995c8a67ceae025801b0f4bf`](https://github.com/NousResearch/hermes-agent/tree/e298669b44ce032a995c8a67ceae025801b0f4bf):

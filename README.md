@@ -13,19 +13,23 @@ papéis ainda não provisionados são identificados.
 
 | Fase | Entrega e limite atual |
 |---|---|
-| 1 · Hermes | Adaptador Runs, diagnóstico, Compose, persistência, logs e controles testados localmente; contêiner e inferência real aguardam runtime/provedor |
-| 2 · Equipe | Sete definições e provisionador idempotente de perfis nativos; Bot Mode e subagentes reais ainda não homologados |
+| 1 · Hermes | Adaptador Runs, journal, diagnóstico e Compose; contêiner oficial, autenticação e persistência homologados em CI; inferência real aguarda provedor |
+| 2 · Equipe | Sete perfis provisionados e reconhecidos pelo runtime oficial em CI; Bot Mode e subagentes reais ainda não homologados |
 | 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
 | 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |
 | 5 · Desenvolvimento | Codex e GitHub existentes preservados; execução de código/testes arbitrários continua bloqueada |
-| 6 · Automações | Agendas existentes preservadas; cron/pausa/retomada nativos Hermes ainda não integrados |
-| 7 · Produção | Arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
+| 6 · Automações | Agendas existentes preservadas; monitor remoto, consumo reportado e interrupção com confirmação; cron/pausa/retomada nativos Hermes ainda não integrados |
+| 7 · Produção | Compatibilidade PostgreSQL real validada em CI; arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
 
 Comece por [configuração Hermes](docs/hermes-setup.md), [auditoria](docs/hermes-audit.md)
 e [configuração das próximas fases](docs/hermes-next-phases.md). Segredos ficam no
 servidor; não envie tokens pelo chat. O Compose usa volumes próprios, sem importar
 automaticamente o banco Windows. O modo Hermes inicial é **textual, sem ferramentas**;
 shell, delegação nativa, merge e produção exigem revisão e homologação próprias.
+
+Veja também [histórico e cancelamento remoto](docs/hermes-operations.md) e
+[homologação do runtime oficial em CI](docs/hermes-runtime-ci.md).
+Compatibilidade de banco: [PostgreSQL real no CI](docs/postgres-ci.md).
 
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.

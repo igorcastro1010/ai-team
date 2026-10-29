@@ -2,6 +2,14 @@
 
 ## Integração Hermes e escritório — 29/10/2026
 
+Continuação: journal persistente de admissões/IDs remotos, consulta de estado,
+interrupção supervisionada com confirmação, consumo reportado e histórico
+paginado. 168 testes Python locais e 18 E2E aprovados. Runtime oficial em CI
+homologado sem inferência; cinco testes com PostgreSQL real aprovados em CI.
+Veja [operação](hermes-operations.md), [runtime](hermes-runtime-ci.md) e
+[PostgreSQL](postgres-ci.md). Modelos, Bot Mode, subagentes e Telegram reais
+continuam dependentes de configuração própria.
+
 Entrega incremental em `codex/hermes-integration`: auditoria oficial, cliente
 Runs privado, consentimento persistente por executor, Compose com imagem oficial
 fixada, diagnóstico autenticado, política textual sem ferramentas, sete perfis

@@ -6,18 +6,18 @@ nenhuma ferramenta, inferência, mensagem Telegram ou publicação é habilitada
 
 ## Entregas
 
-- [ ] Teste CI com imagem oficial fixada: gateway real, autenticação, política
+- [x] Teste CI com imagem oficial fixada: gateway real, autenticação, política
   efetiva, perfis e persistência após recriação; sem provedor ou inferência.
-- [ ] Journal adicional `hermes_attempts`: identidade de admissão persistida antes
+- [x] Journal adicional `hermes_attempts`: identidade de admissão persistida antes
   do envio, ID remoto, estágio, status, consumo reportado e cancelamento observado.
-- [ ] Worker vincula cada tentativa à execução e à lease; tentativa existente
+- [x] Worker vincula cada tentativa à execução e à lease; tentativa existente
   jamais é readmitida automaticamente após queda ou resultado incerto.
-- [ ] Rotas de proprietário para histórico paginado e reconciliação por consulta.
+- [x] Rotas de proprietário para histórico paginado e reconciliação por consulta.
   Stop remoto exige confirmação e execução local já encerrada; não aceita IDs
   remotos ou URLs arbitrárias do navegador.
-- [ ] Painel apresenta tentativa local/remota, consumo desconhecido como tal,
+- [x] Painel apresenta tentativa local/remota, consumo desconhecido como tal,
   cancelamento pendente/incerto e confirmação vinculada à tentativa selecionada.
-- [ ] Testar persistência, disputa, contrato oficial, CSRF, redação, controle
+- [x] Testar persistência, disputa, contrato oficial, CSRF, redação, controle
   remoto e interface responsiva; commits/push por unidade validada.
 
 ## Arquitetura
@@ -44,3 +44,10 @@ CI sem modelo não comprova inferência/delegação/Telegram. Runtime local cont
 sem Docker. Credenciais próprias serão configuradas pelo proprietário no servidor;
 não acessar cofre ou sessão Desktop. Merge e produção permanecem dependentes de
 aprovação específica.
+
+## Evidência e extensão do plano
+
+168 testes locais e 18 E2E passaram. Runtime oficial aprovado no run
+40922239576. A validação de banco foi ampliada dentro da fase 7 solicitada:
+cinco testes com PostgreSQL real e role restrito passaram no run 40924442533.
+Nenhuma modificação em banco hospedado ou produção. Ver documentos de validação.
