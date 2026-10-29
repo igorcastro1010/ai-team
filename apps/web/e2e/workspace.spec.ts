@@ -15,6 +15,27 @@ async function login(page: import("@playwright/test").Page) {
 test("dados privados exigem login e mutações bloqueiam CSRF", async ({ request }) => {
   expect((await request.get("/api/control/workspace")).status()).toBe(401);
   expect((await request.post("/api/control/projects", { data: { name: "indevido" }, headers: { origin: "https://evil.example" } })).status()).toBe(403);
+  expect((await request.get("/api/control/vercel")).status()).toBe(401);
+  expect((await request.post("/api/control/vercel/inspect", { headers: { origin: "https://evil.example" } })).status()).toBe(403);
+});
+
+test("Vercel mostra consultas e falhas sem oferecer publicação", async ({ page }) => {
+  await login(page);
+  await page.goto('/integracoes');
+  const panel = page.getByRole('region', {name:'Consultas Vercel'});
+  await page.route('**/api/control/vercel/inspect', route => route.fulfill({
+    status:502,contentType:'application/json',body:JSON.stringify({detail:'Consulta indisponível de teste.'})}));
+  await panel.getByRole('button',{name:'Consultar Vercel'}).click();
+  await expect(panel.getByRole('alert')).toContainText('Consulta indisponível de teste.');
+  await page.unroute('**/api/control/vercel/inspect');
+  await page.route('**/api/control/vercel/inspect', route => route.fulfill({
+    contentType:'application/json',body:JSON.stringify({verified_at:1793233759,
+      project:{id:'prj_synthetic',name:'ai-team'},deployments:[]})}));
+  await panel.getByRole('button',{name:'Consultar Vercel'}).click();
+  await expect(panel.getByRole('heading',{name:'Projeto ai-team'})).toBeVisible();
+  await expect(panel.getByText(/Sem deploys neste projeto/)).toBeVisible();
+  await expect(panel.getByRole('button',{name:/publicar|deploy|domínio/i})).toHaveCount(0);
+  expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([]);
 });
 
 test("proposta GitHub é revisada, cancelável e aprovada uma única vez", async ({ page }) => {

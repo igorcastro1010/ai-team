@@ -28,6 +28,12 @@ export type Workspace = {
   agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
   github: { connection: { repository: string; default_branch: string; head_sha?: string; verified_at: number } | null; actions: GitHubAction[] };
+  vercel: { connection: VercelObservation | null };
+};
+
+export type VercelObservation = {
+  verified_at: number; project: { id: string; name: string } | null;
+  deployments: { id: string | null; state: string | null; created_at: number | null }[];
 };
 
 export type GitHubAction = {

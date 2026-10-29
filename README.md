@@ -1,6 +1,6 @@
 # AI TEAM
 
-Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.3: CEO e especialistas pelo Codex, fila persistente e propostas GitHub supervisionadas.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
+Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.4: Codex próprio, propostas GitHub supervisionadas e consultas Vercel autenticadas.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.
@@ -49,7 +49,7 @@ SQLite local: `.data/ai-team.db`. Não apague este arquivo para atualizar. Backu
 ## PostgreSQL / Supabase
 Use `AI_TEAM_DATABASE_URL=postgresql+psycopg://.../postgres?sslmode=require` no servidor privado. Inicialize explicitamente com `ai-team init-db`, depois cadastre o proprietário. As tabelas ficam no schema `ai_team`, sem permissão de PUBLIC. Não adicione esse schema aos expostos pelo PostgREST/Supabase Data API. O painel conversa exclusivamente com FastAPI; não recebe service_role ou senha do banco.
 
-V0.2 adiciona `runs` e `worker_heartbeats`; V0.3 adiciona `github_actions` e `github_verification`, sem remover dados existentes. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
+V0.2 adiciona `runs` e `worker_heartbeats`; V0.3 adiciona `github_actions` e `github_verification`; V0.4 adiciona `provider_observations`, sem remover dados existentes. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
 
 ## Verificação
 ```powershell
@@ -70,7 +70,7 @@ docs/               arquitetura, pesquisa, marcos e evidências
 - V0.1: base local funcional.
 - V0.2: entregue — CEO, especialistas, LangGraph, fila, propostas e revisão textual por worker.
 - V0.3: entregue — GitHub App própria e propostas revisadas de branch/documento/issue/PR, somente no ai-team.
-- V0.4: Codex e Vercel com mecanismos oficiais homologados.
+- V0.4: entregue — Codex oficial preservado e consulta Vercel própria ao projeto autorizado, sem publicação.
 - V0.5: automações, relatórios de execução e limites de uso.
 - V1.0: homologação, segurança de produção e publicação autorizada.
 
@@ -113,5 +113,5 @@ Resultado incerto nunca é repetido automaticamente: confira o recurso no GitHub
 
 Homologação real opt-in: `.venv\Scripts\python.exe tools/smoke_github.py --real`. Cria branch, documento, issue e PR reais no ai-team, usando API autenticada, banco sintético e quatro workers separados; não faz merge, deploy nem limpeza destrutiva. Evidência fica em `artifacts/github-smoke.json` (ignorado). O CI não faz chamadas reais à App. Não envie chaves no chat.
 
-### Preparação V0.4: Vercel própria
-Configuração segura sem publicação: `powershell -NoProfile -File .\tools\setup-vercel.ps1`. Consulte [escopo, cofre e limites](docs/vercel-setup.md). Requer token informado pelo proprietário em terminal com entrada oculta; a integração não está homologada antes dessa etapa.
+### V0.4: Vercel própria, somente consultas
+Configuração segura: `powershell -NoProfile -File .\tools\setup-vercel.ps1`. Consulte [escopo, cofre e limites](docs/vercel-setup.md). Credencial própria validada e projeto vazio criado com autorização; nenhum deploy realizado. No painel Integrações, use **Consultar Vercel** para registrar o estado e os últimos deploys do ai-team. O cliente só implementa GET e verifica o ID do projeto vinculado.

@@ -12,6 +12,7 @@ import { api, ApiError, dateTime, modes, statusLabel, type Task, type TaskStatus
 import { CreationDialog } from "./creation-dialog";
 import { CeoConsole, RunList } from "./run-panel";
 import { GitHubPanel } from "./github-panel";
+import { VercelPanel } from "./vercel-panel";
 
 import { views, type View } from "@/lib/navigation";
 
@@ -88,7 +89,7 @@ export function Dashboard({ view }: { view: View }) {
           {view === "tarefas" && <TaskBoard data={workspace} create={newTask} move={move} busy={updating} />}
           {view === "agentes" && <Agents data={workspace} />}
           {view === "historico" && <HistoryPanel data={workspace} />}
-          {view === "integracoes" && <><Integrations data={workspace} /><GitHubPanel data={workspace} reload={load} /></>}
+          {view === "integracoes" && <><Integrations data={workspace} /><VercelPanel data={workspace} reload={load} /><GitHubPanel data={workspace} reload={load} /></>}
           {view === "relatorios" && <Reports data={workspace} />}
           {view === "ceo" && <CeoConsole data={workspace} reload={load} />}
           {view === "execucoes" && <RunList data={workspace} runs={workspace.runs} reload={load} />}

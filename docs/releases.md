@@ -61,3 +61,14 @@ V0.2 entrega planos e pareceres textuais; não modifica código em outros reposi
 Commits limitados a `docs/agent-output/*.md`, branches `codex/ai-team/*`, um repositório privado. Transferência das propostas dos agentes para o formulário GitHub ainda é manual; não há execução de código arbitrário, merge ou publicação. Rascunhos de PR dependem do plano e não foram homologados. PostgreSQL hospedado continua sem teste real. O primeiro cadastro admin do workspace de uso real continua pendente; dados de teste não foram usados como credencial desse workspace.
 
 V0.4: manter o mecanismo Codex oficial já homologado e configurar acesso Vercel próprio para consultas; qualquer publicação exige autorização específica. V0.5 segue com agendamento/relatórios e V1.0 com endurecimento e hospedagem autorizada. Não considerar essas versões entregues por haver a V0.3 local.
+
+
+## V0.4 — Vercel própria, somente consultas
+- Projeto vazio ai-team criado na equipe autorizada, sem conexão GitHub, variáveis, domínio ou deploy. Consulta vinculada aos IDs da equipe e do projeto, com token preservado no cofre nativo do executor.
+- Cliente oficial REST com endpoints GET fixos, sem redirecionamentos; painel autenticado de projetos/deploys, observação sanitizada persistida e trilha de auditoria. Atualizações do workspace leem somente o banco.
+- Consulta real validada pela API autenticada, com persistência e lista de deploys vazia. Evidência local ignorada: `artifacts/vercel-smoke.json`. Login próprio do Codex reconfirmado; sem nova inferência paga nesta etapa.
+- Verificação: 92 testes Python, lint Python/Next.js, typecheck, build e 8 E2E aprovados. Testes cobrem ausência/falha de credencial, vínculo por ID, sanitização, autenticação, Origin, persistência, painel e acessibilidade. Revisão independente sem defeitos importantes identificados.
+- Skills: Vercel env-vars/CLI e documentação oficial, Supabase Postgres para persistência, UI/UX Pro Max, React/Next.js, Playwright, TDD, revisão e verificação.
+
+### Limites e próximo marco
+Nenhuma publicação foi realizada. O cliente implementa somente consultas, embora a credencial possa conceder escrita no provedor. Estados de deploy não vazios são cobertos por simulação, sem homologação real. Credenciais não são entregues aos agentes. V0.5 (recorrência e relatórios), PostgreSQL hospedado e instalação em outro PC continuam pendentes. O primeiro cadastro admin do banco de uso real precisa ser concluído pelo proprietário no terminal seguro.

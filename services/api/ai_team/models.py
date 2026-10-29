@@ -85,6 +85,12 @@ class GitHubVerification(Base):
     details: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class ProviderObservation(Base):
+    __tablename__ = "provider_observations"
+    id: Mapped[str] = mapped_column(String(30), primary_key=True)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class Run(Base):
     __tablename__ = "runs"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)

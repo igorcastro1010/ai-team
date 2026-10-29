@@ -54,14 +54,33 @@ class VercelVault:
                 "Não foi possível salvar no cofre; nenhum segredo foi exibido"
             ) from None
 
+    def bind_team(self, team_id, project_id, *, client=None):
+        existing = self.load()
+        if not existing:
+            raise RuntimeError("Configure a credencial no cofre antes de vincular a equipe")
+        reader = VercelClient(existing["token"], team_id, client=client, project_id=project_id)
+        try:
+            details = reader.probe()
+            if details["project"] is None:
+                raise RuntimeError("Projeto autorizado não encontrado nessa equipe")
+            payload = json.dumps({**existing, "team_id": team_id, "project_id": project_id})
+            try:
+                self.backend.set_password(SERVICE, "credentials", payload)
+            except Exception:
+                raise RuntimeError("Não foi possível vincular a equipe no cofre") from None
+            return details
+        finally:
+            reader.close()
+
 
 class VercelClient:
-    def __init__(self, token, team_id=None, *, client=None):
+    def __init__(self, token, team_id=None, *, client=None, project_id=None):
         if not isinstance(token, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{20,512}", token):
             raise RuntimeError("Formato de token inválido; nenhum segredo foi exibido")
         if team_id and not re.fullmatch(r"team_[A-Za-z0-9]{1,100}", team_id):
             raise RuntimeError("Informe o Team ID, não a URL nem o nome da equipe")
         self._token, self._team_id = token, team_id
+        self._project_id = project_id
         self._client = client or httpx.Client(timeout=20, follow_redirects=False, trust_env=False)
 
     def close(self):
@@ -102,6 +121,8 @@ class VercelClient:
         if not matches:
             return details
         project = matches[0]
+        if self._project_id and project.get("id") != self._project_id:
+            raise RuntimeError("O projeto ai-team mudou de ID; revise o vínculo autorizado")
         if not isinstance(project.get("id"), str) or not re.fullmatch(
             r"[A-Za-z0-9_]{1,100}", project["id"]
         ):
@@ -137,13 +158,19 @@ def configure(token, team_id, vault, *, client=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["configure", "status"])
+    parser.add_argument("command", choices=["configure", "status", "bind-team"])
     parser.add_argument("--team-id", default=None, help="Equipe para token sem escopo inferido")
+    parser.add_argument("--project-id", default=None)
     args = parser.parse_args()
     try:
         vault = VercelVault()
         existing = vault.load()
-        if args.command == "configure" and existing is None:
+        if args.command == "bind-team":
+            if not args.team_id or not args.project_id:
+                raise RuntimeError("Informe Team ID e Project ID autorizados")
+            details = vault.bind_team(args.team_id, args.project_id)
+            print("Consulta vinculada à equipe e projeto autorizados; token preservado.")
+        elif args.command == "configure" and existing is None:
             if not sys.stdin.isatty():
                 raise RuntimeError(
                     "Abra um terminal interativo para informar o token com entrada oculta"
@@ -161,7 +188,9 @@ def main():
             details = configure(token, team_id, vault)
             print("Credencial validada e armazenada no cofre do sistema.")
         elif existing:
-            reader = VercelClient(existing["token"], existing.get("team_id"))
+            reader = VercelClient(
+                existing["token"], existing.get("team_id"), project_id=existing.get("project_id")
+            )
             try:
                 details = reader.probe()
             finally:

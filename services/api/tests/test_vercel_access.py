@@ -138,3 +138,31 @@ def test_noninteractive_terminal_refuses_token_input(monkeypatch, capsys):
     assert caught.value.code == 1
     assert "terminal interativo" in capsys.readouterr().out
     assert vault.load() is None
+
+
+def test_bind_team_pins_project_without_changing_token():
+    from ai_team.vercel_access import VercelClient, VercelVault
+
+    backend = MemoryKeyring()
+    vault = VercelVault(backend=backend)
+    vault.save(TOKEN, None)
+
+    def transport(request):
+        assert request.url.params["teamId"] == "team_test"
+        if request.url.path == "/v10/projects":
+            return httpx.Response(200, json={"projects": [{"id": "prj_test", "name": "ai-team"}]})
+        return httpx.Response(200, json={"deployments": []})
+
+    vault.bind_team(
+        "team_test", "prj_test", client=httpx.Client(transport=httpx.MockTransport(transport))
+    )
+    assert vault.load() == {"token": TOKEN, "team_id": "team_test", "project_id": "prj_test"}
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"projects": [{"id": "prj_changed", "name": "ai-team"}]}
+            )
+        )
+    )
+    with pytest.raises(RuntimeError):
+        VercelClient(TOKEN, project_id="prj_test", client=client).probe()

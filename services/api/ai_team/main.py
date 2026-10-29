@@ -24,6 +24,8 @@ from .schemas import (
     TaskUpdate,
     TaskView,
 )
+from .vercel_routes import observation_snapshot
+from .vercel_routes import router as vercel_router
 from .workflow import WorkflowStore
 
 TRANSITIONS = {
@@ -46,13 +48,14 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.3.0",
+        version="0.4.0",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
     app.state.database, app.state.settings = database, settings
     app.include_router(runs_router)
     app.include_router(github_router)
+    app.include_router(vercel_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -68,7 +71,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.3.0"}
+        return {"status": "ok", "version": "0.4.0"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -197,6 +200,14 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                     "Instalação seletiva verificada para ai-team. Escritas exigem aprovação."
                 ),
             )
+        vercel = observation_snapshot(database)["connection"]
+        if vercel:
+            integration = next(item for item in result if item["id"] == "vercel")
+            integration.update(
+                status="verified",
+                verified_at=vercel["verified_at"],
+                description="Consulta própria registrada; publicação desativada.",
+            )
         if database.engine.dialect.name == "postgresql":
             for item in result:
                 if item["id"] == "supabase":
@@ -209,7 +220,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @app.get("/workspace")
     def workspace(owner: Owner):
         return {
-            "version": "0.3.0",
+            "version": "0.4.0",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
@@ -220,6 +231,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "usage": WorkflowStore(database).usage(),
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),
+            "vercel": observation_snapshot(database),
         }
 
     return app
