@@ -5,9 +5,10 @@ concluído com sucesso no commit `823e45761cecee851f0fbd63d6e1b5be05831723`.
 Gateway, autenticação, política efetiva, sete perfis nativos e persistência
 de SessionDB após recriação passaram. Nenhuma inferência foi executada.
 
-O workflow `.github/workflows/hermes-runtime.yml` executa somente o serviço
-`hermes` do Compose em runner Linux amd64 descartável. Não inicia API, worker,
-scheduler, Telegram nem inferência. Não recebe credenciais de provedor ou
+O workflow `.github/workflows/hermes-runtime.yml` inicia o serviço `hermes`
+do Compose em runner Linux amd64 descartável. Constrói também a imagem da API
+e executa seu cliente HTTP em um contêiner transitório, sem iniciar servidor
+web, worker, scheduler, Telegram ou inferência. Não recebe credenciais de provedor ou
 segredos do repositório. O arquivo `.env.hermes` criado no runner fica vazio.
 
 Imagem fixada:

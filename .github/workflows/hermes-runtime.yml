@@ -9,12 +9,16 @@ on:
       - 'compose.yaml'
       - 'infra/hermes/**'
       - 'tools/hermes_profiles.py'
+      - 'services/api/**'
+      - '.dockerignore'
   pull_request:
     paths:
       - '.github/workflows/hermes-runtime.yml'
       - 'compose.yaml'
       - 'infra/hermes/**'
       - 'tools/hermes_profiles.py'
+      - 'services/api/**'
+      - '.dockerignore'
 
 permissions:
   contents: read
@@ -72,7 +76,25 @@ jobs:
         run: >-
           timeout 90 docker compose exec -T --user hermes hermes
           python /opt/ai-team/runtime_smoke.py --write --probe-id "$PROBE_ID"
+      - name: Build the real AI TEAM API image
+        run: timeout 360 docker compose build api
+      - name: Verify AI TEAM adapter over private Compose network (no inference)
+        shell: bash
+        run: |
+          timeout 45 docker compose run --rm --no-deps -T api python - <<'PY'
+          from ai_team.config import Settings
+          from ai_team.hermes import HermesClient
+
+          settings = Settings()
+          if settings.hermes_url != "http://hermes:8642":
+              raise SystemExit("Unexpected private service address")
+          observation = HermesClient(settings).inspect()
+          if observation["status"] != "reachable" or observation["inference_verified"]:
+              raise SystemExit("AI TEAM private Hermes probe failed")
+          print("AI TEAM private Hermes adapter passed; no inference submitted.")
+          PY
       - name: Recreate container retaining only its CI volume
+        # Preceding one-off API client exits before the persistent Hermes restart.
         shell: bash
         run: |
           set -euo pipefail
