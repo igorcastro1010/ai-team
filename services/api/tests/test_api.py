@@ -16,6 +16,41 @@ ORIGIN = "http://localhost:3000"
 PASSWORD = "teste-apenas-local-493!"
 
 
+def test_first_owner_can_be_created_after_unsuccessful_login(tmp_path):
+    from ai_team.models import LoginThrottle, Owner
+
+    database = Database(Settings(database_url=f"sqlite:///{tmp_path / 'first-owner.db'}"))
+    database.initialize()
+    app = create_app(database=database)
+    with TestClient(app, headers={"origin": ORIGIN}) as browser:
+        assert (
+            browser.post(
+                "/auth/login",
+                json={
+                    "username": "admin",
+                    "password": PASSWORD,
+                },
+            ).status_code
+            == 401
+        )
+        with database.session() as db:
+            throttle = db.scalar(select(LoginThrottle))
+            original_attempts = throttle.attempts
+            create_owner(db, "admin", PASSWORD)
+            assert db.scalar(select(Owner.username)) == "admin"
+            assert db.scalar(select(LoginThrottle)).attempts == original_attempts
+        assert (
+            browser.post(
+                "/auth/login",
+                json={
+                    "username": "admin",
+                    "password": PASSWORD,
+                },
+            ).status_code
+            == 200
+        )
+
+
 @pytest.fixture
 def app(tmp_path):
     settings = Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}")

@@ -84,3 +84,6 @@ Nenhuma publicação foi realizada. O cliente implementa somente consultas, embo
 
 ### Próximos passos
 V1.0 exige homologar PostgreSQL privado, instalação fora deste PC e hospedagem segura de API/worker/scheduler. Publicação continua dependente de autorização específica. O cadastro admin do workspace real ainda deve ser concluído pelo proprietário no terminal seguro. Os agentes continuam produzindo planos e pareceres textuais; não executam código arbitrário em outros projetos. Custos monetários e serviço permanente do Windows não são implementados.
+
+### Correção do cadastro inicial
+Uma tentativa de login antes do primeiro cadastro criava o registro de limitação de acesso. O cadastro tentava inserir a mesma chave e falhava. Agora reutiliza o registro existente, preservando tentativas e prazo de bloqueio. Regressão reproduzida antes da correção; 107 testes Python e lint aprovados. Login e workspace autenticados também verificados localmente, sem registrar senha ou sessão.

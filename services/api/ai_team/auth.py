@@ -26,7 +26,9 @@ def create_owner(db: Session, username: str, password: str) -> None:
     if db.scalar(select(Owner)):
         raise ValueError("Proprietário já cadastrado; registro público desativado")
     db.add(Owner(id=1, username=username, password_hash=hasher.hash(password)))
-    db.add(LoginThrottle(key=digest("owner-login"), attempts=0, reset_at=int(time.time()) + 900))
+    throttle_key = digest("owner-login")
+    if db.get(LoginThrottle, throttle_key) is None:
+        db.add(LoginThrottle(key=throttle_key, attempts=0, reset_at=int(time.time()) + 900))
     db.commit()
 
 
