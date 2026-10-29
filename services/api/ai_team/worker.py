@@ -23,6 +23,8 @@ class Worker:
             return False
         try:
             provider = self.providers[run.executor] if self.providers else self.provider
+            if hasattr(provider, "for_run"):
+                provider = provider.for_run(self.store.database, run)
             if not provider.ready():
                 self.store.finish_error(
                     run, "blocked", "Executor indisponível. Confira a configuração própria."

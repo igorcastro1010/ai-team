@@ -127,6 +127,27 @@ class WorkerHeartbeat(Base):
     last_seen: Mapped[int] = mapped_column(Integer, index=True)
 
 
+class HermesAttempt(Base):
+    __tablename__ = "hermes_attempts"
+    __table_args__ = (
+        Index("ix_hermes_attempt_stage", "run_id", "stage", unique=True),
+        Index("ix_hermes_attempt_history", "created_at", "id"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"))
+    stage: Mapped[int] = mapped_column(Integer)
+    admission_key: Mapped[str] = mapped_column(String(100), unique=True)
+    remote_id: Mapped[str] = mapped_column(String(160), default="")
+    remote_status: Mapped[str] = mapped_column(String(30), default="not_admitted")
+    bridge_status: Mapped[str] = mapped_column(String(24), default="admitting")
+    stop_status: Mapped[str] = mapped_column(String(24), default="not_requested")
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+    updated_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+    run: Mapped[Run] = relationship(lazy="selectin")
+
+
 class Schedule(Base):
     __tablename__ = "schedules"
     __table_args__ = (Index("ix_schedules_due", "status", "next_run_at"),)

@@ -12,6 +12,7 @@ import uuid
 
 import httpx
 
+from .hermes_journal import TERMINAL, HermesJournal
 from .orchestration import Draft, DraftContent
 
 MAX_RESPONSE = 200_000
@@ -111,6 +112,16 @@ class HermesProvider:
         self.client = client
         self.time_limit = min(max(time_limit, 0), 120)
         self.poll_interval = poll_interval
+        self.journal = None
+        self.local_run = None
+
+    def for_run(self, database, run):
+        provider = HermesProvider(
+            self.client, time_limit=self.time_limit, poll_interval=self.poll_interval
+        )
+        provider.journal = HermesJournal(database)
+        provider.local_run = run
+        return provider
 
     def ready(self):
         return self.client.inspect()["status"] == "reachable"
@@ -126,7 +137,11 @@ class HermesProvider:
             ensure_ascii=False,
         )
         run_id = None
+        attempt = self.journal.begin(self.local_run, identity) if self.journal else None
+        remote_terminal = False
         try:
+            if attempt:
+                on_tick()  # Recheck cancellation after the durable admission reservation.
             admitted = self.client.request(
                 "POST",
                 "/v1/runs",
@@ -143,30 +158,63 @@ class HermesProvider:
             if not isinstance(run_id, str) or not RUN_ID.fullmatch(run_id):
                 run_id = None
                 raise RuntimeError("Identificador de execução inválido; não repetir chamada")
+            if attempt:
+                self.journal.admitted(attempt.id, run_id)
             while True:
                 on_tick()
                 if time.monotonic() >= deadline:
                     raise TimeoutError("Tempo Hermes excedido")
                 result = self.client.request("GET", f"/v1/runs/{run_id}", deadline=deadline)
                 status = result.get("status")
+                remote_terminal = status in TERMINAL
+                if attempt:
+                    self.journal.observe(attempt.id, result)
                 if status == "completed":
                     content = DraftContent.model_validate_json(result.get("output", ""))
                     usage = result.get("usage") or {}
                     tokens = [usage.get("input_tokens"), usage.get("output_tokens")]
                     if any(type(value) is not int or value < 0 for value in tokens):
                         raise RuntimeError("Uso de tokens não informado pelo Hermes")
-                    return Draft(
+                    draft = Draft(
                         **content.model_dump(), input_tokens=tokens[0], output_tokens=tokens[1]
                     )
+                    if attempt:
+                        self.journal.finish(attempt.id, "succeeded")
+                    return draft
                 if status not in {"started", "queued", "running"}:
                     raise RuntimeError("Hermes não confirmou conclusão; não repetir chamada")
                 time.sleep(self.poll_interval)
-        except BaseException:
+        except BaseException as error:
             # Stop is best effort: network failure can leave remote execution uncertain.
             # No automatic readmission under a new key.
-            if run_id:
+            if attempt:
+                status = (
+                    "uncertain"
+                    if not run_id
+                    else (
+                        "interrupted"
+                        if isinstance(error, InterruptedError)
+                        else "timed_out"
+                        if isinstance(error, TimeoutError)
+                        else "failed"
+                    )
+                )
                 try:
-                    self.client.request("POST", f"/v1/runs/{run_id}/stop", body={})
+                    self.journal.finish(attempt.id, status)
                 except Exception:
-                    pass
+                    pass  # The initial admission remains durable if later journal writes fail.
+            if run_id and not remote_terminal:
+                try:
+                    if attempt:
+                        self.journal.mark_stop(attempt.id, "requested")
+                    self.client.request("POST", f"/v1/runs/{run_id}/stop", body={})
+                    if attempt:
+                        result = self.client.request("GET", f"/v1/runs/{run_id}")
+                        self.journal.observe(attempt.id, result)
+                except Exception:
+                    if attempt:
+                        try:
+                            self.journal.mark_stop(attempt.id, "uncertain")
+                        except Exception:
+                            pass
             raise
