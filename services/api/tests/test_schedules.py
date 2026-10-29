@@ -135,3 +135,43 @@ def test_busy_schedules_do_not_starve_new_due_requests(database):
     new = store.create(payload(starts_at=5000), "owner", now=4900)
     assert store.tick(now=5000) == 1
     assert store.get(new.id).emitted == 1
+
+
+def test_cancel_racing_scheduler_prevents_any_later_dispatch(database):
+    from ai_team.schedules import ScheduleStore
+
+    store = ScheduleStore(database)
+    for index in range(5):
+        now = 1000 + index * 100
+        schedule = store.create(payload(starts_at=now + 10), "owner", now=now)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            dispatch = pool.submit(store.tick, now=now + 10)
+            cancellation = pool.submit(store.cancel, schedule.id, "owner")
+            dispatch.result()
+            cancellation.result()
+        final = store.get(schedule.id)
+        assert final.status == "cancelled" and final.emitted in (0, 1)
+        before = final.emitted
+        store.tick(now=now + 10000)
+        assert store.get(schedule.id).emitted == before
+
+
+def test_generated_run_uses_existing_worker_and_retains_authorized_mode(database):
+    from test_workflow import TestProvider
+
+    from ai_team.models import ScheduleOccurrence
+    from ai_team.schedules import ScheduleStore
+    from ai_team.worker import Worker
+    from ai_team.workflow import WorkflowStore
+
+    store = ScheduleStore(database)
+    store.create(payload(), "owner", now=1000)
+    store.tick(now=1100)
+    worker = Worker(database, Settings(environment="test"), TestProvider())
+    for _ in range(5):
+        assert worker.once()
+    run = WorkflowStore(database).all()[0]
+    assert run.status == "completed" and run.calls == 5 and len(run.steps) == 5
+    with database.session() as db:
+        assert db.scalar(select(ScheduleOccurrence)).run_id == run.id
+    assert store.tick(now=10000) == 1
