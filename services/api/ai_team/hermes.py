@@ -41,7 +41,7 @@ class HermesClient:
                 if not 200 <= response.status_code < 300:
                     raise RuntimeError("Hermes recusou a solicitação")
                 data = bytearray()
-                for chunk in response.iter_bytes():
+                for chunk in response.iter_bytes(chunk_size=16_384):
                     data.extend(chunk)
                     if len(data) > MAX_RESPONSE:
                         raise RuntimeError("Resposta Hermes excedeu limite")

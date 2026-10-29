@@ -1,3 +1,4 @@
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -15,6 +16,7 @@ from .hermes_routes import observation_snapshot as hermes_snapshot
 from .hermes_routes import router as hermes_router
 from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
+from .office import office_snapshot
 from .report_routes import router as report_router
 from .run_routes import RunView
 from .run_routes import router as runs_router
@@ -228,6 +230,9 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/workspace")
     def workspace(owner: Owner):
+        store = WorkflowStore(database)
+        runs = store.all()
+        usage = store.usage()
         return {
             "version": "0.5.0",
             "owner": owner,
@@ -235,9 +240,11 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
             "events": [EventView.model_validate(e) for e in events(owner)],
             "agents": AGENTS,
-            "runs": [RunView.model_validate(run) for run in WorkflowStore(database).all()],
+            "runs": [RunView.model_validate(run) for run in runs],
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
-            "usage": WorkflowStore(database).usage(),
+            "usage": usage,
+            "office": office_snapshot(runs, worker_online=usage["worker_online"]),
+            "office_observed_at": int(time.time()),
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),
             "vercel": observation_snapshot(database),
