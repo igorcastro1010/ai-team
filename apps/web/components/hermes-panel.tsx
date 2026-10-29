@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { api, dateTime, type Workspace } from "@/lib/api";
+import { HermesExecutions } from "./hermes-executions";
 
 const labels = {
   not_configured: "Não configurado", unavailable: "Indisponível",
@@ -30,5 +31,6 @@ export function HermesPanel({ data, reload }: { data: Workspace; reload: () => P
     {message && <p role="status" className="notice success">{message}</p>}
     {error && <p role="alert" className="notice error">{error}</p>}
     <button className="button" disabled={busy} onClick={() => void inspect()}>{busy ? "Verificando…" : "Verificar Hermes"}</button>
+    <HermesExecutions first={data.hermes?.executions} reload={reload} />
   </section>;
 }

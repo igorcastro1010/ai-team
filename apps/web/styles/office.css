@@ -52,6 +52,11 @@
 .is-working .pixel-screen { animation:pixel-screen 1.2s steps(2,end) infinite; }
 .hermes-panel { padding:24px; margin:22px 0; }
 .hermes-panel p { line-height:1.7; }
+.hermes-executions { margin-top:28px; padding-top:20px; border-top:1px solid var(--line); }
+.hermes-attempt { padding:20px 0; border-bottom:1px solid var(--line); }
+.hermes-attempt h4 { font-size:15px; margin:0 0 12px; }
+.hermes-attempt code,.creation-dialog code { overflow-wrap:anywhere; white-space:normal; }
+.hermes-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
 @keyframes pixel-type { 50% { transform:translateY(-2px); } }
 @keyframes pixel-screen { 50% { opacity:.45; } }
 @media (min-width:1450px) { .pixel-floor { gap:20px; padding:20px 30px 30px; } .pixel-desk { width:145px; } }

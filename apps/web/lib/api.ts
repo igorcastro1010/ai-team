@@ -27,7 +27,7 @@ export type Run = {
 export type Workspace = {
   office: OfficeAgent[];
   office_observed_at: number;
-  hermes: { connection: HermesObservation | null };
+  hermes: { connection: HermesObservation | null; executions: HermesPage };
   version: string; owner: string; projects: Project[]; tasks: Task[]; events: Event[];
   agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
@@ -40,6 +40,13 @@ export type HermesObservation = {
   status: "not_configured" | "unavailable" | "unsafe_configuration" | "reachable";
   checked_at: number | null; inference_verified: false; text_only: true;
 };
+export type HermesAttempt = {
+  id: string; run_id: string; stage: number; remote_id: string; remote_status: string;
+  bridge_status: string; stop_status: string; local_status: string;
+  input_tokens: number | null; output_tokens: number | null;
+  created_at: number; updated_at: number;
+};
+export type HermesPage = { items: HermesAttempt[]; next_cursor: string | null };
 export type OfficeAgent = {
   id: string; name: string; role: string; enabled: boolean;
   status: "available" | "working" | "awaiting_approval" | "completed" | "error";
