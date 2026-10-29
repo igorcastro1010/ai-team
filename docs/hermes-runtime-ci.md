@@ -50,10 +50,29 @@ conversa obtida por inferência ou pelos endpoints HTTP sobreviva à reinicializ
 
 O workflow roda nos pushes de `main` e `codex/hermes-integration`, e nos PRs que
 alterem seus arquivos relevantes; também permite execução manual na aba Actions.
-Execuções concorrentes da mesma ref são canceladas. O runner hospedado é
+Execuções concorrentes da mesma branch de origem (push e PR) são canceladas.
+O runner hospedado é
 descartável, inclusive se cancelamento impedir a etapa final de limpeza.
 
 ## Origem dos contratos e estado da validação
+
+O primeiro run real no GitHub, `40920937548` (job `123613645703`), iniciou a
+imagem fixada, passou pelo health check e pelas fases HTTP de autenticação,
+capabilities, inventário e política efetiva de ferramentas. Falhou na fase de
+perfis; persistência e reinicialização ainda não foram comprovadas nesse run.
+O erro original ocultava todo o detalhe, portanto sua causa exata não deve ser
+apresentada como confirmada.
+
+A investigação seguinte leu diretamente a camada de código da imagem amd64,
+verificando seu SHA-256
+`fcf720a342af7b5020f7a08992d0fd6437bd319f66b1cd3a76ad735c06a04899`.
+Ela confirmou `list_profiles(lazy_skill_count=True)` e o retorno `ProfileInfo.name`.
+O runtime usa `hermes_yaml`/ruamel como API YAML oficial; PyYAML não é uma
+dependência direta do core dessa imagem. O provisionador agora usa a API
+oficial quando disponível, mantendo PyYAML para desenvolvimento local. Não há
+instalação adicional ou alteração na imagem. O smoke passou a emitir subetapas
+fixas e categorias de erro permitidas, sem mensagens ou nomes de módulos vindos
+de exceções. Uma nova execução deve confirmar a correção e completar o teste.
 
 Contratos conferidos diretamente no código oficial no commit
 [`e298669b44ce032a995c8a67ceae025801b0f4bf`](https://github.com/NousResearch/hermes-agent/tree/e298669b44ce032a995c8a67ceae025801b0f4bf):
@@ -71,9 +90,9 @@ Contratos conferidos diretamente no código oficial no commit
 
 Em 29/10/2026, a preparação foi verificada localmente com compilação Python,
 Ruff, inspeção YAML e sondagens de contrato com servidor HTTP local sintético.
-**Docker não está disponível nesta máquina. O runtime oficial e a persistência
-na imagem permanecem sem evidência local; o workflow precisa terminar aprovado
-no GitHub para comprovar os itens acima.** Não confundir testes de contrato
+**Docker não está disponível nesta máquina. O runtime tem evidência parcial no
+GitHub descrita acima; perfis, persistência e reinicialização ainda precisam de
+um workflow aprovado.** Não confundir testes de contrato
 sintéticos com execução da imagem oficial. Registrar URL, SHA e resultado do
 run observado antes de atualizar esse estado.
 

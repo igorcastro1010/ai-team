@@ -4,7 +4,14 @@ import argparse
 import re
 from pathlib import Path
 
-import yaml
+# The official pinned image ships hermes_yaml/ruamel, while host development
+# installs PyYAML. Do not install packages or replace the image's YAML policy.
+try:
+    import hermes_yaml as yaml
+except ModuleNotFoundError as error:
+    if error.name != "hermes_yaml":
+        raise
+    import yaml
 
 POLICY = {
     "platform_toolsets": {"api_server": [], "telegram": [], "cli": []},

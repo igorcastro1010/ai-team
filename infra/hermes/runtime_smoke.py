@@ -17,9 +17,34 @@ MAX_BODY = 2_000_000
 PROBE_CONTENT = "AI TEAM CI synthetic persistence probe; no model inference."
 
 
+class SmokeFailure(RuntimeError):
+    """Contains only labels authored in this file, never upstream exception text."""
+
+
+@contextlib.contextmanager
+def checking(label):
+    try:
+        yield
+    except SmokeFailure:
+        raise
+    except Exception as error:  # noqa: BLE001 - upstream error text must remain private
+        # Fixed categories aid diagnosis without exposing messages, module names,
+        # paths, tokens, config values or arbitrary upstream exception classes.
+        categories = {
+            ModuleNotFoundError: "missing module",
+            ImportError: "import error",
+            PermissionError: "permission denied",
+            FileNotFoundError: "missing file",
+            TypeError: "type error",
+            AttributeError: "attribute error",
+        }
+        category = categories.get(type(error), "runtime error")
+        raise SmokeFailure(f"{label} ({category})") from None
+
+
 def require(condition, label):
     if not condition:
-        raise RuntimeError(label)
+        raise SmokeFailure(label)
 
 
 def request(path, key=None):
@@ -84,23 +109,32 @@ def check_policy():
 
 
 def check_profiles(home, write):
-    import yaml
-    from hermes_cli.profiles import list_profiles
-    from hermes_profiles import POLICY, definitions, provision
+    with checking("profiles: official YAML import"):
+        from hermes_yaml import safe_load
+    with checking("profiles: official discovery import"):
+        from hermes_cli.profiles import list_profiles
+    with checking("profiles: mounted provisioner import"):
+        from hermes_profiles import POLICY, definitions, provision
 
     manifest = Path("/opt/ai-team/team.yaml")
-    expected = definitions(manifest)
+    with checking("profiles: manifest validation"):
+        expected = definitions(manifest)
     if write:
-        require(set(provision(home, manifest)) == set(expected), "seven fresh profiles")
-    require(provision(home, manifest) == [], "profile provisioning idempotence")
-    names = {item.name for item in list_profiles(lazy_skill_count=True)}
+        with checking("profiles: initial provisioning"):
+            require(set(provision(home, manifest)) == set(expected), "seven fresh profiles")
+    with checking("profiles: idempotence"):
+        require(provision(home, manifest) == [], "profile provisioning idempotence")
+    with checking("profiles: official discovery call"):
+        names = {item.name for item in list_profiles(lazy_skill_count=True)}
     require(set(expected) <= names, "official profile discovery")
     for name, entry in expected.items():
         profile = home / "profiles" / name
-        actual = yaml.safe_load((profile / "config.yaml").read_text(encoding="utf-8"))
-        require(actual == POLICY, "persisted profile tool policy")
-        require(entry["instructions"] in (profile / "SOUL.md").read_text(encoding="utf-8"),
-                "persisted profile instructions")
+        with checking("profiles: persisted config read"):
+            actual = safe_load((profile / "config.yaml").read_text(encoding="utf-8"))
+            require(actual == POLICY, "persisted profile tool policy")
+        with checking("profiles: persisted instructions read"):
+            require(entry["instructions"] in (profile / "SOUL.md").read_text(encoding="utf-8"),
+                    "persisted profile instructions")
 
 
 def check_persistence(home, probe_id, write):
@@ -155,6 +189,9 @@ def main():
             check_profiles(home, args.write)
             label = "official SessionDB synthetic persistence"
             check_persistence(home, args.probe_id, args.write)
+    except SmokeFailure as error:
+        print(f"Hermes runtime smoke failed: {error}", file=sys.stderr)
+        return 1
     except Exception:  # noqa: BLE001 - never print raw errors, config, key or provider state
         print(f"Hermes runtime smoke failed: {label}", file=sys.stderr)
         return 1

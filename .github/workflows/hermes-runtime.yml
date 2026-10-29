@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: hermes-runtime-${{ github.ref }}
+  group: hermes-runtime-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
