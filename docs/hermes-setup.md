@@ -19,16 +19,20 @@ exige backup e transferência revisada; não copie SQLite aberto.
    `infra/hermes/provider.env.example` para `.env.hermes`. Ambos ficam ignorados.
 2. Gere um segredo aleatório de 32 bytes no seu gerenciador de senhas e salve
    em `AI_TEAM_HERMES_KEY` no `.env`. Não envie no chat nem use `NEXT_PUBLIC_*`.
-3. Prepare o provedor/modelo no volume Hermes com o assistente oficial:
+3. Configure a chave do seu provedor em `.env.hermes` conforme a documentação
+   oficial. Exemplo: `OPENROUTER_API_KEY` para OpenRouter. No arquivo **do host**
+   `infra/hermes/config.yaml`, adicione o modelo sem segredos:
 
-   ```sh
-   docker compose run --rm --no-deps hermes setup
+   ```yaml
+   model:
+     provider: openrouter
+     default: SEU_ID_DE_MODELO_COMPATIVEL
    ```
 
-   A configuração de ferramentas permanece no arquivo read-only
-   `infra/hermes/config.yaml`. Se o assistente tentar modificá-lo, configure
-   apenas as credenciais/provedor em `.env.hermes` conforme a documentação do
-   provedor. Não remova a restrição para contornar um erro.
+   Use o ID disponibilizado pela sua conta. O gateway monta essa configuração
+   somente leitura, portanto o assistente `setup` não deve tentar regravá-la.
+   OAuth/Nous/Codex exigem o fluxo próprio documentado em home separado e
+   homologação antes de uso; não copiar tokens do Desktop.
 4. Inicie os serviços e cadastre proprietário **nesta nova instalação**:
 
    ```sh
@@ -61,6 +65,8 @@ diagnóstico sanitizado. Não há proxy genérico para endpoints Hermes. O gatew
 tem volume próprio; sem Docker socket, banco AI TEAM, checkout ou chaves GitHub.
 Configuração montada somente leitura, `platform_toolsets` vazios e nenhum MCP.
 Cliente verifica `/v1/toolsets` antes da inferência e recusa ferramentas ativas.
+O health check do contêiner também resolve o conjunto efetivo do runtime,
+incluindo MCP omitidos pelo inventário REST, e falha se encontrar ferramentas.
 Essa inspeção não substitui o arquivo controlado: não adicionar plugins/MCP ao
 volume. Mudanças de ferramentas exigem outra revisão de permissões e isolamento.
 
@@ -82,6 +88,13 @@ ferramentas. Configure teto no provedor; os limites locais **não são teto
 financeiro rígido**. Não há contratação ou inferência paga automática em testes.
 
 ## Critérios de homologação real
+
+Com runtime e provedor já configurados, o comando opt-in
+`.venv/Scripts/python.exe tools/smoke_hermes.py --real` autoriza até cinco chamadas
+em banco temporário, valida API autenticada, consentimento Hermes, checkpoints e
+aprovação e grava `artifacts/hermes-smoke.json`. Não valida subagentes nativos ou
+Telegram. No Compose a execução do smoke exige copiar o script para o serviço
+API ou executá-lo por túnel privado revisado; não abrir uma porta pública.
 
 - Diagnóstico autenticado responde `reachable`; isso não comprova inferência.
 - Criar solicitação **Hermes** em projeto supervisionado, conferir plano, aprovar

@@ -1,5 +1,19 @@
 # Entregas e evidências
 
+## Integração Hermes e escritório — 29/10/2026
+
+Entrega incremental em `codex/hermes-integration`: auditoria oficial, cliente
+Runs privado, consentimento persistente por executor, Compose com imagem oficial
+fixada, diagnóstico autenticado, política textual sem ferramentas, sete perfis
+nativos preparados e escritório pixel art com dados persistidos. Codex, banco,
+GitHub e agendas preservados. Sem merge ou publicação em produção.
+
+Validação local: suíte Python ampliada, 16 E2E, lint, TypeScript e build aprovados.
+Veja [evidências e pendências](hermes-validation.md),
+[configuração](hermes-setup.md) e [próximas fases](hermes-next-phases.md).
+Hermes/Telegram/delegação reais aguardam runtime e credenciais próprios;
+nenhuma fase operacional foi considerada homologada somente por mocks.
+
 ## V0.1 — base local funcional
 - API FastAPI, autenticação de proprietário único, projetos, tarefas, transições manuais e eventos persistentes.
 - Painel Next.js com visão geral, projetos, tarefas, papéis dos agentes, histórico, relatório JSON e estado das integrações.

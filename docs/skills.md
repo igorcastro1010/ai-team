@@ -29,3 +29,23 @@ Binário presente no Windows. Extração `graphify . --code-only` concluída em 
 - [Supabase conexão PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres)
 - [Codex SDK](https://developers.openai.com/codex/sdk)
 - [Codex como plataforma](https://developers.openai.com/blog/codex-as-a-platform)
+
+## Hermes e escritório — 29/10/2026
+
+Find Skills aplicado novamente: leaderboard skills.sh e `npx skills find hermes`.
+A descoberta retornou `nousresearch/hermes-agent@hermes-agent` (~1,2 mil
+instalações) e `dogfood` (~6,4 mil), além de fontes terceiras. Repositório
+oficial e skill `skills/autonomous-ai-agents/hermes-agent/SKILL.md` consultados
+no commit `e298669b44ce032a995c8a67ceae025801b0f4bf`. O conteúdo orienta operação
+de perfis/CLI, incluindo execução interativa; não concede permissões à aplicação.
+Nenhuma skill nova instalada: UI/UX Pro Max e Playwright já estão presentes e
+foram lidas. Evitada instalação redundante ou de terceiros sem necessidade.
+
+UI/UX Pro Max: busca local `agent dashboard pixel office --design-system`
+produziu direção retro/pixel compatível com o pedido. Aplicados pixel art SVG
+original, paleta própria, sem fontes remotas, foco visível, botões por teclado,
+reduced-motion, nomes de status além de cores e layouts móveis. Orientações
+de legibilidade prevalecem sobre usar fonte pixel pequena nos resultados.
+Playwright e React Best Practices aplicados aos fluxos, stale state e acessibilidade.
+
+Skills são exclusivas do desenvolvimento; Hermes não as instala nem executa.

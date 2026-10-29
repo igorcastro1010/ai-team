@@ -2,6 +2,31 @@
 
 Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
+## Hermes e escritório virtual
+
+Integração adicional com o **Hermes Agent oficial**, serviço independente via
+Docker Compose, API privada autenticada e executor escolhido por solicitação.
+Codex continua padrão; tarefas antigas e agendas não mudam de provedor.
+O escritório em `/escritorio` usa pixel art original, sete mesas e detalhes de
+histórico/resultados. Só anima execução persistida com lease e worker válidos;
+papéis ainda não provisionados são identificados.
+
+| Fase | Entrega e limite atual |
+|---|---|
+| 1 · Hermes | Adaptador Runs, diagnóstico, Compose, persistência, logs e controles testados localmente; contêiner e inferência real aguardam runtime/provedor |
+| 2 · Equipe | Sete definições e provisionador idempotente de perfis nativos; Bot Mode e subagentes reais ainda não homologados |
+| 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
+| 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |
+| 5 · Desenvolvimento | Codex e GitHub existentes preservados; execução de código/testes arbitrários continua bloqueada |
+| 6 · Automações | Agendas existentes preservadas; cron/pausa/retomada nativos Hermes ainda não integrados |
+| 7 · Produção | Arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
+
+Comece por [configuração Hermes](docs/hermes-setup.md), [auditoria](docs/hermes-audit.md)
+e [configuração das próximas fases](docs/hermes-next-phases.md). Segredos ficam no
+servidor; não envie tokens pelo chat. O Compose usa volumes próprios, sem importar
+automaticamente o banco Windows. O modo Hermes inicial é **textual, sem ferramentas**;
+shell, delegação nativa, merge e produção exigem revisão e homologação próprias.
+
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.
 - Cadastro de projetos, preferência de autonomia e tarefas por agente.
