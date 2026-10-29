@@ -4,7 +4,7 @@ import re
 import time
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, case, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
 from .models import Event, HermesAttempt, Run
@@ -12,6 +12,13 @@ from .models import Event, HermesAttempt, Run
 REMOTE_ID = re.compile(r"[A-Za-z0-9_-]{1,160}\Z")
 TERMINAL = {"completed", "failed", "cancelled", "interrupted"}
 REMOTE_STATES = TERMINAL | {"started", "queued", "running", "unknown", "awaiting_approval"}
+PREDECESSORS = {
+    "started": {"not_admitted", "started"},
+    "queued": {"not_admitted", "started", "queued"},
+    "running": {"not_admitted", "started", "queued", "running", "awaiting_approval"},
+    "awaiting_approval": {"not_admitted", "started", "queued", "running", "awaiting_approval"},
+    "unknown": REMOTE_STATES - TERMINAL,
+}
 
 
 class HermesJournal:
@@ -109,13 +116,21 @@ class HermesJournal:
         for field in ("input_tokens", "output_tokens"):
             value = usage.get(field)
             if type(value) is int and 0 <= value <= 2_000_000_000:
-                values[field] = value
+                column = getattr(HermesAttempt, field)
+                values[field] = case(
+                    (column.is_(None), value), (column < value, value), else_=column
+                )
         with self.database.session() as db:
             changed = db.execute(
                 update(HermesAttempt)
                 .where(
                     HermesAttempt.id == attempt_id,
-                    HermesAttempt.remote_status.not_in(TERMINAL),
+                    or_(
+                        HermesAttempt.remote_status.not_in(TERMINAL),
+                        HermesAttempt.remote_status == status,
+                    )
+                    if status in TERMINAL
+                    else HermesAttempt.remote_status.in_(PREDECESSORS[status]),
                 )
                 .values(**values)
             )

@@ -223,3 +223,123 @@ def test_provider_records_uncertain_stop_after_cancellation(journal):
     assert row["remote_id"] == "native_1"
     assert row["bridge_status"] == "interrupted"
     assert row["stop_status"] == "uncertain"
+
+
+def test_history_cursor_covers_all_rows_with_equal_timestamps(journal):
+    from ai_team.models import HermesAttempt, Run
+
+    store, original = journal
+    with store.database.session() as db:
+        for index in range(55):
+            run = Run(project_id=original.project_id, prompt="Synthetic history", mode="manual")
+            db.add(run)
+            db.flush()
+            db.add(
+                HermesAttempt(
+                    run_id=run.id, stage=0, admission_key=f"ai-team-page-{index}", created_at=100
+                )
+            )
+        db.commit()
+    first = store.page()
+    assert len(first["items"]) == 50
+    second = store.page(before=first["next_cursor"])
+    assert len(second["items"]) == 5
+    assert second["next_cursor"] is None
+    assert len({row["id"] for row in first["items"] + second["items"]}) == 55
+
+
+def test_reconciliation_fills_usage_after_terminal_observation(journal):
+    store, run = journal
+    attempt = store.begin(run, "ai-team-unique")
+    store.admitted(attempt.id, "native_1")
+    store.observe(attempt.id, {"status": "completed"})
+    assert store.get(attempt.id).input_tokens is None
+    store.observe(
+        attempt.id,
+        {
+            "status": "completed",
+            "usage": {
+                "input_tokens": 30,
+                "output_tokens": 10,
+            },
+        },
+    )
+    assert store.get(attempt.id).input_tokens == 30
+    assert store.get(attempt.id).output_tokens == 10
+
+
+def test_late_active_observation_cannot_regress_status_or_token_totals(journal):
+    store, run = journal
+    attempt = store.begin(run, "ai-team-unique")
+    store.admitted(attempt.id, "native_1")
+    store.observe(
+        attempt.id,
+        {
+            "status": "running",
+            "usage": {
+                "input_tokens": 20,
+                "output_tokens": 5,
+            },
+        },
+    )
+    store.observe(
+        attempt.id,
+        {
+            "status": "queued",
+            "usage": {
+                "input_tokens": 1,
+                "output_tokens": 0,
+            },
+        },
+    )
+    assert store.get(attempt.id).remote_status == "running"
+    assert store.get(attempt.id).input_tokens == 20
+    store.observe(
+        attempt.id,
+        {
+            "status": "completed",
+            "usage": {
+                "input_tokens": 30,
+                "output_tokens": 10,
+            },
+        },
+    )
+    store.observe(
+        attempt.id,
+        {
+            "status": "completed",
+            "usage": {
+                "input_tokens": 2,
+                "output_tokens": 1,
+            },
+        },
+    )
+    assert store.get(attempt.id).remote_status == "completed"
+    assert store.get(attempt.id).input_tokens == 30
+    assert store.get(attempt.id).output_tokens == 10
+
+
+def test_concurrent_reconciliation_keeps_largest_reported_usage(journal):
+    from concurrent.futures import ThreadPoolExecutor
+
+    store, run = journal
+    attempt = store.begin(run, "ai-team-unique")
+    store.admitted(attempt.id, "native_1")
+
+    def observe(tokens):
+        store.observe(
+            attempt.id,
+            {
+                "status": "completed",
+                "usage": {
+                    "input_tokens": tokens,
+                    "output_tokens": tokens // 2,
+                },
+            },
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        list(pool.map(observe, [50, 10, 30]))
+    row = store.get(attempt.id)
+    assert row.input_tokens == 50
+    assert row.output_tokens == 25
