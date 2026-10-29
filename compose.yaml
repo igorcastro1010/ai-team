@@ -38,6 +38,8 @@ services:
     volumes:
       - hermes-data:/opt/data
       - ./infra/hermes/config.yaml:/opt/data/config.yaml:ro
+      - ./infra/hermes/team.yaml:/opt/ai-team/team.yaml:ro
+      - ./tools/hermes_profiles.py:/opt/ai-team/hermes_profiles.py:ro
     # Deliberately no host port and no Docker socket, repository or AI TEAM database.
     networks: [control, outbound]
     restart: unless-stopped
