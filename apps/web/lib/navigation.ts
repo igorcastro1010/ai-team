@@ -5,6 +5,7 @@ export const views = {
   tarefas: { label: "Tarefas", title: "Do plano à entrega.", description: "O trabalho do time, etapa por etapa. Atualizações manuais nesta versão." },
   agentes: { label: "Agentes", title: "Papéis claros. Trabalho em equipe.", description: "Conheça as responsabilidades e os limites de cada especialista." },
   execucoes: { label: "Execuções", title: "Cada execução, à vista.", description: "Acompanhe a fila, o andamento e os resultados dos agentes." },
+  agendamentos: { label: "Agendamentos", title: "Uma direção. Um ritmo.", description: "Autorize recorrências textuais com prazo, limites e histórico." },
   aprovacoes: { label: "Aprovações", title: "As decisões continuam suas.", description: "Revise ações que precisam de autorização antes da execução." },
   historico: { label: "Histórico", title: "Nada se perde no caminho.", description: "Projetos, tarefas e decisões em uma trilha de auditoria." },
   relatorios: { label: "Relatórios", title: "Clareza para o próximo passo.", description: "Uma leitura objetiva do trabalho e do uso da plataforma." },

@@ -29,6 +29,13 @@ export type Workspace = {
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
   github: { connection: { repository: string; default_branch: string; head_sha?: string; verified_at: number } | null; actions: GitHubAction[] };
   vercel: { connection: VercelObservation | null };
+  schedules: Schedule[];
+};
+
+export type Schedule = {
+  id: string; project_id: string; prompt: string; mode: string;
+  interval_seconds: number; next_run_at: number; expires_at: number;
+  max_runs: number; emitted: number; status: string; created_at: number;
 };
 
 export type VercelObservation = {

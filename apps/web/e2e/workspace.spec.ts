@@ -19,6 +19,35 @@ test("dados privados exigem login e mutações bloqueiam CSRF", async ({ request
   expect((await request.post("/api/control/vercel/inspect", { headers: { origin: "https://evil.example" } })).status()).toBe(403);
 });
 
+test("agenda textual exige consentimento, persiste e permite cancelar", async ({ page }) => {
+  await login(page);
+  const project = await page.request.post('/api/control/projects', {
+    headers: {origin:'http://localhost:3100'}, data:{name:'Recorrência E2E'},
+  });
+  expect(project.status()).toBe(201);
+  await page.goto('/agendamentos');
+  await page.getByLabel('Projeto do agendamento').selectOption({label:'Recorrência E2E'});
+  await page.getByLabel('Solicitação recorrente').fill('Planeje uma revisão mensal do produto.');
+  const localStart = new Date(Date.now() + 3600000 - 3 * 3600000).toISOString().slice(0,16);
+  await page.getByLabel('Primeiro horário').fill(localStart);
+  await page.getByLabel('Número de ocorrências').fill('2');
+  await page.getByLabel('Modo das ocorrências').selectOption('automatic');
+  await page.getByRole('checkbox', {name:/Autorizo esta recorrência/}).check();
+  await page.getByRole('button', {name:'Autorizar agendamento',exact:true}).click();
+  await expect(page.getByRole('status')).toContainText('Agendamento autorizado');
+  await page.reload();
+  const card = page.getByRole('article').filter({hasText:'Planeje uma revisão mensal do produto.'});
+  await expect(card).toContainText('0 de 2 ocorrências');
+  await card.getByRole('button',{name:'Cancelar recorrência'}).click();
+  const confirmation=page.getByRole('dialog',{name:'Cancelar recorrência?'});
+  await confirmation.getByRole('button',{name:'Manter agendamento'}).click();
+  await expect(card).toContainText('Ativo');
+  await card.getByRole('button',{name:'Cancelar recorrência'}).click();
+  await confirmation.getByRole('button',{name:'Confirmar cancelamento'}).click();
+  await expect(card).toContainText('Cancelado');
+  expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([]);
+});
+
 test("Vercel mostra consultas e falhas sem oferecer publicação", async ({ page }) => {
   await login(page);
   await page.goto('/integracoes');

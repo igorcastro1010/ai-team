@@ -13,6 +13,7 @@ import { CreationDialog } from "./creation-dialog";
 import { CeoConsole, RunList } from "./run-panel";
 import { GitHubPanel } from "./github-panel";
 import { VercelPanel } from "./vercel-panel";
+import { SchedulePanel } from "./schedule-panel";
 
 import { views, type View } from "@/lib/navigation";
 
@@ -23,6 +24,7 @@ const navigation: { view: View; icon: LucideIcon; group: string }[] = [
   { view: "tarefas", icon: ListTodo, group: "" },
   { view: "agentes", icon: Users, group: "OPERAÇÃO" },
   { view: "execucoes", icon: Activity, group: "" },
+  { view: "agendamentos", icon: History, group: "" },
   { view: "aprovacoes", icon: ShieldCheck, group: "" },
   { view: "historico", icon: History, group: "" },
   { view: "relatorios", icon: FileText, group: "SISTEMA" },
@@ -93,6 +95,7 @@ export function Dashboard({ view }: { view: View }) {
           {view === "relatorios" && <Reports data={workspace} />}
           {view === "ceo" && <CeoConsole data={workspace} reload={load} />}
           {view === "execucoes" && <RunList data={workspace} runs={workspace.runs} reload={load} />}
+          {view === "agendamentos" && <SchedulePanel data={workspace} reload={load} />}
           {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>As aprovações autorizam somente a etapa indicada e o escopo textual. Propostas GitHub são revisadas separadamente em Integrações.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /></>}
         </>}
         <footer className="content-footer"><span>AI TEAM <span className="muted">/</span> Pense grande. Construa com direção.</span><span>Controle em cada etapa.</span></footer>
