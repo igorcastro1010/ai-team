@@ -1,0 +1,98 @@
+name: Hermes official runtime smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, codex/hermes-integration]
+    paths:
+      - '.github/workflows/hermes-runtime.yml'
+      - 'compose.yaml'
+      - 'infra/hermes/**'
+      - 'tools/hermes_profiles.py'
+  pull_request:
+    paths:
+      - '.github/workflows/hermes-runtime.yml'
+      - 'compose.yaml'
+      - 'infra/hermes/**'
+      - 'tools/hermes_profiles.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hermes-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: ai-team-hermes-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      PROBE_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+      HERMES_IMAGE: nousresearch/hermes-agent@sha256:9c5561579f3ffdf333401797094ac3a743738d6c25d40f4331c7bf77b694238d
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated runtime (no provider credentials)
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+          echo "::add-mask::$key"
+          printf 'AI_TEAM_HERMES_KEY=%s\n' "$key" >> "$GITHUB_ENV"
+          test ! -e .env.hermes
+          touch .env.hermes
+          cat > "$RUNNER_TEMP/hermes-ci.yaml" <<'YAML'
+          services:
+            hermes:
+              restart: "no"
+              cpus: 2
+              logging:
+                driver: none
+          networks:
+            outbound:
+              internal: true
+          YAML
+          printf 'COMPOSE_FILE=compose.yaml:%s/hermes-ci.yaml\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Pull pinned official image
+        run: timeout 600 docker pull --platform linux/amd64 "$HERMES_IMAGE"
+      - name: Start only Hermes and await healthy policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(docker compose config --images hermes)" = "$HERMES_IMAGE"
+          docker compose up -d --no-deps --pull never hermes
+          timeout 240 bash -c '
+            until [ "$(docker inspect --format="{{.State.Health.Status}}" "$(docker compose ps -q hermes)")" = healthy ]; do
+              sleep 3
+            done'
+          test -z "$(docker port "$(docker compose ps -q hermes)")"
+      - name: Verify real auth, capabilities, tools and write synthetic state
+        run: >-
+          timeout 90 docker compose exec -T --user hermes hermes
+          python /opt/ai-team/runtime_smoke.py --write --probe-id "$PROBE_ID"
+      - name: Recreate container retaining only its CI volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          previous="$(docker compose ps -q hermes)"
+          docker compose up -d --no-deps --pull never --force-recreate hermes
+          test "$(docker compose ps -q hermes)" != "$previous"
+          timeout 240 bash -c '
+            until [ "$(docker inspect --format="{{.State.Health.Status}}" "$(docker compose ps -q hermes)")" = healthy ]; do
+              sleep 3
+            done'
+          test -z "$(docker port "$(docker compose ps -q hermes)")"
+      - name: Verify auth/policy again and read persisted profiles and session
+        run: >-
+          timeout 90 docker compose exec -T --user hermes hermes
+          python /opt/ai-team/runtime_smoke.py --check --probe-id "$PROBE_ID"
+      - name: Remove only this job's containers and volumes
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/hermes-ci.yaml" ]; then
+            docker compose -f compose.yaml -f "$RUNNER_TEMP/hermes-ci.yaml" down --volumes --remove-orphans --timeout 20
+            rm -f .env.hermes "$RUNNER_TEMP/hermes-ci.yaml"
+          fi
