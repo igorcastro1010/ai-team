@@ -112,3 +112,6 @@ Branches devem usar `codex/ai-team/<nome>`. Commits desta versão publicam um do
 Resultado incerto nunca é repetido automaticamente: confira o recurso no GitHub antes de criar outra proposta. Troca de SHA ou ampliação da instalação bloqueia a execução. Tokens de escrita são temporários, restritos ao ID do ai-team e à permissão da operação. Os resultados preservam links para conferência.
 
 Homologação real opt-in: `.venv\Scripts\python.exe tools/smoke_github.py --real`. Cria branch, documento, issue e PR reais no ai-team, usando API autenticada, banco sintético e quatro workers separados; não faz merge, deploy nem limpeza destrutiva. Evidência fica em `artifacts/github-smoke.json` (ignorado). O CI não faz chamadas reais à App. Não envie chaves no chat.
+
+### Preparação V0.4: Vercel própria
+Configuração segura sem publicação: `powershell -NoProfile -File .\tools\setup-vercel.ps1`. Consulte [escopo, cofre e limites](docs/vercel-setup.md). Requer token informado pelo proprietário em terminal com entrada oculta; a integração não está homologada antes dessa etapa.
