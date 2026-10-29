@@ -15,6 +15,7 @@ export function CeoConsole({ data, reload }: { data: Workspace; reload: () => Pr
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [projectId, setProjectId] = useState(data.projects[0]?.id || "");
+  const [executor, setExecutor] = useState("codex");
   const mode = data.projects.find(project => project.id === projectId)?.mode || "supervised";
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,7 +24,7 @@ export function CeoConsole({ data, reload }: { data: Workspace; reload: () => Pr
     const values = new FormData(form);
     setBusy(true); setError(""); setSuccess("");
     try {
-      await api("/runs", { method: "POST", body: JSON.stringify({ project_id: projectId, prompt: values.get("prompt"), consent: values.get("consent") === "on" }) });
+      await api("/runs", { method: "POST", body: JSON.stringify({ project_id: projectId, prompt: values.get("prompt"), executor, consent: values.get("consent") === "on" }) });
       form.reset(); setSuccess("Solicitação registrada. Acompanhe o plano e as próximas etapas abaixo.");
       await reload();
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível registrar a solicitação."); }
@@ -33,8 +34,9 @@ export function CeoConsole({ data, reload }: { data: Workspace; reload: () => Pr
     <div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>O CEO coordena planos e pareceres textuais. Código, testes e deploys em outros projetos ainda não são executados.</span></div>
     <section className="panel ceo-compose"><div className="panel-title"><h2>Converse com o CEO</h2><span className="tag">{data.usage.worker_online ? "WORKER ONLINE" : "WORKER OFFLINE"}</span></div>
       {data.projects.length ? <form onSubmit={submit} className="ceo-form"><div className="compose-project"><div><label htmlFor="request-project">Projeto da solicitação</label><select id="request-project" value={projectId} onChange={event => setProjectId(event.target.value)} required>{data.projects.map(project => <option value={project.id} key={project.id}>{project.name}</option>)}</select></div><div className="compose-mode"><span className="tag">{modes[mode]}</span><p>{mode === "manual" ? "Você autoriza cada próxima etapa." : mode === "supervised" ? "O time continua após sua aprovação do plano." : "As cinco etapas textuais estão incluídas na autorização abaixo."}</p></div></div>
+        <label htmlFor="request-executor">Executor da solicitação</label><select id="request-executor" value={executor} onChange={event => { setExecutor(event.target.value); const consent = event.target.form?.elements.namedItem("consent"); if (consent instanceof HTMLInputElement) consent.checked = false; }}><option value="codex">Codex · executor existente</option><option value="hermes">Hermes · gateway privado, escopo textual</option></select>
         <label htmlFor="ceo-request">O que você quer construir?</label><textarea id="ceo-request" name="prompt" rows={5} minLength={5} maxLength={5000} required placeholder="Descreva objetivo, contexto e o resultado esperado…" />
-        <label className="consent-field"><input type="checkbox" name="consent" required /><span>Autorizo enviar esta solicitação ao Codex e gerar planos e pareceres: até 5 chamadas, 120 segundos por chamada. Nenhum dado sensível deve ser incluído. O consumo usa os limites da minha conta.</span></label>
+        <label className="consent-field"><input type="checkbox" name="consent" required /><span>Autorizo enviar esta solicitação ao {executor === "hermes" ? "Hermes" : "Codex"} e gerar planos e pareceres: até 5 chamadas, 120 segundos por chamada. Nenhum dado sensível deve ser incluído. O consumo usa os limites da minha conta.</span></label>
         {!data.usage.worker_online && <p className="field-help">O worker está offline. A solicitação ficará na fila até o processo ser iniciado.</p>}
         {error && <p className="notice error" role="alert">{error}</p>}{success && <p className="notice success" role="status">{success}</p>}
         <div className="compose-actions"><small>Escopo autorizado: elaboração textual. Custo monetário não disponível pelo CLI.</small><button className="button primary" disabled={busy}>{busy ? "Registrando…" : "Enviar ao CEO"}<ArrowUpRight size={17} aria-hidden="true" /></button></div>

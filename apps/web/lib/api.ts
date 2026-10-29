@@ -19,17 +19,33 @@ export type Event = { id: string; kind: string; summary: string; actor: string; 
 export type Agent = { id: string; name: string; role: string; description: string; tools: string[]; limit: string; status: string };
 export type Integration = { id: string; name: string; status: string; description: string; verified_at: number | null };
 export type Run = {
+  executor: "codex" | "hermes";
   id: string; project_id: string; prompt: string; mode: string; scope: string; status: string;
   stage: number; calls: number; input_tokens: number; output_tokens: number; error: string;
   created_at: number; steps: { stage: number; agent: string; summary: string; deliverable: string; input_tokens: number; output_tokens: number }[];
 };
 export type Workspace = {
+  office: OfficeAgent[];
+  office_observed_at: number;
+  hermes: { connection: HermesObservation | null };
   version: string; owner: string; projects: Project[]; tasks: Task[]; events: Event[];
   agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
   github: { connection: { repository: string; default_branch: string; head_sha?: string; verified_at: number } | null; actions: GitHubAction[] };
   vercel: { connection: VercelObservation | null };
   schedules: Schedule[];
+};
+
+export type HermesObservation = {
+  status: "not_configured" | "unavailable" | "unsafe_configuration" | "reachable";
+  checked_at: number | null; inference_verified: false; text_only: true;
+};
+export type OfficeAgent = {
+  id: string; name: string; role: string; enabled: boolean;
+  status: "available" | "working" | "awaiting_approval" | "completed" | "error";
+  animate: boolean; run_id: string | null; executor: string | null;
+  run_status: string | null; error: string;
+  history: { run_id: string; executor: string; created_at: number; summary: string; deliverable: string }[];
 };
 
 export type Schedule = {

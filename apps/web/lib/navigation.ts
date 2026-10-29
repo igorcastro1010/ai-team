@@ -1,5 +1,6 @@
 export const views = {
   overview: { label: "Visão geral", title: "Sua sala de operações.", description: "Um lugar para pensar, coordenar e fazer acontecer." },
+  escritorio: { label: "Escritório virtual", title: "Um escritório. Sete especialidades.", description: "Acompanhe o trabalho de verdade, com espaço para o time crescer." },
   ceo: { label: "Conversa com CEO", title: "Toda entrega começa com uma conversa.", description: "Dê contexto, defina a direção e acompanhe o plano." },
   projetos: { label: "Projetos", title: "Ideias com endereço.", description: "Cada projeto reúne uma direção, um time e o próximo passo." },
   tarefas: { label: "Tarefas", title: "Do plano à entrega.", description: "O trabalho do time, etapa por etapa. Atualizações manuais nesta versão." },
