@@ -11,6 +11,7 @@ import {
 import { api, ApiError, dateTime, modes, statusLabel, type Task, type TaskStatus, type Workspace } from "@/lib/api";
 import { CreationDialog } from "./creation-dialog";
 import { CeoConsole, RunList } from "./run-panel";
+import { GitHubPanel } from "./github-panel";
 
 import { views, type View } from "@/lib/navigation";
 
@@ -87,11 +88,11 @@ export function Dashboard({ view }: { view: View }) {
           {view === "tarefas" && <TaskBoard data={workspace} create={newTask} move={move} busy={updating} />}
           {view === "agentes" && <Agents data={workspace} />}
           {view === "historico" && <HistoryPanel data={workspace} />}
-          {view === "integracoes" && <Integrations data={workspace} />}
+          {view === "integracoes" && <><Integrations data={workspace} /><GitHubPanel data={workspace} reload={load} /></>}
           {view === "relatorios" && <Reports data={workspace} />}
           {view === "ceo" && <CeoConsole data={workspace} reload={load} />}
           {view === "execucoes" && <RunList data={workspace} runs={workspace.runs} reload={load} />}
-          {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>As aprovações autorizam somente a etapa indicada e o escopo textual. Ações externas continuam indisponíveis.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /></>}
+          {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>As aprovações autorizam somente a etapa indicada e o escopo textual. Propostas GitHub são revisadas separadamente em Integrações.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /></>}
         </>}
         <footer className="content-footer"><span>AI TEAM <span className="muted">/</span> Pense grande. Construa com direção.</span><span>Controle em cada etapa.</span></footer>
       </main>
@@ -146,7 +147,7 @@ function HistoryPanel({ data }: { data: Workspace }) {
 
 function Integrations({ data }: { data: Workspace }) {
   const icons: Record<string, LucideIcon> = { github: Folder, codex: Terminal, vercel: ArrowUpRight, supabase: Layers3, skills: Sparkles };
-  return <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>Credenciais são configuradas no ambiente privado do servidor. Este painel nunca solicita ou exibe chaves.</span></div><div className="integration-list">{data.integrations.map(integration => { const Icon = icons[integration.id] || Plug; return <article className="integration-card panel" key={integration.id}><div className="integration-icon"><Icon size={25} aria-hidden="true" /></div><div><h2>{integration.name}</h2><p>{integration.description}</p></div><span className="tag">{integration.status === "configured" ? "CONFIGURADA · NÃO HOMOLOGADA" : integration.status === "available" ? "ADAPTADOR DISPONÍVEL" : integration.status === "not_configured" ? "NÃO CONFIGURADA" : "PRÓXIMAS VERSÕES"}</span></article>; })}</div></>;
+  return <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>Credenciais são configuradas no ambiente privado do servidor. Este painel nunca solicita ou exibe chaves.</span></div><div className="integration-list">{data.integrations.map(integration => { const Icon = icons[integration.id] || Plug; return <article className="integration-card panel" key={integration.id}><div className="integration-icon"><Icon size={25} aria-hidden="true" /></div><div><h2>{integration.name}</h2><p>{integration.description}</p></div><span className="tag">{integration.status === "verified" ? "VERIFICAÇÃO REGISTRADA" : integration.status === "configured" ? "CONFIGURADA · NÃO HOMOLOGADA" : integration.status === "available" ? "ADAPTADOR DISPONÍVEL" : integration.status === "not_configured" ? "NÃO CONFIGURADA" : "PRÓXIMAS VERSÕES"}</span></article>; })}</div></>;
 }
 
 function Reports({ data }: { data: Workspace }) {

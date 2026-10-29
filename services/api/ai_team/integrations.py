@@ -3,9 +3,11 @@ def integration_statuses():
         {
             "id": "github",
             "name": "GitHub",
-            "status": "planned",
+            "status": "available",
             "verified_at": None,
-            "description": "V0.3 · Repositórios permitidos, branches e pull requests com revisão.",
+            "description": (
+                "App própria para ai-team. Verifique a instalação e revise as propostas."
+            ),
         },
         {
             "id": "codex",

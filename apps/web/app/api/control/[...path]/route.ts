@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const allowed = /^(auth\/(login|logout|me)|workspace|projects|tasks(?:\/[a-zA-Z0-9-]+)?|events|integrations|runs(?:\/[a-zA-Z0-9-]+(?:\/(decision|cancel|resume))?)?)$/;
+const allowed = /^(auth\/(login|logout|me)|workspace|projects|tasks(?:\/[a-zA-Z0-9-]+)?|events|integrations|runs(?:\/[a-zA-Z0-9-]+(?:\/(decision|cancel|resume))?)?|github(?:\/verify|\/proposals(?:\/[a-zA-Z0-9-]+\/decision)?)?)$/;
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
@@ -10,11 +10,12 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   if (hasBody && request.headers.get("origin") !== request.nextUrl.origin) {
     return NextResponse.json({ detail: "Origem não autorizada" }, { status: 403 });
   }
-  if (Number(request.headers.get("content-length") || 0) > 32768) {
+  const bodyLimit = targetPath === "github/proposals" ? 131072 : 32768;
+  if (Number(request.headers.get("content-length") || 0) > bodyLimit) {
     return NextResponse.json({ detail: "Solicitação muito grande" }, { status: 413 });
   }
   const body = hasBody ? await request.text() : undefined;
-  if (body && Buffer.byteLength(body) > 32768) {
+  if (body && Buffer.byteLength(body) > bodyLimit) {
     return NextResponse.json({ detail: "Solicitação muito grande" }, { status: 413 });
   }
   try {

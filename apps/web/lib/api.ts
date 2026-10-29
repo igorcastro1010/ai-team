@@ -27,6 +27,13 @@ export type Workspace = {
   version: string; owner: string; projects: Project[]; tasks: Task[]; events: Event[];
   agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
+  github: { connection: { repository: string; default_branch: string; head_sha?: string; verified_at: number } | null; actions: GitHubAction[] };
+};
+
+export type GitHubAction = {
+  id: string; project_id: string; digest: string; status: string; created_at: number; error: string;
+  payload: { project_id: string; operation: string; title: string; branch: string; expected_sha: string; path: string; content: string; body: string; draft: boolean };
+  result: { url?: string; sha?: string; number?: number };
 };
 
 export const statusLabel: Record<TaskStatus, string> = {

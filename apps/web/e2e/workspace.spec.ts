@@ -17,6 +17,41 @@ test("dados privados exigem login e mutações bloqueiam CSRF", async ({ request
   expect((await request.post("/api/control/projects", { data: { name: "indevido" }, headers: { origin: "https://evil.example" } })).status()).toBe(403);
 });
 
+test("proposta GitHub é revisada, cancelável e aprovada uma única vez", async ({ page }) => {
+  await login(page);
+  await page.getByRole("button", { name: "Novo projeto", exact: true }).first().click();
+  const creation = page.getByRole("dialog");
+  await creation.getByLabel("Nome do projeto").fill("GitHub E2E");
+  await creation.getByRole("button", { name: "Criar projeto" }).click();
+  await expect(creation).not.toBeVisible();
+  await page.getByRole("link", { name: "Integrações", exact: true }).click();
+  await page.getByLabel("Projeto da proposta").selectOption({ label: "GitHub E2E" });
+  await page.getByLabel("Título ou mensagem de commit").fill("Branch sintética E2E");
+  await page.getByLabel("Branch de trabalho").fill("codex/ai-team/e2e");
+  await page.getByLabel("SHA revisado da base").fill("a".repeat(40));
+  await page.getByLabel(/Revisei o conteúdo e não incluí credenciais/).check();
+  await page.getByRole("button", { name: "Registrar proposta", exact: true }).click();
+  const action = page.getByTestId("github-action").filter({ hasText: "Branch sintética E2E" });
+  await expect(action.getByText("Revisão pendente", { exact: true })).toBeVisible();
+  await action.getByRole("button", { name: "Revisar aprovação" }).click();
+  const approval = page.getByRole("dialog");
+  await expect(approval).toContainText("codex/ai-team/e2e");
+  expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: "../../artifacts/github-approval-desktop.png", fullPage: true });
+  await approval.getByRole("button", { name: "Voltar à revisão" }).click();
+  await expect(approval).not.toBeVisible();
+  await action.getByRole("button", { name: "Revisar aprovação" }).click();
+  await approval.getByRole("button", { name: "Autorizar execução" }).click();
+  await expect(approval).not.toBeVisible();
+  await expect(action.getByText("Autorizada · na fila", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(action.getByRole("button", { name: "Revisar aprovação" })).toHaveCount(0);
+  const result = await page.request.get("/api/control/github");
+  const actions = (await result.json()).actions.filter((item: { payload: { title: string } }) => item.payload.title === "Branch sintética E2E");
+  expect(actions).toHaveLength(1);
+  expect(actions[0].status).toBe("approved");
+});
+
 test("cria projeto e tarefa, move quadro e preserva após recarregar", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Novo projeto", exact: true }).first().click();

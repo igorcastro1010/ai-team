@@ -47,3 +47,17 @@ V0.2 entrega planos e pareceres textuais; não modifica código em outros reposi
 - Revisão independente identificou URL obrigatória no manifesto de webhook, mesmo desativado; teste de regressão falhou antes da correção e passou depois.
 - Verificação: 41 testes Python e lint aprovados. O teste de cofre real escreveu, leu e removeu apenas uma entrada temporária de preflight.
 - GitHub App e instalação ainda pendentes de validação real. Esta preparação não habilita ferramentas nos agentes e não conclui a V0.3.
+
+## V0.3 — GitHub App e propostas supervisionadas
+- Autenticação própria por JWT/cofre, instalação seletiva e tokens temporários restritos ao ai-team. Nenhuma credencial do gh ou Desktop reutilizada.
+- Propostas imutáveis de branch, commit de documento, issue e PR; revisão, confirmação e aprovação vinculadas ao conteúdo no painel Integrações.
+- Execução em worker separado, fila persistente, CAS/leases, SHA revisado, commit sem force e proteção contra replay e repetição de resultados incertos.
+- Homologação real: quatro processos worker concluíram branch, documento, issue e PR no ai-team. [PR sintético #4](https://github.com/igorcastro1010/ai-team/pull/4), [issue #3](https://github.com/igorcastro1010/ai-team/issues/3), commit `6f48aafb02d5aaceb493a6aac2ab1201b5faed5c`. Sem merge ou deploy.
+- Testes: 78 Python, lint Python, lint Next.js, typecheck, build e 7 E2E; aprovação GitHub, cancelamento de confirmação e validação axe adicionados. Testes comuns/CI usam transporte simulado, sem rede autenticada ou inferência paga.
+- Skills aplicadas: planejamento, TDD, revisão e verificação; Supabase Postgres para persistência/concorrência; UI/UX Pro Max, Vercel React e Playwright para o painel.
+- Revisão independente e correções descritas em [segurança V0.3](v03-security-review.md).
+
+### Limites e próximo marco
+Commits limitados a `docs/agent-output/*.md`, branches `codex/ai-team/*`, um repositório privado. Transferência das propostas dos agentes para o formulário GitHub ainda é manual; não há execução de código arbitrário, merge ou publicação. Rascunhos de PR dependem do plano e não foram homologados. PostgreSQL hospedado continua sem teste real. O primeiro cadastro admin do workspace de uso real continua pendente; dados de teste não foram usados como credencial desse workspace.
+
+V0.4: manter o mecanismo Codex oficial já homologado e configurar acesso Vercel próprio para consultas; qualquer publicação exige autorização específica. V0.5 segue com agendamento/relatórios e V1.0 com endurecimento e hospedagem autorizada. Não considerar essas versões entregues por haver a V0.3 local.

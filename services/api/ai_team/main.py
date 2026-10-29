@@ -9,6 +9,8 @@ from .agents import AGENTS
 from .auth import COOKIE_NAME, authenticate, digest, require_owner
 from .config import Settings
 from .db import Database
+from .github_actions import GitHubStore
+from .github_routes import router as github_router
 from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
 from .run_routes import RunView
@@ -44,12 +46,13 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
     app.state.database, app.state.settings = database, settings
     app.include_router(runs_router)
+    app.include_router(github_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -65,7 +68,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.2.0"}
+        return {"status": "ok", "version": "0.3.0"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -184,6 +187,16 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @app.get("/integrations")
     def integrations(owner: Owner):
         result = integration_statuses()
+        connection = GitHubStore(database).snapshot()["connection"]
+        if connection:
+            github = next(item for item in result if item["id"] == "github")
+            github.update(
+                status="verified",
+                verified_at=connection["verified_at"],
+                description=(
+                    "Instalação seletiva verificada para ai-team. Escritas exigem aprovação."
+                ),
+            )
         if database.engine.dialect.name == "postgresql":
             for item in result:
                 if item["id"] == "supabase":
@@ -196,7 +209,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @app.get("/workspace")
     def workspace(owner: Owner):
         return {
-            "version": "0.2.0",
+            "version": "0.3.0",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
@@ -206,6 +219,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
             "usage": WorkflowStore(database).usage(),
             "integrations": integrations(owner),
+            "github": GitHubStore(database).snapshot(),
         }
 
     return app

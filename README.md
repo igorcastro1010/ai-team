@@ -1,6 +1,6 @@
 # AI TEAM
 
-Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.2: CEO e especialistas geram planos, propostas e revisões reais pelo Codex, com fila persistente e aprovações.** Alterações em repositórios e deploys ainda não estão habilitados.
+Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.3: CEO e especialistas pelo Codex, fila persistente e propostas GitHub supervisionadas.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.
@@ -49,7 +49,7 @@ SQLite local: `.data/ai-team.db`. Não apague este arquivo para atualizar. Backu
 ## PostgreSQL / Supabase
 Use `AI_TEAM_DATABASE_URL=postgresql+psycopg://.../postgres?sslmode=require` no servidor privado. Inicialize explicitamente com `ai-team init-db`, depois cadastre o proprietário. As tabelas ficam no schema `ai_team`, sem permissão de PUBLIC. Não adicione esse schema aos expostos pelo PostgREST/Supabase Data API. O painel conversa exclusivamente com FastAPI; não recebe service_role ou senha do banco.
 
-V0.2 adiciona as tabelas `runs` e `worker_heartbeats` sem remover dados da V0.1. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
+V0.2 adiciona `runs` e `worker_heartbeats`; V0.3 adiciona `github_actions` e `github_verification`, sem remover dados existentes. No desenvolvimento, a API/worker cria as tabelas ausentes ao iniciar. Em produção execute `ai-team init-db` explicitamente antes dos serviços. Ainda não há migrações gerais de alteração de colunas. PostgreSQL/Supabase precisa de homologação real antes de hospedagem. Mudar DATABASE_URL não copia o SQLite: faça migração de dados revisada. Não presumir RLS multiusuário; a instalação é de proprietário único.
 
 ## Verificação
 ```powershell
@@ -69,7 +69,7 @@ docs/               arquitetura, pesquisa, marcos e evidências
 ## Evolução e limites
 - V0.1: base local funcional.
 - V0.2: entregue — CEO, especialistas, LangGraph, fila, propostas e revisão textual por worker.
-- V0.3: GitHub com recursos permitidos e fluxo de desenvolvimento.
+- V0.3: entregue — GitHub App própria e propostas revisadas de branch/documento/issue/PR, somente no ai-team.
 - V0.4: Codex e Vercel com mecanismos oficiais homologados.
 - V0.5: automações, relatórios de execução e limites de uso.
 - V1.0: homologação, segurança de produção e publicação autorizada.
@@ -104,5 +104,11 @@ A interface mostra as últimas 200 execuções/eventos. Aprovações são consul
 ```
 Esse comando consome até cinco chamadas reais, usa um banco temporário exclusivo e um projeto sintético, testa API autenticada + worker em cinco processos separados + decisão de teste e grava evidência em `artifacts/codex-smoke.json` (ignorado no Git). Os testes comuns e o CI usam provedores de teste e não fazem inferência paga. Validado no Windows com o CLI oficial disponível; compatibilidade de outro binário deve ser verificada sem flexibilizar as permissões.
 
-### Próxima integração: GitHub App
-O preparo de registro está em `tools/setup-github-app.ps1`. Veja [permissões e instalação](docs/github-app-setup.md). A V0.3 operacional depende de criar a App privada e instalar somente no repositório `ai-team`, antes de homologar chamadas reais. Não envie chaves no chat.
+### GitHub App e propostas
+O registro está em `tools/setup-github-app.ps1`. Veja [permissões e instalação](docs/github-app-setup.md). A instalação própria foi homologada somente no `ai-team`. No painel **Integrações**, verifique a App, escolha um projeto e registre uma proposta. Revise todo o conteúdo e autorize separadamente; o worker executará uma vez e registrará o resultado.
+
+Branches devem usar `codex/ai-team/<nome>`. Commits desta versão publicam um documento Markdown completo em `docs/agent-output/<nome>.md`, com mensagem convencional e SHA da branch revisada. Para PR, informe também o SHA revisado da branch; a base é main. Não existe merge, exclusão, shell, publicação em produção ou edição de workflows. Os agentes continuam elaborando texto; transferir uma proposta para o formulário GitHub é uma ação manual do proprietário. Código arbitrário e execução de testes de projetos não estão habilitados.
+
+Resultado incerto nunca é repetido automaticamente: confira o recurso no GitHub antes de criar outra proposta. Troca de SHA ou ampliação da instalação bloqueia a execução. Tokens de escrita são temporários, restritos ao ID do ai-team e à permissão da operação. Os resultados preservam links para conferência.
+
+Homologação real opt-in: `.venv\Scripts\python.exe tools/smoke_github.py --real`. Cria branch, documento, issue e PR reais no ai-team, usando API autenticada, banco sintético e quatro workers separados; não faz merge, deploy nem limpeza destrutiva. Evidência fica em `artifacts/github-smoke.json` (ignorado). O CI não faz chamadas reais à App. Não envie chaves no chat.

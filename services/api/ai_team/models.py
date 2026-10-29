@@ -1,7 +1,7 @@
 import time
 import uuid
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -63,6 +63,26 @@ class Event(Base):
     summary: Mapped[str] = mapped_column(String(300))
     actor: Mapped[str] = mapped_column(String(80), default="owner")
     created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()), index=True)
+
+
+class GitHubAction(Base):
+    __tablename__ = "github_actions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    digest: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    error: Mapped[str] = mapped_column(String(300), default="")
+    lease_token: Mapped[str] = mapped_column(String(36), default="")
+    lease_expires_at: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[float] = mapped_column(Float, default=time.time, index=True)
+
+
+class GitHubVerification(Base):
+    __tablename__ = "github_verification"
+    id: Mapped[str] = mapped_column(String(20), primary_key=True, default="github")
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class Run(Base):

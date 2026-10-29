@@ -3,6 +3,7 @@ import time
 
 from .config import Settings
 from .db import Database
+from .github_actions import GitHubWorker
 from .models import new_id
 from .orchestration import Draft, build_graph
 from .workflow import WorkflowStore
@@ -62,6 +63,12 @@ class Worker:
         return True
 
 
+def process_cycle(worker, github_worker):
+    processed = worker.once()
+    github_processed = github_worker.once()
+    return processed or github_processed
+
+
 def main():
     from .codex_provider import CodexProvider
 
@@ -73,9 +80,10 @@ def main():
     if settings.environment != "production":
         database.initialize()
     worker = Worker(database, settings, CodexProvider())
-    print("Worker AI TEAM ativo; somente elaboração textual autorizada.", flush=True)
+    github_worker = GitHubWorker(database, tick=lambda: worker.store.heartbeat(worker.id))
+    print("Worker AI TEAM: elaboração textual e propostas GitHub aprovadas.", flush=True)
     while True:
-        processed = worker.once()
+        processed = process_cycle(worker, github_worker)
         if args.once:
             break
         if not processed:

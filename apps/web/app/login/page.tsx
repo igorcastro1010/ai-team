@@ -32,7 +32,7 @@ export default function Login() {
         {error && <p className="notice error" role="alert">{error}</p>}
         <button className="button primary full" disabled={busy}>{busy ? "Entrando…" : "Entrar no workspace"}<ArrowUpRight size={18} aria-hidden="true" /></button>
       </form><p className="login-help">Primeiro acesso? Cadastre o proprietário pelo instalador local. O registro público está desativado.</p>
-      <div className="login-foot"><span className="dot" /> Sua operação começa aqui.<span>V0.1</span></div>
+      <div className="login-foot"><span className="dot" /> Sua operação começa aqui.<span>V0.3</span></div>
     </section>
   </main>;
 }
