@@ -11,6 +11,8 @@ from .config import Settings
 from .db import Database
 from .github_actions import GitHubStore
 from .github_routes import router as github_router
+from .hermes_routes import observation_snapshot as hermes_snapshot
+from .hermes_routes import router as hermes_router
 from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
 from .report_routes import router as report_router
@@ -62,6 +64,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(vercel_router)
     app.include_router(schedule_router)
     app.include_router(report_router)
+    app.include_router(hermes_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -238,6 +241,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),
             "vercel": observation_snapshot(database),
+            "hermes": hermes_snapshot(database),
             "schedules": [
                 ScheduleView.model_validate(row) for row in ScheduleStore(database).all()
             ],

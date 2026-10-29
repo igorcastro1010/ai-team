@@ -1,0 +1,13 @@
+# Phase 1: text-only. Read-only mount, no MCP or runtime-installed tools.
+# Do not enable tools here until isolation and resource-bound approvals are tested.
+platform_toolsets:
+  api_server: []
+  telegram: []
+  cli: []
+mcp_servers: {}
+agent:
+  max_turns: 2
+gateway:
+  api_server:
+    max_concurrent_runs: 1
+    history_tool_output_max_chars: 16000
