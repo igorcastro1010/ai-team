@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const allowed = /^(auth\/(login|logout|me)|workspace|projects|tasks(?:\/[a-zA-Z0-9-]+)?|events|integrations|runs(?:\/[a-zA-Z0-9-]+(?:\/(decision|cancel|resume))?)?|github(?:\/verify|\/proposals(?:\/[a-zA-Z0-9-]+\/decision)?)?|vercel(?:\/inspect)?|schedules(?:\/[a-zA-Z0-9-]+\/cancel)?)$/;
+const allowed = /^(auth\/(login|logout|me)|workspace|reports|projects|tasks(?:\/[a-zA-Z0-9-]+)?|events|integrations|runs(?:\/[a-zA-Z0-9-]+(?:\/(decision|cancel|resume))?)?|github(?:\/verify|\/proposals(?:\/[a-zA-Z0-9-]+\/decision)?)?|vercel(?:\/inspect)?|schedules(?:\/[a-zA-Z0-9-]+\/cancel)?)$/;
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
@@ -21,6 +21,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   try {
     const base = process.env.AI_TEAM_API_URL || "http://127.0.0.1:8000";
     const url = new URL(`/${targetPath}`, base);
+    if (targetPath === "reports") url.search = request.nextUrl.search;
     const upstream = await fetch(url, {
       method: request.method, body, redirect: "error", cache: "no-store",
       signal: AbortSignal.timeout(12000),

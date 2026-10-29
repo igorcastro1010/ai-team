@@ -48,6 +48,41 @@ test("agenda textual exige consentimento, persiste e permite cancelar", async ({
   expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([]);
 });
 
+test("relatório exporta totais e navega por todas as páginas", async ({ page }) => {
+  await login(page);
+  const response = await page.request.get('/api/control/reports?limit=1');
+  expect(response.status()).toBe(200);
+  const realReport = await response.json();
+  let usedCursor=false;
+  await page.route('**/api/control/reports*', route => {
+    const query=new URL(route.request().url()).searchParams;
+    usedCursor=query.has('before_id');
+    return route.fulfill({contentType:'application/json', body:JSON.stringify({
+      ...realReport, summary:{...realReport.summary, runs:{completed:205}},
+      runs:[{id:usedCursor?'second-run':'first-run',project_id:'test',status:'completed',
+        mode:'automatic',calls:5,input_tokens:20,output_tokens:10,created_at:1000,
+        schedule_id:null,occurrence:null}],
+      next_cursor:usedCursor?null:{before_created_at:1000,before_id:'first-run'},
+    })});
+  });
+  await page.goto('/relatorios');
+  await expect(page.getByText('205 execuções registradas')).toBeVisible();
+  await expect(page.getByText('first-run',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Página seguinte'}).click();
+  await expect(page.getByText('second-run',{exact:true})).toBeVisible();
+  expect(usedCursor).toBe(true);
+  const downloadEvent=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Exportar página JSON'}).click();
+  const download=await downloadEvent;
+  const stream=await download.createReadStream();
+  const chunks:Buffer[]=[];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const exported=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  expect(exported.summary.runs.completed).toBe(205);
+  expect(exported.runs[0].id).toBe('second-run');
+  expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa']).analyze()).violations).toEqual([]);
+});
+
 test("Vercel mostra consultas e falhas sem oferecer publicação", async ({ page }) => {
   await login(page);
   await page.goto('/integracoes');

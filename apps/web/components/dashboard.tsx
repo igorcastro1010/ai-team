@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
-  Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, Bot, CheckCheck,
+  Activity, ArrowRight, ArrowUpRight, Bot, CheckCheck,
   ChevronRight, CircleDashed, FileText, Folder, Grid2X2, History,
   Layers3, ListTodo, LogOut, Menu, MessageSquare, Plug, Plus, RefreshCw,
   ShieldCheck, Sparkles, Terminal, Users, X, type LucideIcon,
@@ -14,6 +14,7 @@ import { CeoConsole, RunList } from "./run-panel";
 import { GitHubPanel } from "./github-panel";
 import { VercelPanel } from "./vercel-panel";
 import { SchedulePanel } from "./schedule-panel";
+import { ReportsPanel } from "./reports-panel";
 
 import { views, type View } from "@/lib/navigation";
 
@@ -92,7 +93,7 @@ export function Dashboard({ view }: { view: View }) {
           {view === "agentes" && <Agents data={workspace} />}
           {view === "historico" && <HistoryPanel data={workspace} />}
           {view === "integracoes" && <><Integrations data={workspace} /><VercelPanel data={workspace} reload={load} /><GitHubPanel data={workspace} reload={load} /></>}
-          {view === "relatorios" && <Reports data={workspace} />}
+          {view === "relatorios" && <ReportsPanel />}
           {view === "ceo" && <CeoConsole data={workspace} reload={load} />}
           {view === "execucoes" && <RunList data={workspace} runs={workspace.runs} reload={load} />}
           {view === "agendamentos" && <SchedulePanel data={workspace} reload={load} />}
@@ -154,12 +155,3 @@ function Integrations({ data }: { data: Workspace }) {
   return <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>Credenciais são configuradas no ambiente privado do servidor. Este painel nunca solicita ou exibe chaves.</span></div><div className="integration-list">{data.integrations.map(integration => { const Icon = icons[integration.id] || Plug; return <article className="integration-card panel" key={integration.id}><div className="integration-icon"><Icon size={25} aria-hidden="true" /></div><div><h2>{integration.name}</h2><p>{integration.description}</p></div><span className="tag">{integration.status === "verified" ? "VERIFICAÇÃO REGISTRADA" : integration.status === "configured" ? "CONFIGURADA · NÃO HOMOLOGADA" : integration.status === "available" ? "ADAPTADOR DISPONÍVEL" : integration.status === "not_configured" ? "NÃO CONFIGURADA" : "PRÓXIMAS VERSÕES"}</span></article>; })}</div></>;
 }
 
-function Reports({ data }: { data: Workspace }) {
-  const complete = data.tasks.filter(task => task.status === "done").length;
-  function download() {
-    const report = { generated_at: new Date().toISOString(), version: data.version, projects: data.projects, tasks: data.tasks, usage: data.usage, note: "Status de tarefas atualizado manualmente. Custos de IA ainda indisponíveis." };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: "application/json" }));
-    const anchor = document.createElement("a"); anchor.href = url; anchor.download = "ai-team-relatorio.json"; anchor.click(); URL.revokeObjectURL(url);
-  }
-  return <><div className="section-toolbar"><span>Dados atuais do seu workspace</span><button className="button" onClick={download}><ArrowDownToLine size={16} aria-hidden="true" /> Exportar relatório</button></div><div className="report-grid"><section className="panel report-card"><p className="eyebrow">ENTREGAS</p><strong>{complete}<span> / {data.tasks.length}</span></strong><h2>Tarefas concluídas</h2><p>Status atualizado manualmente pelo proprietário.</p><progress value={complete} max={data.tasks.length || 1} aria-label="Proporção de tarefas concluídas" /></section><section className="panel report-card"><p className="eyebrow">USO DE IA</p><strong>{data.usage.requests}<span> chamadas</span></strong><h2>{data.usage.tokens.toLocaleString("pt-BR")} tokens registrados</h2><p>Chamadas reservadas pelo worker; tokens informados pelo Codex nas respostas concluídas.</p></section><section className="panel report-card"><p className="eyebrow">CUSTOS</p><strong>—</strong><h2>Ainda sem medição</h2><p>Valores serão exibidos com origem, moeda e período após integrar o provedor.</p></section></div><div className="expansion-note"><FileText size={19} aria-hidden="true" /><span>A exportação inclui projetos, tarefas e métricas disponíveis, sem credenciais ou dados de sessão.</span></div></>;
-}
