@@ -119,3 +119,19 @@ def test_expired_schedule_cannot_queue_and_partial_transaction_rolls_back(databa
         store.tick(now=1100)
     assert store.get(schedule.id).emitted == 0
     assert store.get(schedule.id).next_run_at == 1100
+
+
+def test_busy_schedules_do_not_starve_new_due_requests(database):
+    from ai_team.schedules import ScheduleStore
+
+    store = ScheduleStore(database)
+    for _ in range(20):
+        store.create(payload(mode="manual"), "owner", now=1000)
+    assert store.tick(now=1100) == 20
+    with database.session() as db:
+        for run in db.scalars(select(Run)):
+            run.status = "awaiting_approval"
+        db.commit()
+    new = store.create(payload(starts_at=5000), "owner", now=4900)
+    assert store.tick(now=5000) == 1
+    assert store.get(new.id).emitted == 1

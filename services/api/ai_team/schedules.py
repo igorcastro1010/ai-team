@@ -132,6 +132,13 @@ class ScheduleStore:
                     .where(
                         Schedule.status == "active",
                         Schedule.next_run_at <= now,
+                        ~select(ScheduleOccurrence.run_id)
+                        .join(Run, Run.id == ScheduleOccurrence.run_id)
+                        .where(
+                            ScheduleOccurrence.schedule_id == Schedule.id,
+                            Run.status.in_(ACTIVE_RUNS),
+                        )
+                        .exists(),
                     )
                     .order_by(Schedule.next_run_at, Schedule.id)
                     .limit(20)
