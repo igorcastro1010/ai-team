@@ -2,7 +2,7 @@ import time
 import uuid
 
 from sqlalchemy import JSON, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def new_id() -> str:
@@ -91,6 +91,12 @@ class ProviderObservation(Base):
     details: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class RunExecutor(Base):
+    __tablename__ = "run_executors"
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), primary_key=True)
+    executor: Mapped[str] = mapped_column(String(20))
+
+
 class Run(Base):
     __tablename__ = "runs"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -101,6 +107,11 @@ class Run(Base):
     status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
     stage: Mapped[int] = mapped_column(Integer, default=0)
     steps: Mapped[list] = mapped_column(JSON, default=list)
+    executor_binding: Mapped[RunExecutor | None] = relationship(lazy="selectin", uselist=False)
+
+    @property
+    def executor(self):
+        return self.executor_binding.executor if self.executor_binding else "codex"
     calls: Mapped[int] = mapped_column(Integer, default=0)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
