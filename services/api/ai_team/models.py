@@ -1,7 +1,7 @@
 import time
 import uuid
 
-from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -114,3 +114,27 @@ class WorkerHeartbeat(Base):
     __tablename__ = "worker_heartbeats"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     last_seen: Mapped[int] = mapped_column(Integer, index=True)
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+    __table_args__ = (Index("ix_schedules_due", "status", "next_run_at"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    prompt: Mapped[str] = mapped_column(Text)
+    mode: Mapped[str] = mapped_column(String(20))
+    interval_seconds: Mapped[int] = mapped_column(Integer)
+    next_run_at: Mapped[int] = mapped_column(Integer)
+    expires_at: Mapped[int] = mapped_column(Integer)
+    max_runs: Mapped[int] = mapped_column(Integer)
+    emitted: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    created_at: Mapped[int] = mapped_column(Integer)
+
+
+class ScheduleOccurrence(Base):
+    __tablename__ = "schedule_occurrences"
+    schedule_id: Mapped[str] = mapped_column(ForeignKey("schedules.id"), primary_key=True)
+    number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), unique=True)
+    created_at: Mapped[int] = mapped_column(Integer)
