@@ -1,5 +1,11 @@
 # Smoke do runtime oficial Hermes no CI
 
+**Comunicação privada comprovada:** [run 40925289265](https://github.com/igorcastro1010/ai-team/actions/runs/40925289265)
+aprovado no commit `6cfab219b8da7710b64c8b77a196e9be4e1841f9`. Além dos checks
+do gateway, construiu a imagem da API e executou `HermesClient.inspect()` dentro
+de um contêiner AI TEAM, consultando o Hermes real em `http://hermes:8642`
+pela rede privada do Compose. Nenhuma inferência foi solicitada.
+
 **Homologação observada:** [run 40922239576](https://github.com/igorcastro1010/ai-team/actions/runs/40922239576)
 concluído com sucesso no commit `823e45761cecee851f0fbd63d6e1b5be05831723`.
 Gateway, autenticação, política efetiva, sete perfis nativos e persistência

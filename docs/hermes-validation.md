@@ -11,6 +11,9 @@
 - [PostgreSQL real](https://github.com/igorcastro1010/ai-team/actions/runs/40924442533):
   cinco testes aprovados com login de aplicação restrito, schema privado,
   preservação de dados, autenticação/consentimento e concorrência do journal.
+- [Adaptador AI TEAM em rede privada](https://github.com/igorcastro1010/ai-team/actions/runs/40925289265):
+  imagem da API construída e cliente real consultando o gateway Hermes real
+  pela rede do Compose, sem chamada de modelo.
 - Novas regressões: admissão incerta, unicidade de estágio entre workers,
   cancelamento sem confirmação, respostas tardias, consumo monotônico e
   histórico paginado estável durante atualizações. Revisão independente aplicada.

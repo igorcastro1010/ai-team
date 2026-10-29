@@ -75,6 +75,12 @@ Cada solicitação fica vinculada a Codex ou Hermes na tabela adicional
 execute `ai-team init-db` antes de atualizar API/worker. Sem remoção de dados ou
 alteração de colunas existentes.
 
+O monitor remoto acrescenta `hermes_attempts`, também criado por `ai-team init-db`.
+Histórico, reconciliação e interrupção estão em [operação Hermes](hermes-operations.md).
+A comunicação do cliente AI TEAM com o contêiner oficial e a persistência após
+recriação foram [comprovadas em CI](hermes-runtime-ci.md); inferência com o modelo
+e credenciais próprios continua sendo uma homologação separada.
+
 Limites preservados: cinco chamadas por solicitação, 120s por chamada e limiar
 de 50 mil tokens antes da próxima chamada. Hermes: concorrência API máxima 1,
 duas iterações por turno, resposta HTTP máxima 200 KB e schema de resultado
