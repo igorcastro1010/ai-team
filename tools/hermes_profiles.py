@@ -14,7 +14,7 @@ except ModuleNotFoundError as error:
     import yaml
 
 POLICY = {
-    "platform_toolsets": {"api_server": [], "telegram": [], "cli": []},
+    "platform_toolsets": {"api_server": [], "cron": [], "telegram": [], "cli": []},
     "mcp_servers": {},
     "agent": {"max_turns": 2},
     "gateway": {"api_server": {"max_concurrent_runs": 1}},
@@ -59,7 +59,8 @@ def provision(home: Path, manifest: Path):
             continue  # Preserve all pre-existing state, including personal customizations.
         directory.mkdir()
         (directory / "config.yaml").write_text(
-            yaml.safe_dump(POLICY, allow_unicode=True), encoding="utf-8",
+            yaml.safe_dump(POLICY, allow_unicode=True),
+            encoding="utf-8",
         )
         (directory / "SOUL.md").write_text(
             f"# {entry['title']} — {entry['role']}\n\n{entry['instructions']}\n\n{BOUNDARIES}\n",
@@ -70,23 +71,39 @@ def provision(home: Path, manifest: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Preparar perfis Hermes sem inferência")
-    parser.add_argument("--manifest", type=Path,
-                        default=Path(__file__).resolve().parents[1] / "infra/hermes/team.yaml")
-    parser.add_argument("--home", required=True, type=Path,
-                        help="HERMES_HOME próprio; nunca usar diretório do Codex Desktop")
-    parser.add_argument("--apply", action="store_true", help="Cria apenas diretórios ausentes")
+    parser = argparse.ArgumentParser(
+        description="Preparar perfis Hermes sem inferência"
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path(__file__).resolve().parents[1] / "infra/hermes/team.yaml",
+    )
+    parser.add_argument(
+        "--home",
+        required=True,
+        type=Path,
+        help="HERMES_HOME próprio; nunca usar diretório do Codex Desktop",
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Cria apenas diretórios ausentes"
+    )
     args = parser.parse_args()
     try:
         if args.apply:
             created = provision(args.home, args.manifest)
-            print(f"{len(created)} perfis preparados. Existentes preservados. Nenhum agente iniciado.")
+            print(
+                f"{len(created)} perfis preparados. Existentes preservados. Nenhum agente iniciado."
+            )
         else:
             names = definitions(args.manifest)
             print("Perfis planejados: " + ", ".join(names))
             print("Dry run. Use --apply para criar configurações, sem iniciar agentes.")
     except (ValueError, OSError, yaml.YAMLError):
-        parser.exit(2, "Não foi possível preparar perfis. Confira manifesto e diretório próprio.\n")
+        parser.exit(
+            2,
+            "Não foi possível preparar perfis. Confira manifesto e diretório próprio.\n",
+        )
 
 
 if __name__ == "__main__":

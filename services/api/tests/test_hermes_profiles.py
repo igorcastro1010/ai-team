@@ -18,6 +18,7 @@ def test_generates_native_profiles_without_tokens_or_execution(tmp_path):
         directory = home / "profiles" / name
         config = yaml.safe_load((directory / "config.yaml").read_text())
         assert config["platform_toolsets"]["api_server"] == []
+        assert config["platform_toolsets"]["cron"] == []
         assert config["mcp_servers"] == {}
         assert not (directory / ".env").exists()
         assert "aprovação" in (directory / "SOUL.md").read_text(encoding="utf-8")

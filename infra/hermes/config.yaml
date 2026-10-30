@@ -6,6 +6,7 @@
 #   default: YOUR_SUPPORTED_MODEL_ID
 platform_toolsets:
   api_server: []
+  cron: []
   telegram: []
   cli: []
 mcp_servers: {}
