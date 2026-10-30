@@ -74,7 +74,7 @@ jobs:
           test -z "$(docker port "$(docker compose ps -q hermes)")"
       - name: Verify real auth, capabilities, tools and write synthetic state
         run: >-
-          timeout 90 docker compose exec -T --user hermes hermes
+          timeout 90 docker compose exec -T --user hermes -e AI_TEAM_RUNTIME_CI=true hermes
           python /opt/ai-team/runtime_smoke.py --write --probe-id "$PROBE_ID"
       - name: Build the real AI TEAM API image
         run: timeout 360 docker compose build api
@@ -108,7 +108,7 @@ jobs:
           test -z "$(docker port "$(docker compose ps -q hermes)")"
       - name: Verify auth/policy again and read persisted profiles and session
         run: >-
-          timeout 90 docker compose exec -T --user hermes hermes
+          timeout 90 docker compose exec -T --user hermes -e AI_TEAM_RUNTIME_CI=true hermes
           python /opt/ai-team/runtime_smoke.py --check --probe-id "$PROBE_ID"
       - name: Remove only this job's containers and volumes
         if: always()
