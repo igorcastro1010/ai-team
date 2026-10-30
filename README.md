@@ -153,3 +153,7 @@ Configuração segura: `powershell -NoProfile -File .\tools\setup-vercel.ps1`. C
 ### Recorrências e relatórios V0.5
 
 Abra **Agendamentos** para autorizar projeto, solicitação, modo, início e frequência. A instalação não cria agendas automaticamente. Veja [limites e execução Windows](docs/schedules.md) e [revisão de segurança](docs/v05-security-review.md). Em **Relatórios**, os totais abrangem todo o banco; o histórico e a exportação JSON representam uma página de até 50 execuções por vez. Prompts e credenciais não são exportados. Não há inferência paga nos testes desta versão.
+
+### Diagnóstico Windows e Hermes
+
+Antes de iniciar, execute `powershell -NoProfile -File .\tools\doctor.ps1`. Para exigir também os pré-requisitos Hermes, acrescente `-RequireHermes`; `-Json` produz um relatório sem segredos. O inicializador verifica portas, versão e prontidão da API antes de abrir o painel. Veja [ativação local e reinício](docs/hermes-local-onboarding.md).

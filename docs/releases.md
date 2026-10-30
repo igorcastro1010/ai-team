@@ -123,3 +123,13 @@ V1.0 exige homologar PostgreSQL privado, instalação fora deste PC e hospedagem
 
 ### Correção do cadastro inicial
 Uma tentativa de login antes do primeiro cadastro criava o registro de limitação de acesso. O cadastro tentava inserir a mesma chave e falhava. Agora reutiliza o registro existente, preservando tentativas e prazo de bloqueio. Regressão reproduzida antes da correção; 107 testes Python e lint aprovados. Login e workspace autenticados também verificados localmente, sem registrar senha ou sessão.
+
+
+## Continuação Windows — 30/10/2026
+- Base sincronizada por fast-forward com `811bebf`, preservando a integração Hermes e o escritório virtual incorporados no GitHub.
+- WSL 3.0.3 e Docker Desktop 4.97.0 instalados com autorização do proprietário. Docker CLI 29.9.2 e Compose 5.6.1 respondem pelo caminho instalado. Nenhum reinício executado; Windows registra reinício pendente e hipervisor ainda inativo. Engine/Hermes, login próprio e inferência local aguardam essa etapa.
+- Diagnóstico somente leitura via `tools/doctor.ps1`: Python/Node/dependências, WSL, reinício CBS/Windows Update, engine Linux e Compose. Não lê arquivos de credenciais/cofres; erros e saídas de subprocessos não são exibidos. Prontidão nativa é distinta de Hermes, e não equivale a integração homologada.
+- Inicialização nativa agora rejeita portas ocupadas e aguarda API saudável na versão esperada antes de iniciar o painel. Revalida API e filhos durante o início; `finally` preserva a limpeza dos processos próprios.
+- Validação local: 213 testes Python aprovados, 7 PostgreSQL ignorados; 20 E2E, lint, typecheck e build aprovados. Dez testes específicos exercitam subprocessos PowerShell reais, API temporária, processo encerrado, timeout e respostas sanitizadas. CI Windows adicional usa apenas dados sintéticos e não instala Docker/WSL.
+- Revisão independente corrigiu duas lacunas: indicador exclusivo de reboot Windows Update e API encerrando na janela entre prontidão e abertura do frontend. Sem novos defeitos nesses ajustes.
+- Skills: planejamento/execução, diagnóstico, TDD, revisão e verificação. Sem publicação, Telegram, inferência paga ou importação de sessão nesta etapa. Reiniciar quando conveniente e seguir [ativação local](hermes-local-onboarding.md).
