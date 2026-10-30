@@ -30,7 +30,23 @@ e [Microsoft WSL](https://learn.microsoft.com/windows/wsl/install).
   e `auth.adopt_external_logins: false`.
 - `.data/hermes-local/compose.local.yaml`: substitui somente o mount da
   configuração Hermes por essa cópia gravável. O assistente oficial pode
-  salvar o modelo escolhido; nenhuma porta Hermes é publicada.
+  salvar o modelo escolhido. Para conectar o worker Windows, publicar somente
+  `127.0.0.1:8642:8642`, com a chave privada exigida pelo gateway. O Compose base
+  continua sem porta Hermes publicada. Nunca usar `8642:8642` sem endereço.
+
+Override privado para o worker Windows (caminhos relativos ao Compose da raiz):
+
+```yaml
+services:
+  hermes:
+    volumes:
+      - ./.data/hermes-local/config.yaml:/opt/data/config.yaml
+    ports:
+      - "127.0.0.1:8642:8642"
+```
+
+Validar com `docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml config --quiet`.
+Não imprimir a configuração resolvida: ela contém a chave do gateway.
 
 Esses arquivos não constituem login válido ou homologação de inferência.
 Não sobrescrever arquivos privados existentes em uma nova preparação.
@@ -68,7 +84,7 @@ Na raiz do projeto, conferir primeiro `docker version` e `docker compose version
 Iniciar somente o Hermes, mantendo os volumes:
 
 ```powershell
-docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml up -d hermes
+docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml up -d --no-deps hermes
 docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml exec --user hermes hermes hermes model
 ```
 

@@ -33,7 +33,10 @@ def test_refuses_public_or_ambiguous_destination(url):
 
 
 def test_no_network_without_configuration():
-    client = HermesClient(Settings(), transport=httpx.MockTransport(lambda r: pytest.fail()))
+    client = HermesClient(
+        Settings(_env_file=None, hermes_url="", hermes_key=""),
+        transport=httpx.MockTransport(lambda r: pytest.fail()),
+    )
     assert client.inspect()["status"] == "not_configured"
 
 
