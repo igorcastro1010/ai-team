@@ -33,6 +33,11 @@ exige backup e transferência revisada; não copie SQLite aberto.
    somente leitura, portanto o assistente `setup` não deve tentar regravá-la.
    OAuth/Nous/Codex exigem o fluxo próprio documentado em home separado e
    homologação antes de uso; não copiar tokens do Desktop.
+   A configuração base e os perfis novos desabilitam
+   `auth.adopt_external_logins`: o Hermes não deve recuperar a sessão de outro
+   aplicativo automaticamente. No assistente interativo, escolha login novo,
+   sem importar credenciais existentes. Perfis anteriores são preservados e
+   precisam receber essa configuração explicitamente antes de autenticar.
 4. Inicie os serviços e cadastre proprietário **nesta nova instalação**:
 
    ```sh

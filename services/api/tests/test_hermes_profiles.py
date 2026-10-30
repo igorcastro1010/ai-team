@@ -20,6 +20,7 @@ def test_generates_native_profiles_without_tokens_or_execution(tmp_path):
         assert config["platform_toolsets"]["api_server"] == []
         assert config["platform_toolsets"]["cron"] == []
         assert config["mcp_servers"] == {}
+        assert config["auth"]["adopt_external_logins"] is False
         assert not (directory / ".env").exists()
         assert "aprovação" in (directory / "SOUL.md").read_text(encoding="utf-8")
 

@@ -16,6 +16,7 @@ except ModuleNotFoundError as error:
 POLICY = {
     "platform_toolsets": {"api_server": [], "cron": [], "telegram": [], "cli": []},
     "mcp_servers": {},
+    "auth": {"adopt_external_logins": False},
     "agent": {"max_turns": 2},
     "gateway": {"api_server": {"max_concurrent_runs": 1}},
 }

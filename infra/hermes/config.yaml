@@ -10,6 +10,8 @@ platform_toolsets:
   telegram: []
   cli: []
 mcp_servers: {}
+auth:
+  adopt_external_logins: false
 agent:
   max_turns: 2
 gateway:

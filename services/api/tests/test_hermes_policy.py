@@ -9,6 +9,13 @@ policy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(policy)
 
 
+def test_runtime_config_disables_external_login_adoption():
+    import yaml
+
+    config = yaml.safe_load((ROOT / "infra/hermes/config.yaml").read_text(encoding="utf-8"))
+    assert config["auth"]["adopt_external_logins"] is False
+
+
 def test_effective_policy_includes_mcp_and_non_configurable_toolsets():
     config = {"platform_toolsets": {"api_server": [], "cron": []}, "mcp_servers": {}}
     assert policy.validate_policy(config, set(), set())
