@@ -96,6 +96,21 @@ Revisar a configuração sem imprimir segredos; confirmar que ferramentas e
 adoção externa continuam desabilitadas. Depois iniciar API/worker/monitor e
 executar o smoke opt-in documentado em [configuração](hermes-setup.md).
 
+### Falha ao salvar login: `auth.lock`
+
+O gateway e os comandos de autenticação usam o usuário `hermes` (UID 10000
+na imagem fixada). O health check também deve executar como esse usuário,
+via `/command/s6-setuidgid hermes`, pois os imports do runtime podem criar
+`/opt/data/auth.lock`. Executá-lo como root pode deixar a trava inacessível
+ao login, mesmo com o gateway saudável.
+
+Na recuperação local de 30/10/2026, a trava era de root e o teste como `hermes`
+reproduziu `PermissionError`. O contêiner foi parado, somente o proprietário
+da trava foi corrigido para `hermes:hermes`, com modo `0600`, e o serviço foi
+recriado com o health check corrigido. Nenhum volume ou credencial foi excluído.
+Validar a aquisição da trava como `hermes` antes de pedir novo login. Não usar
+`chmod 777`, apagar o volume nem desabilitar o mecanismo de lock.
+
 O volume Compose é separado do banco Windows existente. Não migrar ou substituir
 dados implicitamente e não usar `docker compose down -v`.
 
