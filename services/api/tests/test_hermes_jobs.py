@@ -225,6 +225,135 @@ def test_pause_total_deadline_leaves_room_for_the_http_envelope(database, monkey
     assert deadlines[0] <= started + 9
 
 
+def test_delayed_inspection_cannot_erase_concurrent_uncertain_pause(database):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    reading, release = Event(), Event()
+    delay = False
+
+    def handler(request):
+        if request.url.path == "/api/jobs":
+            if delay:
+                reading.set()
+                assert release.wait(5)
+            return httpx.Response(200, json={"jobs": [native_job()]})
+        if request.method == "POST":
+            raise httpx.ReadTimeout("private lost pause response")
+        return httpx.Response(200, json={"job": native_job()})
+
+    jobs = service(database, handler)
+    jobs.inspect("owner")
+    delay = True
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        delayed = pool.submit(jobs.inspect, "owner")
+        assert reading.wait(5)
+        try:
+            with pytest.raises(HTTPException):
+                jobs.pause(JOB_ID, "owner")
+            assert jobs_snapshot(database)["last_pause"]["status"] == "uncertain"
+        finally:
+            release.set()
+        delayed.result(timeout=5)
+    assert jobs_snapshot(database)["last_pause"]["status"] == "uncertain"
+
+
+def test_delayed_paused_inventory_cannot_confirm_a_newer_pause_request(database):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    reading, release = Event(), Event()
+    delay = False
+
+    def handler(request):
+        if request.url.path == "/api/jobs":
+            if delay:
+                reading.set()
+                assert release.wait(5)
+            return httpx.Response(200, json={"jobs": [native_job(enabled=False, state="paused")]})
+        if request.method == "POST":
+            raise httpx.ReadTimeout("private lost response")
+        return httpx.Response(200, json={"job": native_job()})
+
+    jobs = service(database, handler)
+    jobs.inspect("owner")
+    delay = True
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        delayed = pool.submit(jobs.inspect, "owner")
+        assert reading.wait(5)
+        try:
+            with pytest.raises(HTTPException):
+                jobs.pause(JOB_ID, "owner")
+        finally:
+            release.set()
+        delayed.result(timeout=5)
+    assert jobs_snapshot(database)["last_pause"]["status"] == "uncertain"
+
+
+def test_delayed_confirmation_is_bound_to_its_request_not_a_newer_uncertainty(database):
+    jobs = service(database, lambda _: httpx.Response(200, json={"jobs": [native_job()]}))
+    jobs.inspect("owner")
+    first = jobs._record_pause(JOB_ID, "uncertain", "owner")
+    jobs._record_pause(JOB_ID, "uncertain", "owner")
+    observed = jobs_snapshot(database)["items"][0] | {"enabled": False, "state": "paused"}
+    jobs._record_pause(JOB_ID, "confirmed", "owner", observed, request_id=first["_request_id"])
+    assert jobs_snapshot(database)["last_pause"]["status"] == "uncertain"
+
+
+def test_older_inventory_cannot_replace_a_newer_inspection(database):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    reading, release = Event(), Event()
+    hold_next = False
+    current = native_job()
+
+    def handler(request):
+        nonlocal hold_next
+        payload = {"jobs": [dict(current)]}
+        if hold_next:
+            hold_next = False
+            reading.set()
+            assert release.wait(5)
+        return httpx.Response(200, json=payload)
+
+    jobs = service(database, handler)
+    jobs.inspect("owner")
+    hold_next = True
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        delayed = pool.submit(jobs.inspect, "owner")
+        assert reading.wait(5)
+        try:
+            current = native_job(enabled=False, state="paused")
+            assert jobs.inspect("owner")["items"][0]["state"] == "paused"
+        finally:
+            release.set()
+        delayed.result(timeout=5)
+    assert jobs_snapshot(database)["items"][0]["state"] == "paused"
+
+
+def test_later_external_resume_is_not_hidden_by_old_confirmed_pause(database):
+    paused = False
+
+    def handler(request):
+        nonlocal paused
+        if request.method == "POST":
+            paused = True
+        job = native_job(enabled=not paused, state="paused" if paused else "scheduled")
+        return httpx.Response(
+            200, json={"jobs": [job]} if request.url.path == "/api/jobs" else {"job": job}
+        )
+
+    jobs = service(database, handler)
+    jobs.inspect("owner")
+    jobs.pause(JOB_ID, "owner")
+    assert jobs_snapshot(database)["items"][0]["state"] == "paused"
+    paused = False  # Another trusted native operator resumes it outside AI TEAM.
+    snapshot = jobs.inspect("owner")
+    assert snapshot["items"][0]["enabled"] is True
+    assert snapshot["items"][0]["state"] == "scheduled"
+
+
 def test_ci_canary_lifecycle_is_guarded_future_only_and_read_only_after_restart(
     tmp_path, monkeypatch
 ):

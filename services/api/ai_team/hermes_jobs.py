@@ -8,6 +8,8 @@ from typing import Literal
 import httpx
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 
 from .models import Event, ProviderObservation
 
@@ -48,9 +50,38 @@ def jobs_snapshot(database):
     with database.session() as db:
         row = db.get(ProviderObservation, "hermes-jobs")
         try:
-            return JobsView.model_validate(row.details if row else {}).model_dump()
+            result = JobsView.model_validate(row.details if row else {}).model_dump()
         except ValidationError:
-            return JobsView(status="unavailable").model_dump()
+            result = JobsView(status="unavailable").model_dump()
+        request = db.scalar(
+            select(Event)
+            .where(Event.kind == "hermes.job.pause")
+            .order_by(Event.sequence.desc())
+            .limit(1)
+        )
+        if request and JOB_ID.fullmatch(request.resource_id):
+            verified = db.scalar(
+                select(Event)
+                .where(
+                    Event.kind == "hermes.job.pause.verified",
+                    Event.resource_id == request.id,
+                )
+                .order_by(Event.sequence.desc())
+                .limit(1)
+            )
+            confirmed = request.summary == "confirmed" or verified is not None
+            proof = verified or request
+            result["last_pause"] = {
+                "job_id": request.resource_id,
+                "status": "confirmed" if confirmed else "uncertain",
+                "checked_at": proof.created_at,
+            }
+            read_sequence = (row.details.get("read_sequence", 0) if row else 0) or 0
+            if confirmed and proof.sequence > read_sequence:
+                for item in result["items"]:
+                    if item["id"] == request.resource_id:
+                        item.update(enabled=False, state="paused")
+        return result
 
 
 def timestamp(value):
@@ -102,27 +133,62 @@ class HermesJobs:
     def __init__(self, database, client):
         self.database, self.client = database, client
 
-    def _save(self, snapshot, actor, kind, resource_id=""):
-        result = JobsView.model_validate(snapshot).model_dump()
+    def _start_read(self, actor):
         with self.database.session() as db:
-            db.merge(ProviderObservation(id="hermes-jobs", details=result))
-            db.add(
-                Event(
-                    kind=kind,
-                    actor=actor,
-                    resource_id=resource_id,
-                    summary="Inventário ou pausa de job Hermes observado",
-                )
+            reading = Event(
+                kind="hermes.jobs.reading", actor=actor, summary="Consulta de jobs iniciada"
+            )
+            db.add(reading)
+            db.flush()
+            request = db.scalar(
+                select(Event)
+                .where(Event.kind == "hermes.job.pause")
+                .order_by(Event.sequence.desc())
+                .limit(1)
             )
             db.commit()
-        return result
+            return reading.sequence, request
+
+    def _save(self, snapshot, actor, read_sequence):
+        # Pause evidence is append-only in Events, never part of this replaceable JSON cache.
+        details = JobsView.model_validate(snapshot).model_dump(exclude={"last_pause"})
+        details["read_sequence"] = read_sequence
+        for retry in range(2):
+            with self.database.session() as db:
+                changed = db.execute(
+                    update(ProviderObservation)
+                    .where(
+                        ProviderObservation.id == "hermes-jobs",
+                        func.coalesce(ProviderObservation.details["read_sequence"].as_integer(), 0)
+                        <= read_sequence,
+                    )
+                    .values(details=details)
+                )
+                if changed.rowcount == 0 and db.get(ProviderObservation, "hermes-jobs") is None:
+                    db.add(ProviderObservation(id="hermes-jobs", details=details))
+                db.add(
+                    Event(
+                        kind="hermes.jobs.inspected",
+                        actor=actor,
+                        summary="Inventário de jobs consultado",
+                    )
+                )
+                try:
+                    db.commit()
+                    break
+                except IntegrityError:
+                    db.rollback()
+                    if retry:
+                        raise
+        return jobs_snapshot(self.database)
 
     def inspect(self, actor):
+        read_sequence, pause = self._start_read(actor)
         result = jobs_snapshot(self.database)
         result.update(status="not_configured", checked_at=None)
         if not self.client.configured:
             result.update(items=[], truncated=False)
-            return self._save(result, actor, "hermes.jobs.inspected")
+            return self._save(result, actor, read_sequence)
         result.update(status="unavailable", checked_at=int(time.time()))
         try:
             payload = self.client.request("GET", "/api/jobs?include_disabled=true")
@@ -133,23 +199,24 @@ class HermesJobs:
             if len({row["id"] for row in items}) != len(items):
                 raise ValueError("Identidade duplicada")
             result.update(status="reachable", items=items, truncated=len(rows) > MAX_JOBS)
-            pause = result.get("last_pause")
-            if (
-                pause
-                and pause["status"] == "uncertain"
-                and any(
-                    row["id"] == pause["job_id"] and not row["enabled"] and row["state"] == "paused"
-                    for row in items
+            if pause and pause.summary != "confirmed" and pause.sequence < read_sequence:
+                observed = next(
+                    (
+                        item
+                        for item in items
+                        if item["id"] == pause.resource_id
+                        and not item["enabled"]
+                        and item["state"] == "paused"
+                    ),
+                    None,
                 )
-            ):
-                result["last_pause"] = {
-                    **pause,
-                    "status": "confirmed",
-                    "checked_at": int(time.time()),
-                }
+                if observed:
+                    self._record_pause(
+                        pause.resource_id, "confirmed", actor, observed, request_id=pause.id
+                    )
         except (httpx.HTTPError, RuntimeError, TimeoutError, ValueError, TypeError):
             pass  # Keep only a sanitized prior snapshot; never persist upstream errors or payloads.
-        return self._save(result, actor, "hermes.jobs.inspected")
+        return self._save(result, actor, read_sequence)
 
     def _read(self, job_id, deadline):
         payload = self.client.request("GET", f"/api/jobs/{job_id}", deadline=deadline)
@@ -158,15 +225,34 @@ class HermesJobs:
             raise ValueError("Resposta pertence a outro job")
         return value
 
-    def _record_pause(self, job_id, status, actor, observed=None):
-        snapshot = jobs_snapshot(self.database)
+    def _record_pause(self, job_id, status, actor, observed=None, *, request_id=None):
         result = PauseView(job_id=job_id, status=status, checked_at=int(time.time())).model_dump()
-        snapshot["last_pause"] = result
-        if observed:
-            snapshot["items"] = [
-                observed if row["id"] == job_id else row for row in snapshot["items"]
-            ]
-        self._save(snapshot, actor, "hermes.job.pause", resource_id=job_id)
+        if status == "confirmed" and (
+            not observed
+            or observed["id"] != job_id
+            or observed["enabled"]
+            or observed["state"] != "paused"
+        ):
+            raise ValueError("Pausa exige observação válida")
+        with self.database.session() as db:
+            if request_id:
+                request = db.scalar(select(Event).where(Event.id == request_id))
+                if (
+                    not request
+                    or request.kind != "hermes.job.pause"
+                    or request.resource_id != job_id
+                ):
+                    raise ValueError("Confirmação pertence a outra solicitação")
+            record = Event(
+                kind="hermes.job.pause.verified" if request_id else "hermes.job.pause",
+                resource_id=request_id or job_id,
+                actor=actor,
+                summary=status,
+            )
+            db.add(record)
+            db.commit()
+            if status == "uncertain":
+                result["_request_id"] = record.id
         return result
 
     def pause(self, job_id, actor):
@@ -187,7 +273,7 @@ class HermesJobs:
         if current["state"] not in {"scheduled", "paused"}:
             raise HTTPException(409, "O estado atual deste job não permite pausar o agendamento")
         # Persist uncertainty BEFORE a remote mutation; a lost response is never auto-retried.
-        self._record_pause(job_id, "uncertain", actor)
+        request = self._record_pause(job_id, "uncertain", actor)
         try:
             self.client.request("POST", f"/api/jobs/{job_id}/pause", deadline=deadline)
             observed = self._read(job_id, deadline)
@@ -197,4 +283,6 @@ class HermesJobs:
             raise HTTPException(
                 502, "Pausa não confirmada; confira o gateway antes de tentar novamente"
             ) from None
-        return self._record_pause(job_id, "confirmed", actor, observed)
+        return self._record_pause(
+            job_id, "confirmed", actor, observed, request_id=request["_request_id"]
+        )

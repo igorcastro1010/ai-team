@@ -16,6 +16,7 @@ from sqlalchemy.exc import ArgumentError
 from ai_team.auth import COOKIE_NAME, create_owner, digest
 from ai_team.config import Settings
 from ai_team.db import Database
+from ai_team.hermes_jobs import HermesJobs, jobs_snapshot
 from ai_team.hermes_journal import HermesJournal
 from ai_team.hermes_monitor import ReconciliationStore
 from ai_team.main import create_app
@@ -371,3 +372,34 @@ def test_monitor_lease_single_winner_and_stale_owner_cannot_finish(postgres):
     database.engine.dispose()
     assert store.state(attempt.id)["failures"] == 1
     assert store.state(attempt.id)["next_poll_at"] == now + 154
+
+
+def test_jobs_inventory_and_pause_evidence_survive_postgres_reconnect(postgres):
+    database, _ = postgres
+    native = {"id": "abcdef123456", "name": "Synthetic PG job", "enabled": True,
+              "state": "scheduled", "schedule": {"kind": "interval"}}
+    calls = []
+
+    class Reader:
+        configured = True
+
+        def request(self, method, path, **kwargs):
+            calls.append((method, path))
+            if method == "POST":
+                assert path == "/api/jobs/abcdef123456/pause"
+                native.update(enabled=False, state="paused")
+            return {"jobs": [dict(native)]} if "?" in path else {"job": dict(native)}
+
+    operations = HermesJobs(database, Reader())
+    assert operations.inspect("postgres-ci-owner")["items"][0]["enabled"]
+    assert operations.pause(native["id"], "postgres-ci-owner")["status"] == "confirmed"
+    database.engine.dispose()
+    snapshot = jobs_snapshot(database)
+    assert snapshot["last_pause"]["status"] == "confirmed"
+    assert snapshot["items"][0]["state"] == "paused"
+    # An externally resumed schedule is visible after a newer inventory read.
+    native.update(enabled=True, state="scheduled")
+    assert operations.inspect("postgres-ci-owner")["items"][0]["enabled"]
+    assert [entry for entry in calls if entry[0] == "POST"] == [
+        ("POST", "/api/jobs/abcdef123456/pause")
+    ]
