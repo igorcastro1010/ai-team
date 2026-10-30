@@ -1,5 +1,19 @@
 # Entregas e evidências
 
+## Monitor Hermes e jobs nativos — 30/10/2026
+
+Processo independente de reconciliação por GET com leases e backoff persistentes,
+heartbeat distinto de atividade dos agentes e integração Windows/Compose.
+Painel autenticado com inventário nativo, pausa confirmada por job e evidências
+imutáveis resistentes a respostas atrasadas e consultas concorrentes.
+
+Validação: 202 testes Python, 20 E2E, Ruff, ESLint, TypeScript e build aprovados.
+Runtime oficial real aprovado em CI, incluindo canário pausado após recriação,
+sem disparo de modelo; sete testes PostgreSQL reais aprovados. Evidências em
+[validação](hermes-validation.md), [operação](hermes-operations.md) e
+[jobs](hermes-jobs.md). Inferência, bots/delegação nativa e Telegram reais
+continuam aguardando configuração e homologação. Sem merge ou deploy.
+
 ## Integração Hermes e escritório — 29/10/2026
 
 Continuação: journal persistente de admissões/IDs remotos, consulta de estado,

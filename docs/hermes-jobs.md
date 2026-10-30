@@ -32,6 +32,11 @@ então uma leitura atrasada ou confirmação antiga não apaga uma pausa incerta
 Inspeções usam a sequência de eventos para ordenar observações e atualização
 atômica do cache; uma resposta antiga não substitui uma consulta mais recente.
 Uma nova consulta pode mostrar uma retomada feita diretamente no Hermes.
+Cada prova usa a sequência registrada **antes** do GET de confirmação, para
+uma resposta atrasada não esconder uma consulta mais recente. A projeção de
+estado é independente por job; pausar B não desfaz o estado observado de A.
+As consultas agregam as provas no banco e retornam no máximo um registro por
+job visível, além do marcador global da última pausa.
 O snapshot público mantém o formato:
 
 ```text

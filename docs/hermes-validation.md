@@ -2,6 +2,9 @@
 
 ## Continuação: monitor e jobs nativos
 
+- Suíte final local: **202 testes Python e 20 E2E aprovados**, Ruff,
+  ESLint, TypeScript e build aprovados. Sete testes PostgreSQL ficam opt-in
+  localmente e foram executados no serviço descartável de CI.
 - Monitor separado com lease persistente, recuperação após queda e backoff;
   apenas GET por ID conhecido, sem readmissão nem interrupção automática.
 - Inventário de jobs nativos e pausa vinculada ao recurso, com confirmação e
@@ -14,6 +17,12 @@
   de pausa persistida com atualização atômica do cache.
 - Painel: confirmação por job, aviso de execução em andamento, sinal do monitor
   separado de trabalho dos agentes, BFF restrito e proteção de origem.
+- Regressões determinísticas: consulta atrasada preserva pausa incerta;
+  confirmação antiga não encobre nova solicitação ou retomada externa;
+  pausar um segundo job preserva o estado do primeiro. Provas são ordenadas
+  pelo início da leitura e projetadas por recurso.
+- Inicialização Windows prepara o banco antes dos processos concorrentes;
+  parser PowerShell aprovado e `init-db` executado duas vezes em banco isolado.
 
 Inferência, Bot Mode/delegação nativa e mensagens Telegram continuam pendentes
 de configuração e homologação próprias. Esses testes não demonstram modelos

@@ -20,7 +20,7 @@ Interrupção remota continua exigindo confirmação vinculada à tentativa.
   inferência, sem marcar o escritório como trabalhando por causa do monitor.
 - [x] Exibir atividade do monitor, última observação e falhas de consulta no
   painel autenticado; sem detalhes brutos, prompts ou credenciais.
-- [ ] Testes de processo, disputa, backoff, expiração/cancelamento local e sigilo;
+- [x] Testes de processo, disputa, backoff, expiração/cancelamento local e sigilo;
   verificações gerais, commits convencionais e push por entrega validada.
 
 ## Restrições
