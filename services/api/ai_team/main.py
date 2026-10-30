@@ -1,3 +1,4 @@
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -11,8 +12,12 @@ from .config import Settings
 from .db import Database
 from .github_actions import GitHubStore
 from .github_routes import router as github_router
+from .hermes_job_routes import router as hermes_jobs_router
+from .hermes_routes import observation_snapshot as hermes_snapshot
+from .hermes_routes import router as hermes_router
 from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
+from .office import office_snapshot
 from .report_routes import router as report_router
 from .run_routes import RunView
 from .run_routes import router as runs_router
@@ -62,6 +67,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(vercel_router)
     app.include_router(schedule_router)
     app.include_router(report_router)
+    app.include_router(hermes_router)
+    app.include_router(hermes_jobs_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -225,6 +232,9 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/workspace")
     def workspace(owner: Owner):
+        store = WorkflowStore(database)
+        runs = store.all()
+        usage = store.usage()
         return {
             "version": "0.5.0",
             "owner": owner,
@@ -232,12 +242,15 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
             "events": [EventView.model_validate(e) for e in events(owner)],
             "agents": AGENTS,
-            "runs": [RunView.model_validate(run) for run in WorkflowStore(database).all()],
+            "runs": [RunView.model_validate(run) for run in runs],
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
-            "usage": WorkflowStore(database).usage(),
+            "usage": usage,
+            "office": office_snapshot(runs, worker_online=usage["worker_online"]),
+            "office_observed_at": int(time.time()),
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),
             "vercel": observation_snapshot(database),
+            "hermes": hermes_snapshot(database),
             "schedules": [
                 ScheduleView.model_validate(row) for row in ScheduleStore(database).all()
             ],

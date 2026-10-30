@@ -1,0 +1,13 @@
+.git
+.agents
+.venv
+node_modules
+**/node_modules
+**/.next
+.data
+.env*
+.research
+artifacts
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache

@@ -15,11 +15,14 @@ import { GitHubPanel } from "./github-panel";
 import { VercelPanel } from "./vercel-panel";
 import { SchedulePanel } from "./schedule-panel";
 import { ReportsPanel } from "./reports-panel";
+import { HermesPanel } from "./hermes-panel";
+import { PixelOffice } from "./pixel-office";
 
 import { views, type View } from "@/lib/navigation";
 
 const navigation: { view: View; icon: LucideIcon; group: string }[] = [
   { view: "overview", icon: Grid2X2, group: "WORKSPACE" },
+  { view: "escritorio", icon: Bot, group: "" },
   { view: "ceo", icon: MessageSquare, group: "" },
   { view: "projetos", icon: Folder, group: "" },
   { view: "tarefas", icon: ListTodo, group: "" },
@@ -91,8 +94,9 @@ export function Dashboard({ view }: { view: View }) {
           {view === "projetos" && <Projects data={workspace} create={() => setDialog("project")} />}
           {view === "tarefas" && <TaskBoard data={workspace} create={newTask} move={move} busy={updating} />}
           {view === "agentes" && <Agents data={workspace} />}
+          {view === "escritorio" && <PixelOffice data={workspace} connected={!error} />}
           {view === "historico" && <HistoryPanel data={workspace} />}
-          {view === "integracoes" && <><Integrations data={workspace} /><VercelPanel data={workspace} reload={load} /><GitHubPanel data={workspace} reload={load} /></>}
+          {view === "integracoes" && <><Integrations data={workspace} /><HermesPanel data={workspace} reload={load} /><VercelPanel data={workspace} reload={load} /><GitHubPanel data={workspace} reload={load} /></>}
           {view === "relatorios" && <ReportsPanel />}
           {view === "ceo" && <CeoConsole data={workspace} reload={load} />}
           {view === "execucoes" && <RunList data={workspace} runs={workspace.runs} reload={load} />}

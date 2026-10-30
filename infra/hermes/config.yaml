@@ -1,0 +1,20 @@
+# Phase 1: text-only. Read-only mount, no MCP or runtime-installed tools.
+# Do not enable tools here until isolation and resource-bound approvals are tested.
+# Set your non-secret provider/model here before real inference, for example:
+# model:
+#   provider: openrouter
+#   default: YOUR_SUPPORTED_MODEL_ID
+platform_toolsets:
+  api_server: []
+  cron: []
+  telegram: []
+  cli: []
+mcp_servers: {}
+auth:
+  adopt_external_logins: false
+agent:
+  max_turns: 2
+gateway:
+  api_server:
+    max_concurrent_runs: 1
+    history_tool_output_max_chars: 16000

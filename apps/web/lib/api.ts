@@ -19,17 +19,40 @@ export type Event = { id: string; kind: string; summary: string; actor: string; 
 export type Agent = { id: string; name: string; role: string; description: string; tools: string[]; limit: string; status: string };
 export type Integration = { id: string; name: string; status: string; description: string; verified_at: number | null };
 export type Run = {
+  executor: "codex" | "hermes";
   id: string; project_id: string; prompt: string; mode: string; scope: string; status: string;
   stage: number; calls: number; input_tokens: number; output_tokens: number; error: string;
   created_at: number; steps: { stage: number; agent: string; summary: string; deliverable: string; input_tokens: number; output_tokens: number }[];
 };
 export type Workspace = {
+  office: OfficeAgent[];
+  office_observed_at: number;
+  hermes: { connection: HermesObservation | null; executions: HermesPage; monitor?: HermesMonitor; jobs?: HermesJobsSnapshot };
   version: string; owner: string; projects: Project[]; tasks: Task[]; events: Event[];
   agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
   github: { connection: { repository: string; default_branch: string; head_sha?: string; verified_at: number } | null; actions: GitHubAction[] };
   vercel: { connection: VercelObservation | null };
   schedules: Schedule[];
+};
+
+export type HermesObservation = {
+  status: "not_configured" | "unavailable" | "unsafe_configuration" | "reachable";
+  checked_at: number | null; inference_verified: false; text_only: true;
+};
+export type HermesAttempt = {
+  id: string; run_id: string; stage: number; remote_id: string; remote_status: string;
+  bridge_status: string; stop_status: string; local_status: string;
+  input_tokens: number | null; output_tokens: number | null;
+  created_at: number; updated_at: number;
+};
+export type HermesPage = { items: HermesAttempt[]; next_cursor: string | null };
+export type OfficeAgent = {
+  id: string; name: string; role: string; enabled: boolean;
+  status: "available" | "working" | "awaiting_approval" | "completed" | "error";
+  animate: boolean; run_id: string | null; executor: string | null;
+  run_status: string | null; error: string;
+  history: { run_id: string; executor: string; created_at: number; summary: string; deliverable: string }[];
 };
 
 export type Schedule = {
@@ -56,3 +79,22 @@ export const modes: Record<string, string> = { manual: "Manual", supervised: "Su
 export const dateTime = (value: number) => new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short", timeStyle: "short", timeZone: "America/Fortaleza",
 }).format(new Date(value * 1000));
+
+export type HermesJob = {
+  id: string; name: string; enabled: boolean;
+  state: "scheduled" | "paused" | "completed" | "error" | "unknown";
+  schedule_kind: "once" | "interval" | "cron" | "unknown";
+  next_run_at: number | null; last_run_at: number | null;
+  repeat_times: number | null; repeat_completed: number;
+};
+export type HermesJobPause = { job_id: string; status: "confirmed" | "uncertain"; checked_at: number };
+export type HermesJobsSnapshot = {
+  status: "not_configured" | "unavailable" | "reachable";
+  checked_at: number | null; items: HermesJob[]; truncated: boolean;
+  last_pause: HermesJobPause | null;
+};
+
+export type HermesMonitor = {
+  connection: { status: "not_started" | "not_configured" | "running"; checked_at: number | null; recent: boolean };
+  pending: number; failed: number;
+};

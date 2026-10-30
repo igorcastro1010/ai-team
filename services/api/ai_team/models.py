@@ -2,7 +2,7 @@ import time
 import uuid
 
 from sqlalchemy import JSON, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def new_id() -> str:
@@ -91,6 +91,12 @@ class ProviderObservation(Base):
     details: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class RunExecutor(Base):
+    __tablename__ = "run_executors"
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), primary_key=True)
+    executor: Mapped[str] = mapped_column(String(20))
+
+
 class Run(Base):
     __tablename__ = "runs"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -101,6 +107,11 @@ class Run(Base):
     status: Mapped[str] = mapped_column(String(30), default="queued", index=True)
     stage: Mapped[int] = mapped_column(Integer, default=0)
     steps: Mapped[list] = mapped_column(JSON, default=list)
+    executor_binding: Mapped[RunExecutor | None] = relationship(lazy="selectin", uselist=False)
+
+    @property
+    def executor(self):
+        return self.executor_binding.executor if self.executor_binding else "codex"
     calls: Mapped[int] = mapped_column(Integer, default=0)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
@@ -114,6 +125,39 @@ class WorkerHeartbeat(Base):
     __tablename__ = "worker_heartbeats"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     last_seen: Mapped[int] = mapped_column(Integer, index=True)
+
+
+class HermesAttempt(Base):
+    __tablename__ = "hermes_attempts"
+    __table_args__ = (
+        Index("ix_hermes_attempt_stage", "run_id", "stage", unique=True),
+        Index("ix_hermes_attempt_history", "created_at", "id"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"))
+    stage: Mapped[int] = mapped_column(Integer)
+    admission_key: Mapped[str] = mapped_column(String(100), unique=True)
+    remote_id: Mapped[str] = mapped_column(String(160), default="")
+    remote_status: Mapped[str] = mapped_column(String(30), default="not_admitted")
+    bridge_status: Mapped[str] = mapped_column(String(24), default="admitting")
+    stop_status: Mapped[str] = mapped_column(String(24), default="not_requested")
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+    updated_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+    run: Mapped[Run] = relationship(lazy="selectin")
+
+
+class HermesPoll(Base):
+    __tablename__ = "hermes_polls"
+    __table_args__ = (Index("ix_hermes_poll_due", "next_poll_at", "lease_expires_at"),)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("hermes_attempts.id"), primary_key=True)
+    next_poll_at: Mapped[int] = mapped_column(Integer, default=0)
+    last_polled_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    last_result: Mapped[str] = mapped_column(String(24), default="pending")
+    lease_token: Mapped[str] = mapped_column(String(36), default="")
+    lease_expires_at: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Schedule(Base):

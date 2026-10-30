@@ -2,6 +2,36 @@
 
 Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
+## Hermes e escritório virtual
+
+Integração adicional com o **Hermes Agent oficial**, serviço independente via
+Docker Compose, API privada autenticada e executor escolhido por solicitação.
+Codex continua padrão; tarefas antigas e agendas não mudam de provedor.
+O escritório em `/escritorio` usa pixel art original, sete mesas e detalhes de
+histórico/resultados. Só anima execução persistida com lease e worker válidos;
+papéis ainda não provisionados são identificados.
+
+| Fase | Entrega e limite atual |
+|---|---|
+| 1 · Hermes | Adaptador Runs, journal, diagnóstico e Compose; contêiner oficial, autenticação e persistência homologados em CI; inferência real aguarda provedor |
+| 2 · Equipe | Sete perfis provisionados e reconhecidos pelo runtime oficial em CI; Bot Mode e subagentes reais ainda não homologados |
+| 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
+| 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |
+| 5 · Desenvolvimento | Codex e GitHub existentes preservados; execução de código/testes arbitrários continua bloqueada |
+| 6 · Automações | Agendas existentes preservadas; monitor separado com leases/backoff, consumo reportado e interrupção com confirmação; inventário e pausa de jobs nativos, sem criação/retomada pelo painel |
+| 7 · Produção | Compatibilidade PostgreSQL real validada em CI; arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
+
+Comece por [configuração Hermes](docs/hermes-setup.md), [auditoria](docs/hermes-audit.md)
+e [configuração das próximas fases](docs/hermes-next-phases.md). Segredos ficam no
+servidor; não envie tokens pelo chat. O Compose usa volumes próprios, sem importar
+automaticamente o banco Windows. O modo Hermes inicial é **textual, sem ferramentas**;
+shell, delegação nativa, merge e produção exigem revisão e homologação próprias.
+
+Veja também [histórico e cancelamento remoto](docs/hermes-operations.md) e
+[homologação do runtime oficial em CI](docs/hermes-runtime-ci.md).
+Agendamentos Hermes: [inventário e pausa confirmada](docs/hermes-jobs.md).
+Compatibilidade de banco: [PostgreSQL real no CI](docs/postgres-ci.md).
+
 ## O que funciona
 - Proprietário único, senha Argon2, sessão HTTP-only expirada em 12h, logout revogável e limite de login persistente.
 - Cadastro de projetos, preferência de autonomia e tarefas por agente.

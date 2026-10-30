@@ -3,7 +3,7 @@ import time
 from fastapi import HTTPException
 from sqlalchemy import func, select, update
 
-from .models import Event, Project, Run, Task, WorkerHeartbeat, new_id
+from .models import Event, Project, Run, RunExecutor, Task, WorkerHeartbeat, new_id
 from .orchestration import STAGES, Draft
 
 
@@ -33,12 +33,15 @@ class WorkflowStore:
                 )
             )
 
-    def create(self, project_id, prompt, actor):
+    def create(self, project_id, prompt, actor, executor="codex"):
+        if executor not in {"codex", "hermes"}:
+            raise HTTPException(422, "Executor inválido")
         with self.database.session() as db:
             project = db.get(Project, project_id)
             if not project:
                 raise HTTPException(404, "Projeto não encontrado")
             run = Run(project_id=project_id, prompt=prompt, mode=project.mode)
+            run.executor_binding = RunExecutor(executor=executor)
             db.add(run)
             db.flush()
             db.add(
@@ -46,7 +49,7 @@ class WorkflowStore:
                     kind="run.requested",
                     resource_id=run.id,
                     actor=actor,
-                    summary="Solicitação autorizada: somente planos e pareceres textuais",
+                    summary=f"Solicitação autorizada ({executor}): planos e pareceres textuais",
                 )
             )
             db.commit()

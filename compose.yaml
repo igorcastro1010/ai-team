@@ -1,0 +1,93 @@
+name: ai-team
+
+x-api: &api
+  build:
+    context: .
+    dockerfile: services/api/Dockerfile
+  environment:
+    AI_TEAM_ENVIRONMENT: development
+    AI_TEAM_DATABASE_URL: sqlite:////data/ai-team.db
+    AI_TEAM_PUBLIC_ORIGIN: ${AI_TEAM_PUBLIC_ORIGIN:-http://localhost:3000}
+    AI_TEAM_HERMES_URL: http://hermes:8642
+    AI_TEAM_HERMES_KEY: ${AI_TEAM_HERMES_KEY:?Configure AI_TEAM_HERMES_KEY no .env privado}
+  volumes:
+    - ai-team-data:/data
+  networks: [control, outbound]
+  restart: unless-stopped
+  init: true
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  pids_limit: 128
+  mem_limit: 768m
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  hermes:
+    # Official stable manifest resolved 2026-10-29. Review before changing digest.
+    image: nousresearch/hermes-agent@sha256:9c5561579f3ffdf333401797094ac3a743738d6c25d40f4331c7bf77b694238d
+    command: [gateway, run]
+    env_file: .env.hermes
+    environment:
+      HERMES_HOME: /opt/data
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_PORT: "8642"
+      API_SERVER_KEY: ${AI_TEAM_HERMES_KEY:?Configure AI_TEAM_HERMES_KEY no .env privado}
+    volumes:
+      - hermes-data:/opt/data
+      - ./infra/hermes/config.yaml:/opt/data/config.yaml:ro
+      - ./infra/hermes/team.yaml:/opt/ai-team/team.yaml:ro
+      - ./tools/hermes_profiles.py:/opt/ai-team/hermes_profiles.py:ro
+      - ./infra/hermes/healthcheck.py:/opt/ai-team/healthcheck.py:ro
+      - ./infra/hermes/runtime_smoke.py:/opt/ai-team/runtime_smoke.py:ro
+    # Deliberately no host port and no Docker socket, repository or AI TEAM database.
+    networks: [control, outbound]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    cap_drop: [NET_RAW]
+    pids_limit: 256
+    mem_limit: 2g
+    healthcheck:
+      test: [CMD, python, /opt/ai-team/healthcheck.py]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  api:
+    <<: *api
+    ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    <<: *api
+    command: [python, -m, ai_team.worker]
+    depends_on:
+      api: {condition: service_healthy}
+      hermes: {condition: service_healthy}
+  scheduler:
+    <<: *api
+    command: [python, -m, ai_team.scheduler]
+    depends_on:
+      api: {condition: service_healthy}
+  hermes-monitor:
+    <<: *api
+    command: [python, -m, ai_team.hermes_monitor]
+    depends_on:
+      api: {condition: service_healthy}
+
+volumes:
+  # These volumes are distinct from the existing native .data directory.
+  ai-team-data:
+  hermes-data:
+networks:
+  control:
+    internal: true
+  outbound:

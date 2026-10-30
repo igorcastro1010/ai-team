@@ -14,6 +14,7 @@ class RunInput(BaseModel):
     project_id: Annotated[str, StringConstraints(min_length=1, max_length=36)]
     prompt: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=5000)]
     consent: Literal[True]
+    executor: Literal["codex", "hermes"] = "codex"
 
 
 class Decision(BaseModel):
@@ -24,6 +25,7 @@ class Decision(BaseModel):
 class RunView(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
+    executor: str
     project_id: str
     prompt: str
     mode: str
@@ -45,7 +47,9 @@ def list_runs(request: Request, owner: Owner):
 
 @router.post("/runs", response_model=RunView, status_code=201)
 def request_run(data: RunInput, request: Request, owner: Owner):
-    return WorkflowStore(request.app.state.database).create(data.project_id, data.prompt, owner)
+    return WorkflowStore(request.app.state.database).create(
+        data.project_id, data.prompt, owner, executor=data.executor
+    )
 
 
 @router.get("/runs/{run_id}", response_model=RunView)

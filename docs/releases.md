@@ -1,5 +1,41 @@
 # Entregas e evidências
 
+## Monitor Hermes e jobs nativos — 30/10/2026
+
+Processo independente de reconciliação por GET com leases e backoff persistentes,
+heartbeat distinto de atividade dos agentes e integração Windows/Compose.
+Painel autenticado com inventário nativo, pausa confirmada por job e evidências
+imutáveis resistentes a respostas atrasadas e consultas concorrentes.
+
+Validação: 202 testes Python, 20 E2E, Ruff, ESLint, TypeScript e build aprovados.
+Runtime oficial real aprovado em CI, incluindo canário pausado após recriação,
+sem disparo de modelo; sete testes PostgreSQL reais aprovados. Evidências em
+[validação](hermes-validation.md), [operação](hermes-operations.md) e
+[jobs](hermes-jobs.md). Inferência, bots/delegação nativa e Telegram reais
+continuam aguardando configuração e homologação. Sem merge ou deploy.
+
+## Integração Hermes e escritório — 29/10/2026
+
+Continuação: journal persistente de admissões/IDs remotos, consulta de estado,
+interrupção supervisionada com confirmação, consumo reportado e histórico
+paginado. 168 testes Python locais e 18 E2E aprovados. Runtime oficial em CI
+homologado sem inferência; cinco testes com PostgreSQL real aprovados em CI.
+Veja [operação](hermes-operations.md), [runtime](hermes-runtime-ci.md) e
+[PostgreSQL](postgres-ci.md). Modelos, Bot Mode, subagentes e Telegram reais
+continuam dependentes de configuração própria.
+
+Entrega incremental em `codex/hermes-integration`: auditoria oficial, cliente
+Runs privado, consentimento persistente por executor, Compose com imagem oficial
+fixada, diagnóstico autenticado, política textual sem ferramentas, sete perfis
+nativos preparados e escritório pixel art com dados persistidos. Codex, banco,
+GitHub e agendas preservados. Sem merge ou publicação em produção.
+
+Validação local: suíte Python ampliada, 16 E2E, lint, TypeScript e build aprovados.
+Veja [evidências e pendências](hermes-validation.md),
+[configuração](hermes-setup.md) e [próximas fases](hermes-next-phases.md).
+Hermes/Telegram/delegação reais aguardam runtime e credenciais próprios;
+nenhuma fase operacional foi considerada homologada somente por mocks.
+
 ## V0.1 — base local funcional
 - API FastAPI, autenticação de proprietário único, projetos, tarefas, transições manuais e eventos persistentes.
 - Painel Next.js com visão geral, projetos, tarefas, papéis dos agentes, histórico, relatório JSON e estado das integrações.
