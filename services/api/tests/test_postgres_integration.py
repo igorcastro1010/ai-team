@@ -17,6 +17,7 @@ from ai_team.auth import COOKIE_NAME, create_owner, digest
 from ai_team.config import Settings
 from ai_team.db import Database
 from ai_team.hermes_journal import HermesJournal
+from ai_team.hermes_monitor import ReconciliationStore
 from ai_team.main import create_app
 from ai_team.models import AuthSession, Base, HermesAttempt, Owner, Project, Run, RunExecutor
 from ai_team.workflow import WorkflowStore
@@ -340,3 +341,33 @@ def test_cancelled_run_cannot_admit_or_create_journal_entry(postgres):
             )
             == 0
         )
+
+
+def test_monitor_lease_single_winner_and_stale_owner_cannot_finish(postgres):
+    database, _ = postgres
+    run = running_run(database)
+    journal = HermesJournal(database)
+    attempt = journal.begin(run, f"ai-team-pg-{run.id}")
+    journal.admitted(attempt.id, "synthetic_pg_monitor")
+    WorkflowStore(database).cancel(run.id, "postgres-ci-owner")
+    barrier = Barrier(2, timeout=10)
+    now = int(time.time())
+
+    def claim(_):
+        barrier.wait()
+        return ReconciliationStore(database).claim(now=now)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(claim, range(2)))
+    winners = [result for result in results if result is not None]
+    assert len(winners) == 1 and winners[0].attempt_id == attempt.id
+    original = winners[0]
+    store = ReconciliationStore(database)
+    replacement = store.claim(now=now + 91)
+    assert replacement and replacement.token != original.token
+    store.finish(original, now=now + 92, success=False)
+    assert store.claim(now=now + 93) is None
+    store.finish(replacement, now=now + 94, success=False)
+    database.engine.dispose()
+    assert store.state(attempt.id)["failures"] == 1
+    assert store.state(attempt.id)["next_poll_at"] == now + 154
