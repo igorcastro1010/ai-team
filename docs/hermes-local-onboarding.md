@@ -72,8 +72,11 @@ com autorização explícita, por fontes oficiais e sem reiniciar. O Windows reg
 reinício pendente e hipervisor inativo. O primeiro instalador Docker recusou a
 ausência de VirtualMachinePlatform; após o instalador WSL concluir, a instalação
 Docker por usuário terminou com êxito. O runtime Hermes continua sem homologação
-local até reiniciar, iniciar a engine e concluir o login próprio. Nenhuma chave
+local naquele momento, até reiniciar, iniciar a engine e concluir o login próprio. Nenhuma chave
 ou sessão externa foi importada.
+
+Após o reinício e o login próprio, o teste textual real passou em cinco etapas.
+Ver as evidências e os limites atuais em [homologação local](hermes-validation.md#homologação-local-após-login-próprio--30102026).
 
 Fontes: [instalação WSL](https://learn.microsoft.com/windows/wsl/basic-commands)
 e [instalação Docker por usuário](https://docs.docker.com/desktop/setup/install/windows-install/).

@@ -93,16 +93,37 @@ pelo Hermes e SessionDB preservado após recriação. A ausência de Docker loca
 não impediu essa homologação em runner Linux descartável. Isso não comprova
 inferência, delegação nativa, Telegram ou operação de produção.
 
-Docker não encontrado no PATH. Runtime Hermes, provedor e Telegram não foram
-configurados nesta instalação. Tentativa opt-in de `smoke_hermes.py --real`
+Na verificação anterior, Docker não foi encontrado no PATH. Runtime Hermes,
+provedor e Telegram não estavam configurados nesta instalação. A tentativa
+opt-in de `smoke_hermes.py --real`
 encerrou com diagnóstico de executor indisponível, antes de inferência. Não houve
 envio de mensagens, delegação nativa, gastos de modelo, merge ou deploy.
 
-Ainda é necessário comprovar inferência/modelo,
-consumo reportado e cancelamento de inferência real, Bot Mode,
+Ainda é necessário comprovar cancelamento de inferência real, Bot Mode,
 subagentes, autorização/pairing e mensagens Telegram reais. O ambiente PostgreSQL
 hospedado, sandbox de código e produção também não foram homologados nesta entrega.
 
 O mecanismo de stop é best effort: erro de rede pode deixar execução remota
 incerta. Nenhuma readmissão automática é feita. Limiares locais de tokens e tempo
 não substituem teto financeiro do provedor.
+
+## Homologação local após login próprio — 30/10/2026
+
+Após o reinício autorizado, WSL e engine Docker Linux ficaram operacionais.
+O gateway usa a imagem fixada no Compose e publica somente `127.0.0.1:8642`,
+com chave privada. Health check e política efetiva passaram; sem chave, a API
+retornou HTTP 401. O adaptador Windows confirmou `reachable`.
+
+O usuário concluiu login próprio `openai-codex` no volume Hermes e selecionou
+`gpt-6.1-sol`. A adoção de logins externos continua desativada, assim como
+ferramentas API/cron/Telegram/CLI e MCP. Nenhuma sessão Desktop foi importada.
+
+`python tools/smoke_hermes.py --real` passou: cinco chamadas reais nas etapas
+CEO → DEV → DESIGNER → QA → CEO, aprovação supervisionada e persistência entre
+cinco instâncias de worker, usando projeto fictício e banco temporário.
+Uso reportado pelo gateway: 7.896 tokens de entrada e 924 de saída; não há
+valor monetário confirmado. Evidência local ignorada: `artifacts/hermes-smoke.json`.
+O banco Windows e o usuário existente foram preservados.
+
+Isso homologa o fluxo textual pelo adaptador. Telegram, delegação nativa,
+sandbox de desenvolvimento, cancelamento real e produção seguem pendentes.
