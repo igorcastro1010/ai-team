@@ -148,6 +148,18 @@ class HermesAttempt(Base):
     run: Mapped[Run] = relationship(lazy="selectin")
 
 
+class HermesPoll(Base):
+    __tablename__ = "hermes_polls"
+    __table_args__ = (Index("ix_hermes_poll_due", "next_poll_at", "lease_expires_at"),)
+    attempt_id: Mapped[str] = mapped_column(ForeignKey("hermes_attempts.id"), primary_key=True)
+    next_poll_at: Mapped[int] = mapped_column(Integer, default=0)
+    last_polled_at: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    last_result: Mapped[str] = mapped_column(String(24), default="pending")
+    lease_token: Mapped[str] = mapped_column(String(36), default="")
+    lease_expires_at: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Schedule(Base):
     __tablename__ = "schedules"
     __table_args__ = (Index("ix_schedules_due", "status", "next_run_at"),)
