@@ -12,13 +12,13 @@ Interrupção remota continua exigindo confirmação vinculada à tentativa.
 
 ## Entregas
 
-- [ ] Tabela adicional por tentativa com próxima consulta, lease, falhas e resultado
+- [x] Tabela adicional por tentativa com próxima consulta, lease, falhas e resultado
   sanitizado; índice de busca e aquisição atômica entre processos.
-- [ ] Processo próprio `ai_team.hermes_monitor`, lotes e deadlines limitados,
+- [x] Processo próprio `ai_team.hermes_monitor`, lotes e deadlines limitados,
   backoff em falha, estado terminal preservado e consumo monotônico.
-- [ ] Integrar inicialização Windows e Compose; heartbeat separado do worker de
+- [x] Integrar inicialização Windows e Compose; heartbeat separado do worker de
   inferência, sem marcar o escritório como trabalhando por causa do monitor.
-- [ ] Exibir atividade do monitor, última observação e falhas de consulta no
+- [x] Exibir atividade do monitor, última observação e falhas de consulta no
   painel autenticado; sem detalhes brutos, prompts ou credenciais.
 - [ ] Testes de processo, disputa, backoff, expiração/cancelamento local e sigilo;
   verificações gerais, commits convencionais e push por entrega validada.

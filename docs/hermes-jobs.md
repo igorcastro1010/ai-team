@@ -25,7 +25,14 @@ começou**, que pode continuar consumindo uso.
 | `POST /hermes/jobs/inspect` | Consulta `GET /api/jobs?include_disabled=true` |
 | `POST /hermes/jobs/{job_id}/pause` | Exige `{ "confirm": true }`, sem campos extras; confere o job, solicita pausa e verifica o estado |
 
-Snapshot persistido em `ProviderObservation`, ID `hermes-jobs`, sem migração:
+Inventário persistido em `ProviderObservation`, ID `hermes-jobs`, sem migração.
+Evidências de pausa são eventos imutáveis: a confirmação aponta para o ID da
+solicitação que verificou. `last_pause` é derivado da solicitação mais recente,
+então uma leitura atrasada ou confirmação antiga não apaga uma pausa incerta.
+Inspeções usam a sequência de eventos para ordenar observações e atualização
+atômica do cache; uma resposta antiga não substitui uma consulta mais recente.
+Uma nova consulta pode mostrar uma retomada feita diretamente no Hermes.
+O snapshot público mantém o formato:
 
 ```text
 status: not_configured | unavailable | reachable
@@ -115,7 +122,9 @@ container. A rede é interna, não há credenciais de modelo e nenhum endpoint
 `/run` é chamado. O volume inteiro pertence ao job de CI; não se excluem jobs
 de instalações do proprietário.
 
-Os testes locais de contrato e política não substituem essa evidência de
-runtime. O run oficial anterior validou o smoke anterior; **esta extensão de
-jobs permanece pendente até uma nova execução aprovada**. Não houve criação de
-job nativo fora do CI, execução de modelos ou Telegram nesta implementação.
+A extensão de jobs foi aprovada no
+[runtime oficial em CI](https://github.com/igorcastro1010/ai-team/actions/runs/41041265083),
+commit `5985fe49fc6cb80bcf64417aed974e15f094840a`, em 30/10/2026.
+As duas fases passaram, incluindo pausa e preservação após recriação.
+Não houve criação de job nativo fora do CI, disparo de tarefa, execução de
+modelos ou Telegram nesta implementação.

@@ -103,11 +103,14 @@ Contratos conferidos diretamente no código oficial no commit
 
 Em 29/10/2026, a preparação foi verificada localmente com compilação Python,
 Ruff, inspeção YAML e sondagens de contrato com servidor HTTP local sintético.
-**Docker não está disponível nesta máquina. O runtime tem evidência parcial no
-GitHub descrita acima; perfis, persistência e reinicialização ainda precisam de
-um workflow aprovado.** Não confundir testes de contrato
-sintéticos com execução da imagem oficial. Registrar URL, SHA e resultado do
-run observado antes de atualizar esse estado.
+**Docker não está disponível nesta máquina.** A evidência real vem dos runners
+GitHub. Em 30/10/2026, o
+[run 41041265083](https://github.com/igorcastro1010/ai-team/actions/runs/41041265083),
+SHA `5985fe49fc6cb80bcf64417aed974e15f094840a`, passou nas duas fases:
+autenticação, políticas efetivas API/cron, perfis, SessionDB, adaptador privado
+e job nativo pausado preservado após recriação. A extensão utiliza canário
+restrito ao CI sem disparo, descrito em [jobs nativos](hermes-jobs.md).
+Testes sintéticos continuam distintos dessa execução da imagem oficial.
 
 Inferência/modelo, consumo, cancelamento remoto, Telegram/pairing, subagentes,
 PostgreSQL, sandbox e implantação de produção continuam fora deste smoke.

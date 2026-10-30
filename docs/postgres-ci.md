@@ -4,7 +4,15 @@
 aprovado no commit `b426c0c0ae6d03e15d63ae05271da5da7b1f9339`:
 cinco testes passaram em 2,49 segundos contra o serviço PostgreSQL real.
 
-O workflow `.github/workflows/postgres-integration.yml` executa cinco testes com
+Em 30/10/2026, o
+[run 41042021402](https://github.com/igorcastro1010/ai-team/actions/runs/41042021402)
+aprovou **sete testes em 3,33 segundos**, SHA
+`03e3087aac169c39bcea64945b300c4f74d91e86`. A extensão verifica disputa de
+lease do monitor, recuperação por outro processo e recusa de finalização por
+lease antiga. Também exerce inventário de jobs, pausa confirmada, reconexão e
+atualização posterior com retomada externa usando banco real e gateway sintético.
+
+O workflow `.github/workflows/postgres-integration.yml` executa sete testes com
 PostgreSQL real em serviço descartável do GitHub Actions. As credenciais são
 sintéticas, exclusivas do CI; não há provisionamento hospedado, inferência ou Telegram.
 A API FastAPI é exercitada em processo com seu banco PostgreSQL real; não há

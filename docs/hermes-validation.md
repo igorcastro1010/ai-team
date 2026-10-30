@@ -1,4 +1,23 @@
-# Evidências e limites — 29/10/2026
+# Evidências e limites — 30/10/2026
+
+## Continuação: monitor e jobs nativos
+
+- Monitor separado com lease persistente, recuperação após queda e backoff;
+  apenas GET por ID conhecido, sem readmissão nem interrupção automática.
+- Inventário de jobs nativos e pausa vinculada ao recurso, com confirmação e
+  leitura posterior. Sem criação, disparo, retomada ou exclusão pelo produto.
+- [Runtime oficial](https://github.com/igorcastro1010/ai-team/actions/runs/41041265083):
+  políticas API/cron, autenticação, perfis, adaptador privado, SessionDB e
+  canário nativo pausado preservados após recriação; nenhuma tarefa disparada.
+- [PostgreSQL real](https://github.com/igorcastro1010/ai-team/actions/runs/41042021402):
+  sete testes aprovados, incluindo leases concorrentes e inventário/evidência
+  de pausa persistida com atualização atômica do cache.
+- Painel: confirmação por job, aviso de execução em andamento, sinal do monitor
+  separado de trabalho dos agentes, BFF restrito e proteção de origem.
+
+Inferência, Bot Mode/delegação nativa e mensagens Telegram continuam pendentes
+de configuração e homologação próprias. Esses testes não demonstram modelos
+ou bots executando tarefas.
 
 ## Continuação: journal e operação supervisionada
 

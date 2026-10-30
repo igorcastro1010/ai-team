@@ -18,7 +18,7 @@ papéis ainda não provisionados são identificados.
 | 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
 | 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |
 | 5 · Desenvolvimento | Codex e GitHub existentes preservados; execução de código/testes arbitrários continua bloqueada |
-| 6 · Automações | Agendas existentes preservadas; monitor remoto, consumo reportado e interrupção com confirmação; cron/pausa/retomada nativos Hermes ainda não integrados |
+| 6 · Automações | Agendas existentes preservadas; monitor separado com leases/backoff, consumo reportado e interrupção com confirmação; inventário e pausa de jobs nativos, sem criação/retomada pelo painel |
 | 7 · Produção | Compatibilidade PostgreSQL real validada em CI; arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
 
 Comece por [configuração Hermes](docs/hermes-setup.md), [auditoria](docs/hermes-audit.md)
@@ -29,6 +29,7 @@ shell, delegação nativa, merge e produção exigem revisão e homologação pr
 
 Veja também [histórico e cancelamento remoto](docs/hermes-operations.md) e
 [homologação do runtime oficial em CI](docs/hermes-runtime-ci.md).
+Agendamentos Hermes: [inventário e pausa confirmada](docs/hermes-jobs.md).
 Compatibilidade de banco: [PostgreSQL real no CI](docs/postgres-ci.md).
 
 ## O que funciona
