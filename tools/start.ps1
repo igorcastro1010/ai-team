@@ -1,7 +1,11 @@
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'start-helpers.ps1')
 $pythonPath = Join-Path $projectRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $pythonPath)) { throw 'Execute tools\setup.ps1 primeiro.' }
+Assert-AiTeamPortAvailable -Port 8000
+Assert-AiTeamPortAvailable -Port 3000
+$expectedVersion = (Get-Content -LiteralPath (Join-Path $projectRoot 'package.json') -Raw | ConvertFrom-Json).version
 $dataPath = Join-Path $projectRoot '.data'
 New-Item -ItemType Directory -Path $dataPath -Force | Out-Null
 Set-Location -LiteralPath $projectRoot
@@ -13,9 +17,15 @@ $workerProcess = $null
 $schedulerProcess = $null
 $monitorProcess = $null
 try {
+    Wait-AiTeamApi -ProcessId $apiProcess.Id -ExpectedVersion $expectedVersion
     $workerProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.worker' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'worker.stdout.log') -RedirectStandardError (Join-Path $dataPath 'worker.stderr.log')
     $schedulerProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.scheduler' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'scheduler.stdout.log') -RedirectStandardError (Join-Path $dataPath 'scheduler.stderr.log')
     $monitorProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.hermes_monitor' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'hermes-monitor.stdout.log') -RedirectStandardError (Join-Path $dataPath 'hermes-monitor.stderr.log')
+    Start-Sleep -Milliseconds 400
+    Assert-AiTeamChildRunning -Process $workerProcess -Name 'Worker'
+    Assert-AiTeamChildRunning -Process $schedulerProcess -Name 'Scheduler'
+    Assert-AiTeamChildRunning -Process $monitorProcess -Name 'Monitor Hermes'
+    Assert-AiTeamChildRunning -Process $apiProcess -Name 'API'
     Set-Location -LiteralPath $projectRoot
     Write-Host 'AI TEAM: abra http://localhost:3000. Ctrl+C encerra painel, API, worker, scheduler e monitor deste script.'
     npm.cmd run dev
