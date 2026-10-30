@@ -77,6 +77,11 @@ services:
     command: [python, -m, ai_team.scheduler]
     depends_on:
       api: {condition: service_healthy}
+  hermes-monitor:
+    <<: *api
+    command: [python, -m, ai_team.hermes_monitor]
+    depends_on:
+      api: {condition: service_healthy}
 
 volumes:
   # These volumes are distinct from the existing native .data directory.

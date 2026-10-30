@@ -61,7 +61,32 @@ mesmo status terminal pode preencher consumo que faltava. Em estado `unknown`,
 aguarde resolução terminal no gateway; o painel não reconhece automaticamente
 um retorno a execução ativa sem uma resolução verificada.
 
-## Atualização do banco
+## Processo de reconciliação automática
+
+O serviço separado `hermes-monitor` consulta somente IDs remotos já persistidos
+quando a solicitação foi cancelada/falhou, mudou de etapa ou perdeu sua lease.
+Não admite, retoma ou interrompe trabalho e não altera o resultado local.
+Tentativas sem ID remoto continuam exigindo inspeção humana.
+
+`tools/start.ps1` inicia o processo com janela oculta e logs próprios em
+`.data/hermes-monitor.*.log`; o Compose oferece o serviço de mesmo nome.
+Para diagnóstico sem loop, execute
+`.venv/Scripts/python.exe -m ai_team.hermes_monitor --once`.
+Cada iteração trata no máximo uma tentativa; o loop espera cinco segundos.
+Uma consulta bem-sucedida agenda nova observação após 30 segundos; falhas
+aplicam backoff de 60 segundos até 15 minutos. A lease exclusiva dura 90 segundos
+e permite recuperação após queda, sem compartilhar a lease do worker.
+
+A tabela adicional `hermes_polls` persiste lease, próxima consulta e falhas.
+Execute `ai-team init-db` antes de atualizar processos em produção. Não remove
+dados nem altera colunas existentes. O painel mostra o último sinal e indica
+quando passou de 45 segundos. O sinal comprova atividade do monitor; não comprova
+disponibilidade do gateway, inferência ou trabalho dos personagens.
+
+Agendamentos nativos têm um controle separado de
+[inventário e pausa confirmada](hermes-jobs.md).
+
+## Migração e compatibilidade
 
 Nova tabela e índices, sem remoção de dados ou alterações nas colunas antigas.
 Em produção, execute `ai-team init-db` **antes** de iniciar a nova API/worker.

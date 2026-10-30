@@ -49,3 +49,22 @@ def test_hermes_consent_recorded_without_changing_codex_default(client):
     assert client.post("/runs", json=body).json()["executor"] == "codex"
     assert client.post("/runs", json={**body, "executor": "hermes"}).json()["executor"] == "hermes"
     assert client.post("/runs", json={**body, "executor": "shell"}).status_code == 422
+
+
+def test_workspace_monitor_and_jobs_are_local_only(client, monkeypatch):
+    from ai_team.hermes import HermesClient
+    from ai_team.hermes_monitor import ReconciliationStore
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Snapshot must never contact Hermes")
+
+    monkeypatch.setattr(HermesClient, "request", forbidden)
+    login(client)
+    store = ReconciliationStore(client.app.state.database)
+    store.heartbeat("running", 123)
+    snapshot = client.get("/workspace").json()
+    assert snapshot["hermes"]["monitor"]["connection"] == {
+        "status": "running", "checked_at": 123, "recent": False,
+    }
+    assert snapshot["hermes"]["jobs"]["items"] == []
+    assert snapshot["usage"]["worker_online"] is False

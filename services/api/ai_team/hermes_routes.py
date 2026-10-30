@@ -5,7 +5,9 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from .auth import require_owner
 from .hermes import HermesClient
+from .hermes_jobs import jobs_snapshot
 from .hermes_journal import HermesJournal
+from .hermes_monitor import ReconciliationStore
 from .hermes_operations import HermesOperations
 from .models import Event, ProviderObservation
 
@@ -26,6 +28,8 @@ def observation_snapshot(database):
         return {
             "connection": Observation.model_validate(row.details).model_dump() if row else None,
             "executions": HermesJournal(database).page(),
+            "monitor": ReconciliationStore(database).snapshot(),
+            "jobs": jobs_snapshot(database),
         }
 
 

@@ -12,6 +12,7 @@ from .config import Settings
 from .db import Database
 from .github_actions import GitHubStore
 from .github_routes import router as github_router
+from .hermes_job_routes import router as hermes_jobs_router
 from .hermes_routes import observation_snapshot as hermes_snapshot
 from .hermes_routes import router as hermes_router
 from .integrations import integration_statuses
@@ -67,6 +68,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(schedule_router)
     app.include_router(report_router)
     app.include_router(hermes_router)
+    app.include_router(hermes_jobs_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
