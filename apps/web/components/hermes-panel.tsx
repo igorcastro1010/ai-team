@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { api, dateTime, type Workspace } from "@/lib/api";
+import { HermesJobs } from "./hermes-jobs";
 import { HermesExecutions } from "./hermes-executions";
 
 const labels = {
@@ -13,6 +14,7 @@ export function HermesPanel({ data, reload }: { data: Workspace; reload: () => P
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const observation = data.hermes?.connection;
+  const monitor = data.hermes?.monitor;
   async function inspect() {
     setBusy(true); setMessage(""); setError("");
     try {
@@ -31,6 +33,17 @@ export function HermesPanel({ data, reload }: { data: Workspace; reload: () => P
     {message && <p role="status" className="notice success">{message}</p>}
     {error && <p role="alert" className="notice error">{error}</p>}
     <button className="button" disabled={busy} onClick={() => void inspect()}>{busy ? "Verificando…" : "Verificar Hermes"}</button>
+    <section aria-labelledby="hermes-monitor-title">
+      <h3 id="hermes-monitor-title">Monitor de execuções remotas</h3>
+      <p>{!monitor || monitor.connection.status === "not_started" ? "Monitor ainda não observado."
+        : !monitor.connection.recent ? "Sem sinal recente do monitor."
+        : monitor.connection.status === "not_configured" ? "Monitor ativo; gateway não configurado."
+        : "Sinal recente do monitor de consultas."}</p>
+      <p className="field-help">Consulta tentativas sem worker válido. Este sinal não indica agentes trabalhando.</p>
+      {monitor && <p>Pendentes de observação: {monitor.pending}. Com falha de consulta: {monitor.failed}.</p>}
+      {monitor?.connection.checked_at && <p className="field-help">Último sinal: {dateTime(monitor.connection.checked_at)}.</p>}
+    </section>
+    <HermesJobs first={data.hermes?.jobs} reload={reload} />
     <HermesExecutions first={data.hermes?.executions} reload={reload} />
   </section>;
 }

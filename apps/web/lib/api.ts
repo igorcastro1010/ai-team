@@ -27,7 +27,7 @@ export type Run = {
 export type Workspace = {
   office: OfficeAgent[];
   office_observed_at: number;
-  hermes: { connection: HermesObservation | null; executions: HermesPage };
+  hermes: { connection: HermesObservation | null; executions: HermesPage; monitor?: HermesMonitor; jobs?: HermesJobsSnapshot };
   version: string; owner: string; projects: Project[]; tasks: Task[]; events: Event[];
   agents: Agent[]; integrations: Integration[]; runs: Run[]; approvals: Run[];
   usage: { requests: number; tokens: number; cost_usd: number | null; worker_online: boolean };
@@ -79,3 +79,22 @@ export const modes: Record<string, string> = { manual: "Manual", supervised: "Su
 export const dateTime = (value: number) => new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short", timeStyle: "short", timeZone: "America/Fortaleza",
 }).format(new Date(value * 1000));
+
+export type HermesJob = {
+  id: string; name: string; enabled: boolean;
+  state: "scheduled" | "paused" | "completed" | "error" | "unknown";
+  schedule_kind: "once" | "interval" | "cron" | "unknown";
+  next_run_at: number | null; last_run_at: number | null;
+  repeat_times: number | null; repeat_completed: number;
+};
+export type HermesJobPause = { job_id: string; status: "confirmed" | "uncertain"; checked_at: number };
+export type HermesJobsSnapshot = {
+  status: "not_configured" | "unavailable" | "reachable";
+  checked_at: number | null; items: HermesJob[]; truncated: boolean;
+  last_pause: HermesJobPause | null;
+};
+
+export type HermesMonitor = {
+  connection: { status: "not_started" | "not_configured" | "running"; checked_at: number | null; recent: boolean };
+  pending: number; failed: number;
+};
