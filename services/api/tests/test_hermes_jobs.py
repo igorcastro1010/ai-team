@@ -296,7 +296,15 @@ def test_delayed_confirmation_is_bound_to_its_request_not_a_newer_uncertainty(da
     first = jobs._record_pause(JOB_ID, "uncertain", "owner")
     jobs._record_pause(JOB_ID, "uncertain", "owner")
     observed = jobs_snapshot(database)["items"][0] | {"enabled": False, "state": "paused"}
-    jobs._record_pause(JOB_ID, "confirmed", "owner", observed, request_id=first["_request_id"])
+    read_sequence, _ = jobs._start_read("owner")
+    jobs._record_pause(
+        JOB_ID,
+        "confirmed",
+        "owner",
+        observed,
+        request_id=first["_request_id"],
+        proof_sequence=read_sequence,
+    )
     assert jobs_snapshot(database)["last_pause"]["status"] == "uncertain"
 
 
@@ -352,6 +360,64 @@ def test_later_external_resume_is_not_hidden_by_old_confirmed_pause(database):
     snapshot = jobs.inspect("owner")
     assert snapshot["items"][0]["enabled"] is True
     assert snapshot["items"][0]["state"] == "scheduled"
+
+
+def test_delayed_pause_readback_cannot_overlay_a_later_external_resume_inspection(database):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    reading, release = Event(), Event()
+    paused = False
+    block_readback = True
+
+    def handler(request):
+        nonlocal paused, block_readback
+        if request.method == "POST":
+            paused = True
+            return httpx.Response(200, json={})
+        job = native_job(enabled=not paused, state="paused" if paused else "scheduled")
+        if request.url.path == "/api/jobs":
+            return httpx.Response(200, json={"jobs": [job]})
+        if paused and block_readback:
+            block_readback = False
+            reading.set()
+            assert release.wait(5)
+        return httpx.Response(200, json={"job": job})
+
+    jobs = service(database, handler)
+    jobs.inspect("owner")
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pausing = pool.submit(jobs.pause, JOB_ID, "owner")
+        assert reading.wait(5)
+        try:
+            paused = False
+            assert jobs.inspect("owner")["items"][0]["enabled"] is True
+        finally:
+            release.set()
+        assert pausing.result(timeout=5)["status"] == "confirmed"
+    assert jobs_snapshot(database)["items"][0]["enabled"] is True
+    assert jobs_snapshot(database)["items"][0]["state"] == "scheduled"
+
+
+def test_confirmed_pause_projection_is_independent_for_each_observed_job(database):
+    other_id = "111111111111"
+    rows = {job_id: native_job(id=job_id) for job_id in (JOB_ID, other_id)}
+
+    def handler(request):
+        if request.url.path == "/api/jobs":
+            return httpx.Response(200, json={"jobs": list(rows.values())})
+        job_id = request.url.path.split("/")[3]
+        if request.method == "POST":
+            rows[job_id].update(enabled=False, state="paused")
+        return httpx.Response(200, json={"job": rows[job_id]})
+
+    jobs = service(database, handler)
+    jobs.inspect("owner")
+    jobs.pause(JOB_ID, "owner")
+    jobs.pause(other_id, "owner")
+    snapshot = jobs_snapshot(database)
+    assert all(not item["enabled"] and item["state"] == "paused" for item in snapshot["items"])
+    assert snapshot["last_pause"]["job_id"] == other_id
 
 
 def test_ci_canary_lifecycle_is_guarded_future_only_and_read_only_after_restart(
