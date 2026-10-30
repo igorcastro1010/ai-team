@@ -35,6 +35,33 @@ e [Microsoft WSL](https://learn.microsoft.com/windows/wsl/install).
 Esses arquivos não constituem login válido ou homologação de inferência.
 Não sobrescrever arquivos privados existentes em uma nova preparação.
 
+## Diagnóstico antes de iniciar
+
+```powershell
+powershell -NoProfile -File .\tools\doctor.ps1
+powershell -NoProfile -File .\tools\doctor.ps1 -Json -RequireHermes
+```
+
+O diagnóstico apenas verifica dependências e executa comandos fixos de versão/status,
+com timeout. Não lê `.env`, cofre, sessão Codex ou configuração privada Docker.
+Sem `-RequireHermes`, o código de saída indica a prontidão do painel/API nativos;
+com essa opção, exige também WSL compatível no Windows, ausência de reinício
+pendente, engine Docker Linux e Compose. `0` significa pré-requisitos atendidos;
+`2` indica pendência. Mesmo um diagnóstico aprovado não comprova autenticação,
+inferência, Telegram ou produção. Os campos JSON distinguem `base_ready` e
+`hermes_ready`, e não exibem stdout/stderr bruto das ferramentas.
+
+Em 30/10/2026, foram instalados WSL 3.0.3 e Docker Desktop 4.97.0 neste PC,
+com autorização explícita, por fontes oficiais e sem reiniciar. O Windows registrou
+reinício pendente e hipervisor inativo. O primeiro instalador Docker recusou a
+ausência de VirtualMachinePlatform; após o instalador WSL concluir, a instalação
+Docker por usuário terminou com êxito. O runtime Hermes continua sem homologação
+local até reiniciar, iniciar a engine e concluir o login próprio. Nenhuma chave
+ou sessão externa foi importada.
+
+Fontes: [instalação WSL](https://learn.microsoft.com/windows/wsl/basic-commands)
+e [instalação Docker por usuário](https://docs.docker.com/desktop/setup/install/windows-install/).
+
 ## Depois dos pré-requisitos
 
 Na raiz do projeto, conferir primeiro `docker version` e `docker compose version`.
