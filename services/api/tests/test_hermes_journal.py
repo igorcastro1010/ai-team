@@ -41,7 +41,7 @@ def test_cancelled_or_wrong_lease_cannot_admit(journal):
         store.begin(run, "ai-team-unique")
 
 
-@pytest.mark.parametrize("scope", ["python_code", "host_shell"])
+@pytest.mark.parametrize("scope", ["python_code", "nextjs_code", "host_shell"])
 def test_admission_scope_allowlist_includes_generated_python_only(journal, scope):
     from ai_team.models import Run
 
@@ -49,7 +49,7 @@ def test_admission_scope_allowlist_includes_generated_python_only(journal, scope
     with store.database.session() as db:
         db.get(Run, run.id).scope = scope
         db.commit()
-    if scope == "python_code":
+    if scope in {"python_code", "nextjs_code"}:
         assert store.begin(run, "ai-team-code").bridge_status == "admitting"
     else:
         with pytest.raises(RuntimeError):

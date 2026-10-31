@@ -47,14 +47,31 @@ class Worker:
                     last_heartbeat = time.monotonic()
 
             tick()
-            if run.scope == "python_code" and run.stage == 4:
-                from .code_artifacts import bundle_for_steps
+            if run.scope in {"python_code", "nextjs_code"} and run.stage == 4:
+                from .code_artifacts import bundle_for_scope
 
-                name = PythonSandbox.new_name()
-                run = self.store.record_sandbox(run, container_name=name)
-                result = sandbox.run(bundle_for_steps(run.steps), tick, name=name)
-                tick()
-                run = self.store.record_sandbox(run, result=result)
+                bundle = bundle_for_scope(run.scope, run.steps)
+                qa = run.steps[3]
+                if qa.get("approved_digest") != bundle.digest:
+                    raise RuntimeError("Artefatos não correspondem à aprovação")
+                existing = qa.get("test_result")
+                if existing is not None:
+                    if existing.get("artifact_digest") != bundle.digest:
+                        raise RuntimeError("Resultado não corresponde aos artefatos")
+                else:
+                    runtime = sandbox
+                    if run.scope == "nextjs_code" and self.sandbox is None:
+                        from .next_sandbox import NextSandbox
+
+                        runtime = NextSandbox()
+                    name = PythonSandbox.new_name()
+                    run = self.store.record_sandbox(run, container_name=name)
+                    result = runtime.run(bundle, tick, name=name)
+                    tick()
+                    release = run.scope == "nextjs_code"
+                    run = self.store.record_sandbox(run, result=result, release=release)
+                    if release:
+                        return True
             if not self.store.reserve_call(run):
                 self.store.finish_error(
                     run, "failed", "Limite de execução atingido ou escopo inválido."

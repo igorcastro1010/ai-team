@@ -34,7 +34,7 @@ def office_snapshot(runs, *, worker_online):
                 continue
             owner = STAGES[run.stage]
             if (
-                getattr(run, "scope", "draft_only") == "python_code"
+                getattr(run, "scope", "draft_only") in {"python_code", "nextjs_code"}
                 and run.stage == 4
                 and len(run.steps) == 4
                 and run.steps[3].get("execution_started")

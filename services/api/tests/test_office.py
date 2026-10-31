@@ -25,6 +25,23 @@ def test_office_never_animates_without_valid_worker_evidence():
     assert dev["run_id"] == "test"
 
 
+def test_next_office_tracks_real_suite_then_report_without_queued_animation():
+    steps = [
+        {"stage": i, "agent": name, "summary": name, "deliverable": "artefato"}
+        for i, name in enumerate(["CEO", "DEV", "DESIGNER", "QA"])
+    ]
+    steps[3]["execution_started"] = True
+    current = run(scope="nextjs_code", stage=4, steps=steps)
+    snapshot = office_snapshot([current], worker_online=True)
+    assert next(a for a in snapshot if a["id"] == "QA")["animate"] is True
+    steps[3]["test_result"] = {"status": "passed"}
+    current.status = "queued"
+    assert not any(a["animate"] for a in office_snapshot([current], worker_online=True))
+    current.status = "running"
+    snapshot = office_snapshot([current], worker_online=True)
+    assert next(a for a in snapshot if a["id"] == "CEO")["animate"] is True
+
+
 def test_office_uses_persisted_stage_and_approval_owner():
     snapshot = office_snapshot([run()], worker_online=True)
     assert next(agent for agent in snapshot if agent["id"] == "DEV")["animate"] is True

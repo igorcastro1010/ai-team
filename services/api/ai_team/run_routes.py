@@ -18,7 +18,7 @@ class RunInput(BaseModel):
     prompt: Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=5000)]
     consent: Literal[True]
     executor: Literal["codex", "hermes"] = "codex"
-    scope: Literal["draft_only", "python_code"] = "draft_only"
+    scope: Literal["draft_only", "python_code", "nextjs_code"] = "draft_only"
 
 
 class Decision(BaseModel):
@@ -47,10 +47,10 @@ class RunView(BaseModel):
     @computed_field
     @property
     def artifact_digest(self) -> str:
-        if self.scope == "python_code" and self.stage >= 4:
-            from .code_artifacts import bundle_for_steps
+        if self.scope in {"python_code", "nextjs_code"} and self.stage >= 4:
+            from .code_artifacts import bundle_for_scope
 
-            return bundle_for_steps(self.steps).digest
+            return bundle_for_scope(self.scope, self.steps).digest
         return ""
 
 
@@ -80,20 +80,24 @@ def decide(run_id: str, data: Decision, request: Request, owner: Owner):
 
 @router.get("/runs/{run_id}/artifacts")
 def download_artifacts(run_id: str, request: Request, owner: Owner):
-    from .code_artifacts import bundle_for_steps
+    from .code_artifacts import CODE_SCOPES, bundle_for_scope
 
     run = WorkflowStore(request.app.state.database).get(run_id)
-    if run.scope != "python_code" or run.stage < 4:
+    if run.scope not in CODE_SCOPES or run.stage < 4:
         raise HTTPException(409, "Artefatos ainda não disponíveis")
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for file in bundle_for_steps(run.steps).files:
+        for file in bundle_for_scope(run.scope, run.steps).files:
             archive.writestr(file.path, file.content)
     return Response(
         buffer.getvalue(),
         media_type="application/zip",
         headers={
-            "Content-Disposition": 'attachment; filename="ai-team-python.zip"',
+            "Content-Disposition": (
+                'attachment; filename="ai-team-nextjs.zip"'
+                if run.scope == "nextjs_code"
+                else 'attachment; filename="ai-team-python.zip"'
+            ),
             "Cache-Control": "no-store",
         },
     )

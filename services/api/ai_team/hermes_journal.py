@@ -44,7 +44,7 @@ class HermesJournal:
                     Run.status == "running",
                     Run.stage == run.stage,
                     Run.lease_token == run.lease_token,
-                    Run.scope.in_(["draft_only", "python_code"]),
+                    Run.scope.in_(["draft_only", "python_code", "nextjs_code"]),
                     Run.lease_expires_at > int(time.time()),
                 )
                 .values(lease_token=Run.lease_token)
