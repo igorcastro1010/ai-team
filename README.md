@@ -123,6 +123,7 @@ Após login, inicie o worker com `tools/start.ps1` (junto do painel) ou `tools/w
 ## Como executar uma solicitação
 
 Para gerar arquivos e executar testes, veja [Código Python com testes isolados](docs/python-code.md).
+Para páginas web novas, veja [Projeto Next.js com build e testes](docs/nextjs-code.md).
 Essa entrega exige revisão e aprovação dos artefatos antes dos testes. O fluxo
 textual abaixo continua disponível.
 

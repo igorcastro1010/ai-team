@@ -24,6 +24,13 @@ Binário presente no Windows. Extração `graphify . --code-only` concluída em 
 
 ## Fontes primárias
 
+Na extensão Next.js de 30/10/2026, reutilizadas LangGraph fundamentals/Python,
+Supabase (persistência no JSON existente), UI UX Pro Max, React/Next.js,
+Playwright e Superpowers (plano, testes, execução inline, revisão e verificação).
+Nenhuma skill adicional instalada; nenhuma habilitada no executor. A revisão
+independente foi somente de código, sem chamadas de modelo, e gerou regressões
+para snapshots históricos e decodificação incremental de acentos no HTML.
+
 Na entrega Python de 30/10/2026, foram reutilizadas as skills revisadas de
 LangGraph (fundamentals e referência Python), UI UX Pro Max (confirmação de
 ações), React/Next.js, Playwright e Superpowers (plano, TDD, execução inline,
