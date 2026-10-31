@@ -95,6 +95,33 @@ def test_command_is_fixed_no_mounts_no_network_or_credentials():
     assert not {"-v", "--volume", "--mount", "--privileged", "-e", "--env-file"} & set(argv)
 
 
+def test_cleanup_accepts_concurrent_auto_removal_but_not_unknown_scope(monkeypatch):
+    from types import SimpleNamespace
+
+    from ai_team.python_sandbox import PythonSandbox
+
+    name = "ai-team-test-" + "a" * 32
+    responses = iter(
+        [
+            SimpleNamespace(returncode=0, stdout=b"abcdef123456|next-test\n"),
+            SimpleNamespace(returncode=1, stdout=b""),
+            SimpleNamespace(returncode=0, stdout=b""),
+        ]
+    )
+    monkeypatch.setattr("subprocess.run", lambda *a, **kw: next(responses))
+    PythonSandbox.cleanup(name)
+    calls = []
+
+    def other(argv, **kw):
+        calls.append(argv)
+        return SimpleNamespace(returncode=0, stdout=b"abcdef123456|other-scope\n")
+
+    monkeypatch.setattr("subprocess.run", other)
+    with pytest.raises(RuntimeError):
+        PythonSandbox.cleanup(name)
+    assert not any("rm" in argv for argv in calls)
+
+
 @pytest.mark.skipif(os.getenv("AI_TEAM_SANDBOX_TESTS") != "1", reason="Docker real opt-in")
 @pytest.mark.parametrize(
     ("code", "status"),
