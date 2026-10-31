@@ -33,6 +33,14 @@ def office_snapshot(runs, *, worker_online):
             if run.stage >= len(STAGES):
                 continue
             owner = STAGES[run.stage]
+            if (
+                getattr(run, "scope", "draft_only") == "python_code"
+                and run.stage == 4
+                and len(run.steps) == 4
+                and run.steps[3].get("execution_started")
+                and not run.steps[3].get("test_result")
+            ):
+                owner = "QA"
             if run.status == "awaiting_approval" and run.steps:
                 owner = run.steps[-1]["agent"]
             if owner == agent_id:

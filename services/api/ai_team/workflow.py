@@ -33,14 +33,16 @@ class WorkflowStore:
                 )
             )
 
-    def create(self, project_id, prompt, actor, executor="codex"):
+    def create(self, project_id, prompt, actor, executor="codex", scope="draft_only"):
+        if scope not in {"draft_only", "python_code"}:
+            raise HTTPException(422, "Escopo inválido")
         if executor not in {"codex", "hermes"}:
             raise HTTPException(422, "Executor inválido")
         with self.database.session() as db:
             project = db.get(Project, project_id)
             if not project:
                 raise HTTPException(404, "Projeto não encontrado")
-            run = Run(project_id=project_id, prompt=prompt, mode=project.mode)
+            run = Run(project_id=project_id, prompt=prompt, mode=project.mode, scope=scope)
             run.executor_binding = RunExecutor(executor=executor)
             db.add(run)
             db.flush()
@@ -49,14 +51,28 @@ class WorkflowStore:
                     kind="run.requested",
                     resource_id=run.id,
                     actor=actor,
-                    summary=f"Solicitação autorizada ({executor}): planos e pareceres textuais",
+                    summary=f"Solicitação autorizada ({executor}): {scope}",
                 )
             )
             db.commit()
             return run
 
-    def decide(self, run_id, stage, approve, actor):
-        self.get(run_id)
+    def decide(self, run_id, stage, approve, actor, artifact_digest=""):
+        run = self.get(run_id)
+        values = {"status": "queued" if approve else "cancelled"}
+        if run.scope == "python_code" and stage == 4 and approve:
+            from .code_artifacts import bundle_for_steps
+
+            expected = bundle_for_steps(run.steps).digest
+            if artifact_digest != expected:
+                raise HTTPException(409, "Revise e aprove o hash exato dos artefatos")
+            values["steps"] = [
+                *run.steps[:-1],
+                {
+                    **run.steps[-1],
+                    "approved_digest": expected,
+                },
+            ]
         with self.database.session() as db:
             changed = db.execute(
                 update(Run)
@@ -65,7 +81,7 @@ class WorkflowStore:
                     Run.status == "awaiting_approval",
                     Run.stage == stage,
                 )
-                .values(status="queued" if approve else "cancelled")
+                .values(**values)
             )
             if changed.rowcount != 1:
                 raise HTTPException(
@@ -77,7 +93,15 @@ class WorkflowStore:
                     resource_id=run_id,
                     actor=actor,
                     summary=f"Etapa {stage + 1}: "
-                    + ("elaboração textual autorizada" if approve else "execução rejeitada"),
+                    + (
+                        (
+                            f"artefatos {artifact_digest} autorizados"
+                            if artifact_digest
+                            else "elaboração autorizada"
+                        )
+                        if approve
+                        else "execução rejeitada"
+                    ),
                 )
             )
             db.commit()
@@ -199,7 +223,7 @@ class WorkflowStore:
                     Run.lease_token == run.lease_token,
                     Run.calls < 5,
                     Run.input_tokens + Run.output_tokens < 50000,
-                    Run.scope == "draft_only",
+                    Run.scope.in_(["draft_only", "python_code"]),
                 )
                 .values(calls=Run.calls + 1)
             )
@@ -217,6 +241,16 @@ class WorkflowStore:
         status = "completed" if stage == 5 else "queued"
         if stage < 5 and (run.mode == "manual" or (run.mode == "supervised" and stage == 1)):
             status = "awaiting_approval"
+        if run.scope == "python_code":
+            from .code_artifacts import CodeBundle, bundle_for_steps
+
+            if run.stage == 1:
+                files = CodeBundle.model_validate_json(draft.deliverable).files
+                if any(file.path.startswith("test_") for file in files):
+                    raise ValueError("DEV não pode fornecer testes QA")
+            if stage == 4:
+                bundle_for_steps([*run.steps, step])
+                status = "awaiting_approval"
         with self.database.session() as db:
             changed = db.execute(
                 update(Run)
@@ -262,6 +296,47 @@ class WorkflowStore:
             )
             db.commit()
             return True
+
+    def record_sandbox(self, run, *, result=None):
+        from .code_artifacts import bundle_for_steps
+
+        bundle = bundle_for_steps(run.steps)
+        qa = run.steps[3]
+        if qa.get("approved_digest") != bundle.digest:
+            raise RuntimeError("Execução sem aprovação exata dos artefatos")
+        if result is None and qa.get("execution_started"):
+            raise RuntimeError("Sandbox já admitido; não repetir execução incerta")
+        if result is not None and result.get("artifact_digest") != bundle.digest:
+            raise RuntimeError("Resultado não corresponde aos artefatos aprovados")
+        qa = {
+            **qa,
+            **({"test_result": result} if result is not None else {"execution_started": True}),
+        }
+        with self.database.session() as db:
+            changed = db.execute(
+                update(Run)
+                .where(
+                    Run.id == run.id,
+                    Run.status == "running",
+                    Run.stage == 4,
+                    Run.lease_token == run.lease_token,
+                )
+                .values(steps=[*run.steps[:3], qa])
+            )
+            if changed.rowcount != 1:
+                raise InterruptedError("Lease alterada; execução interrompida")
+            db.add(
+                Event(
+                    kind="run.sandbox_finished" if result is not None else "run.sandbox_started",
+                    resource_id=run.id,
+                    actor="QA",
+                    summary="Resultado dos testes persistido"
+                    if result is not None
+                    else "Testes isolados autorizados por hash",
+                )
+            )
+            db.commit()
+        return self.get(run.id)
 
     def finish_error(self, run, status, message):
         with self.database.session() as db:

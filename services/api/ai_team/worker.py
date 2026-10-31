@@ -10,10 +10,11 @@ from .workflow import WorkflowStore
 
 
 class Worker:
-    def __init__(self, database, settings, provider, *, providers=None):
+    def __init__(self, database, settings, provider, *, providers=None, sandbox=None):
         self.store = WorkflowStore(database)
         self.settings, self.provider = settings, provider
         self.providers = providers
+        self.sandbox = sandbox
         self.id = new_id()
 
     def once(self):
@@ -30,11 +31,6 @@ class Worker:
                     run, "blocked", "Executor indisponível. Confira a configuração própria."
                 )
                 return True
-            if not self.store.reserve_call(run):
-                self.store.finish_error(
-                    run, "failed", "Limite de execução atingido ou escopo inválido."
-                )
-                return True
             last_heartbeat = 0
 
             def tick():
@@ -47,8 +43,21 @@ class Worker:
                     last_heartbeat = time.monotonic()
 
             tick()
+            if run.scope == "python_code" and run.stage == 4:
+                from .code_artifacts import bundle_for_steps
+                from .python_sandbox import PythonSandbox
+
+                run = self.store.record_sandbox(run)
+                result = (self.sandbox or PythonSandbox()).run(bundle_for_steps(run.steps), tick)
+                tick()
+                run = self.store.record_sandbox(run, result=result)
+            if not self.store.reserve_call(run):
+                self.store.finish_error(
+                    run, "failed", "Limite de execução atingido ou escopo inválido."
+                )
+                return True
             state = build_graph(provider, tick).invoke(
-                {"stage": run.stage, "prompt": run.prompt, "steps": run.steps},
+                {"stage": run.stage, "prompt": run.prompt, "steps": run.steps, "scope": run.scope},
                 {"recursion_limit": 8},
             )
             self.store.save_step(run, Draft.model_validate(state["draft"]))
@@ -85,9 +94,15 @@ def main():
     if settings.environment != "production":
         database.initialize()
     codex = CodexProvider()
-    worker = Worker(database, settings, codex, providers={
-        "codex": codex, "hermes": HermesProvider(HermesClient(settings)),
-    })
+    worker = Worker(
+        database,
+        settings,
+        codex,
+        providers={
+            "codex": codex,
+            "hermes": HermesProvider(HermesClient(settings)),
+        },
+    )
     github_worker = GitHubWorker(database, tick=lambda: worker.store.heartbeat(worker.id))
     print("Worker AI TEAM: elaboração textual e propostas GitHub aprovadas.", flush=True)
     while True:
