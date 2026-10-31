@@ -19,7 +19,11 @@ class Worker:
 
     def once(self):
         self.store.heartbeat(self.id)
-        run = self.store.claim()
+        from .python_sandbox import PythonSandbox
+
+        sandbox = self.sandbox or PythonSandbox()
+        code_ready = self.store.recover_sandboxes(sandbox)
+        run = self.store.claim(allow_code=code_ready)
         if run is None:
             return False
         try:
@@ -45,10 +49,10 @@ class Worker:
             tick()
             if run.scope == "python_code" and run.stage == 4:
                 from .code_artifacts import bundle_for_steps
-                from .python_sandbox import PythonSandbox
 
-                run = self.store.record_sandbox(run)
-                result = (self.sandbox or PythonSandbox()).run(bundle_for_steps(run.steps), tick)
+                name = PythonSandbox.new_name()
+                run = self.store.record_sandbox(run, container_name=name)
+                result = sandbox.run(bundle_for_steps(run.steps), tick, name=name)
                 tick()
                 run = self.store.record_sandbox(run, result=result)
             if not self.store.reserve_call(run):

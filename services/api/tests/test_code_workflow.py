@@ -41,7 +41,7 @@ class Sandbox:
     def __init__(self):
         self.calls = 0
 
-    def run(self, bundle, on_tick):
+    def run(self, bundle, on_tick, *, name=None):
         on_tick()
         self.calls += 1
         return {
@@ -50,6 +50,9 @@ class Sandbox:
             "output": "OK",
             "artifact_digest": bundle.digest,
         }
+
+    def cleanup(self, name):
+        self.cleaned = name
 
 
 def prepared(client, db, settings):
@@ -154,7 +157,7 @@ def test_failed_tests_are_persisted_as_failed_and_csrf_blocks_approval(environme
     assert client.post(url, json=data, headers={"origin": "https://evil.test"}).status_code == 403
     client.post(url, json=data)
 
-    def fail(bundle, tick):
+    def fail(bundle, tick, *, name=None):
         return {
             "status": "failed",
             "exit_code": 1,
@@ -167,3 +170,48 @@ def test_failed_tests_are_persisted_as_failed_and_csrf_blocks_approval(environme
     result = WorkflowStore(db).get(run["id"])
     assert result.status == "completed"
     assert result.steps[3]["test_result"]["status"] == "failed"
+
+
+def test_expired_worker_reconciles_exact_persisted_container_without_readmission(environment):
+    from ai_team.models import Run
+
+    client, db, settings = environment
+    run, worker, sandbox = prepared(client, db, settings)
+    store = WorkflowStore(db)
+    store.decide(run["id"], 4, True, "tester", artifact_digest=run["artifact_digest"])
+    claimed = store.claim()
+    name = "ai-team-test-" + "a" * 32
+    store.record_sandbox(claimed, container_name=name)
+    with db.session() as session:
+        session.get(Run, run["id"]).lease_expires_at = 0
+        session.commit()
+    worker.once()
+    assert sandbox.cleaned == name
+    recovered = store.get(run["id"])
+    assert recovered.status == "failed" and sandbox.calls == 0
+    assert recovered.steps[3]["cleanup_confirmed"] is True
+
+
+def test_offline_docker_blocks_code_but_preserves_text_worker(environment):
+    from ai_team.models import Run
+
+    client, db, settings = environment
+    run, worker, sandbox = prepared(client, db, settings)
+    store = WorkflowStore(db)
+    store.decide(run["id"], 4, True, "tester", artifact_digest=run["artifact_digest"])
+    claimed = store.claim()
+    store.record_sandbox(claimed, container_name="ai-team-test-" + "b" * 32)
+    with db.session() as session:
+        session.get(Run, run["id"]).lease_expires_at = 0
+        session.commit()
+
+    def offline(name):
+        raise RuntimeError("Docker offline")
+
+    sandbox.cleanup = offline
+    text = store.create(run["project_id"], "Plano textual", "tester")
+    code = store.create(run["project_id"], "Novo código", "tester", scope="python_code")
+    worker.once()
+    assert store.get(text.id).stage == 1
+    assert store.get(code.id).stage == 0
+    assert store.get(run["id"]).steps[3]["cleanup_state"] == "uncertain"

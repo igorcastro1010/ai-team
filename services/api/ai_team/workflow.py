@@ -159,7 +159,7 @@ class WorkflowStore:
             db.commit()
         return self.get(run_id)
 
-    def claim(self):
+    def claim(self, *, allow_code=True):
         now = int(time.time())
         with self.database.session() as db:
             stale = list(
@@ -198,7 +198,7 @@ class WorkflowStore:
             db.commit()
             run_id = db.scalar(
                 select(Run.id)
-                .where(Run.status == "queued")
+                .where(Run.status == "queued", True if allow_code else Run.scope != "python_code")
                 .order_by(Run.created_at, Run.id)
                 .limit(1)
             )
@@ -297,8 +297,9 @@ class WorkflowStore:
             db.commit()
             return True
 
-    def record_sandbox(self, run, *, result=None):
+    def record_sandbox(self, run, *, result=None, container_name=""):
         from .code_artifacts import bundle_for_steps
+        from .python_sandbox import valid_name
 
         bundle = bundle_for_steps(run.steps)
         qa = run.steps[3]
@@ -306,11 +307,20 @@ class WorkflowStore:
             raise RuntimeError("Execução sem aprovação exata dos artefatos")
         if result is None and qa.get("execution_started"):
             raise RuntimeError("Sandbox já admitido; não repetir execução incerta")
+        if result is None and not valid_name(container_name):
+            raise RuntimeError("Identificação de sandbox inválida")
         if result is not None and result.get("artifact_digest") != bundle.digest:
             raise RuntimeError("Resultado não corresponde aos artefatos aprovados")
         qa = {
             **qa,
-            **({"test_result": result} if result is not None else {"execution_started": True}),
+            **(
+                {"test_result": result}
+                if result is not None
+                else {
+                    "execution_started": True,
+                    "container_name": container_name,
+                }
+            ),
         }
         with self.database.session() as db:
             changed = db.execute(
@@ -337,6 +347,79 @@ class WorkflowStore:
             )
             db.commit()
         return self.get(run.id)
+
+    def recover_sandboxes(self, sandbox):
+        """Reconcile only persisted containers of cancelled/expired executions."""
+        from sqlalchemy import or_
+
+        cursor = ""
+        now = int(time.time())
+        while True:
+            with self.database.session() as db:
+                runs = list(
+                    db.scalars(
+                        select(Run)
+                        .where(
+                            Run.id > cursor,
+                            Run.scope == "python_code",
+                            Run.stage == 4,
+                            Run.status.in_(["running", "cancelled", "failed"]),
+                            or_(Run.status != "running", Run.lease_expires_at < now),
+                        )
+                        .order_by(Run.id)
+                        .limit(50)
+                    )
+                )
+            if not runs:
+                return True
+            for current in runs:
+                cursor = current.id
+                qa = current.steps[3] if len(current.steps) == 4 else {}
+                if not qa.get("execution_started") or qa.get("cleanup_confirmed"):
+                    continue
+                confirmed = True
+                try:
+                    sandbox.cleanup(qa.get("container_name", ""))
+                except (RuntimeError, OSError):
+                    confirmed = False
+                state = "confirmed" if confirmed else "uncertain"
+                with self.database.session() as db:
+                    changed = db.execute(
+                        update(Run)
+                        .where(
+                            Run.id == current.id,
+                            Run.lease_token == current.lease_token,
+                            or_(Run.status != "running", Run.lease_expires_at < now),
+                        )
+                        .values(
+                            steps=[
+                                *current.steps[:3],
+                                {
+                                    **qa,
+                                    "cleanup_confirmed": confirmed,
+                                    "cleanup_state": state,
+                                },
+                            ]
+                        )
+                    )
+                    if changed.rowcount and qa.get("cleanup_state") != state:
+                        db.add(
+                            Event(
+                                kind="run.sandbox_reconciled"
+                                if confirmed
+                                else "run.sandbox_uncertain",
+                                resource_id=current.id,
+                                actor="worker",
+                                summary=(
+                                    "Sandbox anterior encerrado; sem repetição"
+                                    if confirmed
+                                    else "Encerramento incerto; novas execuções Python aguardam"
+                                ),
+                            )
+                        )
+                    db.commit()
+                if not confirmed:
+                    return False
 
     def finish_error(self, run, status, message):
         with self.database.session() as db:

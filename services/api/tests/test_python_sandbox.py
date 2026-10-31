@@ -143,3 +143,61 @@ def test_real_cancel_cleans_container_and_empty_suite_fails():
     data["files"][1]["content"] = "while True: pass\n"
     with pytest.raises(InterruptedError):
         PythonSandbox().run(CodeBundle(**data), cancelled)
+
+
+@pytest.mark.skipif(os.getenv("AI_TEAM_SANDBOX_TESTS") != "1", reason="Docker real opt-in")
+def test_premature_exit_and_invalid_utf8_never_report_success_or_unbounded_output():
+    from ai_team.python_sandbox import PythonSandbox
+
+    data = bundle().model_dump()
+    data["files"][1]["content"] = "import os\nos._exit(0)\n"
+    assert PythonSandbox().run(CodeBundle(**data), lambda: None)["status"] == "failed"
+    data["files"][1]["content"] = 'import os\nos.write(1, b"\\xff" * 40000)\n'
+    result = PythonSandbox().run(CodeBundle(**data), lambda: None)
+    assert len(result["output"].encode("utf-8")) <= 32768
+
+
+@pytest.mark.skipif(os.getenv("AI_TEAM_SANDBOX_TESTS") != "1", reason="Docker real opt-in")
+def test_container_watchdog_survives_host_controller_death():
+    import subprocess
+    import sys
+
+    from ai_team.codex_provider import stop_process
+    from ai_team.python_sandbox import PythonSandbox
+
+    name = PythonSandbox.new_name()
+    child = (
+        "import sys; from ai_team.code_artifacts import CodeBundle; "
+        "from ai_team.python_sandbox import PythonSandbox; "
+        'b=CodeBundle(files=[{"path":"test_hang.py","content":"while True: pass"}]); '
+        "PythonSandbox().run(b,lambda:None,name=sys.argv[1])"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-c", child, name],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=os.name != "nt",
+    )
+    try:
+
+        def containers():
+            return subprocess.run(
+                ["docker", "ps", "-aq", "--filter", f"name=^{name}$"],
+                capture_output=True,
+                timeout=5,
+                check=True,
+            ).stdout.strip()
+
+        started = time.monotonic() + 10
+        while not containers():
+            assert time.monotonic() < started, "Contêiner de teste não iniciou"
+            time.sleep(0.2)
+        stop_process(process)  # Forcefully kill the host tree; finally cannot rescue it.
+        deadline = time.monotonic() + 35
+        while containers() and time.monotonic() < deadline:
+            time.sleep(0.5)
+        assert not containers(), "Watchdog deixou contêiner órfão"
+    finally:
+        if process.poll() is None:
+            stop_process(process)
+        PythonSandbox.cleanup(name)
