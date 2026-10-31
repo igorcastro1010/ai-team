@@ -23,6 +23,13 @@ Os números são um retrato da descoberta, não garantia de segurança. Revisar 
 Binário presente no Windows. Extração `graphify . --code-only` concluída em Python/TSX/TypeScript: 698 nós e 1.432 arestas na primeira execução. Parte dos nós pertence a scripts das skills. Algumas configurações não produzem símbolos, o que limita a completude do grafo. Integração opcional por `tools/graph.ps1`, sem hooks, sem LLM e artefatos ignorados no Git.
 
 ## Fontes primárias
+
+Na entrega Python de 30/10/2026, foram reutilizadas as skills revisadas de
+LangGraph (fundamentals e referência Python), UI UX Pro Max (confirmação de
+ações), React/Next.js, Playwright e Superpowers (plano, TDD, execução inline,
+revisão independente e verificação). Nenhuma skill nova foi instalada ou
+habilitada no runtime dos agentes. A skill Supabase foi consultada antes da
+persistência; o desenho preserva tabelas e usa o JSON existente das etapas.
 - [LangChain Skills](https://www.langchain.com/blog/langchain-skills)
 - [LangGraph overview](https://docs.langchain.com/oss/python/langgraph/overview)
 - [Next.js instalação](https://nextjs.org/docs/app/getting-started/installation)

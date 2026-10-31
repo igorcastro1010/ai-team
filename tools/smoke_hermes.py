@@ -22,6 +22,11 @@ def main():
     parser.add_argument(
         "--real", action="store_true", help="Autoriza até 5 chamadas ao provedor"
     )
+    parser.add_argument(
+        "--python-code",
+        action="store_true",
+        help="Inclui geração Python, aprovação por hash e testes Docker reais",
+    )
     args = parser.parse_args()
     if not args.real:
         parser.error("Use --real para autorizar consumo da sua conta Hermes")
@@ -74,9 +79,16 @@ def main():
                     json={
                         "project_id": project["id"],
                         "executor": "hermes",
+                        "scope": "python_code" if args.python_code else "draft_only",
                         "consent": True,
-                        "prompt": "Proponha uma biblioteca comunitária fictícia. Até 80 palavras "
-                        "por parecer. CEO: delegue duas tarefas. Não use ferramentas.",
+                        "prompt": (
+                            "Crie main.py com função add(a,b) que soma dois números. "
+                            "QA: testes unittest de positivos, negativos e zero em test_main.py. "
+                            "Use somente biblioteca padrão. Mantenha a entrega mínima."
+                            if args.python_code
+                            else "Proponha uma biblioteca comunitária fictícia. Até 80 palavras "
+                            "por parecer. CEO: delegue duas tarefas. Não use ferramentas."
+                        ),
                     },
                 ).json()
                 for index in range(5):
@@ -96,8 +108,23 @@ def main():
                             ).status_code
                             == 200
                         )
+                    if args.python_code and index == 3:
+                        assert current["status"] == "awaiting_approval"
+                        assert (
+                            client.post(
+                                f"/runs/{run['id']}/decision",
+                                json={
+                                    "stage": 4,
+                                    "approve": True,
+                                    "artifact_digest": current["artifact_digest"],
+                                },
+                            ).status_code
+                            == 200
+                        )
                 assert current["status"] == "completed"
                 assert current["executor"] == "hermes"
+                if args.python_code:
+                    assert current["steps"][3]["test_result"]["status"] == "passed"
                 report = {
                     "status": "passed",
                     "executor": "hermes",
@@ -110,13 +137,22 @@ def main():
                 }
                 artifacts = ROOT / "artifacts"
                 artifacts.mkdir(exist_ok=True)
-                (artifacts / "hermes-smoke.json").write_text(
+                if args.python_code:
+                    report["test_result"] = current["steps"][3]["test_result"]
+                    report["scope"] = "python_code"
+                    report["note"] = (
+                        "Geração real, aprovação por hash e unittest Docker isolado."
+                    )
+                name = (
+                    "python-code-smoke.json"
+                    if args.python_code
+                    else "hermes-smoke.json"
+                )
+                (artifacts / name).write_text(
                     json.dumps(report, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
-                print(
-                    "PASS: Hermes real; cinco etapas textuais e aprovação persistida."
-                )
+                print("PASS: Hermes real; cinco etapas e aprovação persistida.")
         except Exception:  # noqa: BLE001 - never print provider errors containing credentials
             parser.exit(
                 1, "Homologação não concluída. Confira runtime, política e provedor.\n"

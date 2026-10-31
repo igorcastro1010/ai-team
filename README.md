@@ -121,6 +121,11 @@ O usuário escolheu login próprio do Codex. `tools/login-codex.ps1` inicia o fl
 Após login, inicie o worker com `tools/start.ps1` (junto do painel) ou `tools/worker.ps1` (isolado). O painel indica quando o worker está online; pedidos ficam persistidos na fila enquanto ele está desligado. Não envie códigos de acesso, tokens ou arquivos de autenticação a outras pessoas.
 
 ## Como executar uma solicitação
+
+Para gerar arquivos e executar testes, veja [Código Python com testes isolados](docs/python-code.md).
+Essa entrega exige revisão e aprovação dos artefatos antes dos testes. O fluxo
+textual abaixo continua disponível.
+
 1. Crie um projeto e selecione o modo de autonomia.
 2. Em **Conversa com CEO**, escolha o projeto, descreva o objetivo e marque o consentimento de envio ao Codex. Não inclua dados sensíveis.
 3. O CEO gera o plano e propõe tarefas. Em modo supervisionado, revise o artefato e autorize a continuação em **Aprovações**. Em modo manual, cada próxima etapa depende de sua decisão.
