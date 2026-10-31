@@ -19,10 +19,11 @@ export type Event = { id: string; kind: string; summary: string; actor: string; 
 export type Agent = { id: string; name: string; role: string; description: string; tools: string[]; limit: string; status: string };
 export type Integration = { id: string; name: string; status: string; description: string; verified_at: number | null };
 export type Run = {
+  artifact_digest?: string;
   executor: "codex" | "hermes";
   id: string; project_id: string; prompt: string; mode: string; scope: string; status: string;
   stage: number; calls: number; input_tokens: number; output_tokens: number; error: string;
-  created_at: number; steps: { stage: number; agent: string; summary: string; deliverable: string; input_tokens: number; output_tokens: number }[];
+  created_at: number; steps: { stage: number; agent: string; summary: string; deliverable: string; input_tokens: number; output_tokens: number; execution_started?: boolean; test_result?: { status: string; exit_code: number | null; output: string } }[];
 };
 export type Workspace = {
   office: OfficeAgent[];
