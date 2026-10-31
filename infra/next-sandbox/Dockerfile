@@ -3,7 +3,7 @@ WORKDIR /opt/runtime
 COPY scaffold/package.json scaffold/package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund && npm cache clean --force
 COPY scaffold /opt/runner/scaffold
-COPY run.mjs /opt/runner/run.mjs
+COPY run.mjs read-html.mjs /opt/runner/
 USER 65532:65532
 WORKDIR /work
 CMD ["node", "/opt/runner/run.mjs"]

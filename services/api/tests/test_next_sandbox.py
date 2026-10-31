@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 
 import pytest
 from pydantic import ValidationError
@@ -109,6 +110,38 @@ def test_runtime_manifest_rejects_mutable_images_and_stale_policy(tmp_path, monk
         json.dumps({"image_id": "sha256:" + "a" * 64, "runtime_hash": runtime_fingerprint()})
     )
     assert next_sandbox.prepared_image() == "sha256:" + "a" * 64
+
+
+def test_historic_snapshot_is_stable_but_cannot_run_under_changed_runtime(monkeypatch):
+    from ai_team import next_artifacts
+
+    data = steps()
+    original = project_for_steps(data)
+    data[-1]["project_snapshot"] = original.model_dump()
+    monkeypatch.setattr(next_artifacts, "runtime_fingerprint", lambda: "0" * 64)
+    snapshot = project_for_steps(data)
+    assert snapshot.digest == original.digest
+    with pytest.raises(ValidationError, match="Runtime aprovado mudou"):
+        NextProject.model_validate(snapshot.model_dump())
+    data[0]["deliverable"] = data[0]["deliverable"].replace("AI TEAM", "Changed")
+    with pytest.raises(ValueError, match="divergentes"):
+        project_for_steps(data)
+
+
+def test_html_reader_preserves_split_accents_and_enforces_byte_limit():
+    from ai_team.next_artifacts import RUNTIME
+
+    script = """
+import assert from 'node:assert/strict';
+import {readHtml} from './read-html.mjs';
+const bytes = Buffer.from('Ação e café');
+async function* chunks() { for (const byte of bytes) yield Uint8Array.of(byte); }
+assert.equal(await readHtml(chunks()), 'Ação e café');
+await assert.rejects(readHtml(chunks(), bytes.length - 1), /HTML limit/);
+"""
+    subprocess.run(
+        ["node", "--input-type=module", "-e", script], cwd=RUNTIME, check=True, timeout=10
+    )
 
 
 @pytest.mark.skipif(os.getenv("AI_TEAM_NEXT_SANDBOX_TESTS") != "1", reason="Next Docker opt-in")

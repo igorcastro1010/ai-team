@@ -2,6 +2,7 @@
 import { readFile, writeFile, mkdir, symlink, access } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
+import { readHtml } from "./read-html.mjs";
 
 const source = /^(app\/page\.tsx|app\/globals\.css|components\/[a-z][a-z0-9-]{0,50}\.tsx|tests\/acceptance\.json)$/;
 const fixed = ["package.json", "package-lock.json", "tsconfig.json", "next-env.d.ts", "next.config.mjs", "app/layout.tsx"];
@@ -71,12 +72,8 @@ try {
     catch { await new Promise(resolve => setTimeout(resolve, 100)); }
   }
   if (!response) throw new Error("server unavailable");
-  let html = "";
   const bodyDeadline = setTimeout(() => { process.exit(124); }, 10000);
-  for await (const chunk of response.body) {
-    html += Buffer.from(chunk).toString("utf8");
-    if (Buffer.byteLength(html) > 524288) throw new Error("HTML limit");
-  }
+  const html = await readHtml(response.body);
   clearTimeout(bodyDeadline);
   let failures = 0;
   for (const check of checks) {

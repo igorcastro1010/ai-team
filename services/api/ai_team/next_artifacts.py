@@ -32,7 +32,8 @@ def runtime_sources():
     return {
         **{"scaffold/" + p: c for p, c in scaffold().items()},
         **{
-            name: (RUNTIME / name).read_text(encoding="utf-8") for name in ("Dockerfile", "run.mjs")
+            name: (RUNTIME / name).read_text(encoding="utf-8")
+            for name in ("Dockerfile", "run.mjs", "read-html.mjs")
         },
     }
 
@@ -83,9 +84,10 @@ class Acceptance(BaseModel):
     checks: list[Check] = Field(min_length=1, max_length=12)
 
 
-class NextProject(BaseModel):
+class NextSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
     files: list[ProjectFile] = Field(min_length=9, max_length=18)
+    runtime_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
 
     @model_validator(mode="after")
     def validate_project(self):
@@ -95,9 +97,10 @@ class NextProject(BaseModel):
             or sum(len(v.encode()) for v in entries.values()) > 262144
         ):
             raise ValueError("Arquivos duplicados ou projeto excede 256 KiB")
-        if any(entries.get(path) != content for path, content in scaffold().items()):
-            raise ValueError("Scaffold revisado não pode ser alterado")
-        if not {"app/page.tsx", "app/globals.css", "tests/acceptance.json"} <= entries.keys():
+        if (
+            not {*SCAFFOLD, "app/page.tsx", "app/globals.css", "tests/acceptance.json"}
+            <= entries.keys()
+        ):
             raise ValueError("Página, CSS e critérios QA obrigatórios")
         Acceptance.model_validate_json(entries["tests/acceptance.json"])
         return self
@@ -105,7 +108,21 @@ class NextProject(BaseModel):
     @property
     def digest(self):
         canonical = sorted((f.path, f.content) for f in self.files)
-        return hashlib.sha256(json.dumps(canonical, ensure_ascii=True).encode()).hexdigest()
+        payload = [self.runtime_hash, canonical]
+        return hashlib.sha256(json.dumps(payload, ensure_ascii=True).encode()).hexdigest()
+
+
+class NextProject(NextSnapshot):
+    runtime_hash: str = Field(default_factory=runtime_fingerprint, pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def current_runtime_only(self):
+        entries = {f.path: f.content for f in self.files}
+        if self.runtime_hash != runtime_fingerprint():
+            raise ValueError("Runtime aprovado mudou; gere uma nova execução")
+        if any(entries.get(path) != content for path, content in scaffold().items()):
+            raise ValueError("Scaffold revisado não pode ser alterado")
+        return self
 
 
 def validate_part(role, deliverable):
@@ -129,5 +146,15 @@ def project_for_steps(steps):
     for step in steps:
         if step["agent"] in {"DEV", "DESIGNER", "QA"}:
             generated.extend(validate_part(step["agent"], step["deliverable"]).files)
+    snapshots = [step["project_snapshot"] for step in steps if "project_snapshot" in step]
+    if snapshots:
+        if len(snapshots) != 1:
+            raise ValueError("Snapshot único obrigatório")
+        snapshot = NextSnapshot.model_validate(snapshots[0])
+        expected = sorted((f.path, f.content) for f in generated)
+        actual = sorted((f.path, f.content) for f in snapshot.files if f.path not in SCAFFOLD)
+        if expected != actual:
+            raise ValueError("Fontes divergentes do snapshot aprovado")
+        return snapshot
     files = [*generated, *[ProjectFile(path=p, content=c) for p, c in scaffold().items()]]
     return NextProject(files=files)
