@@ -35,7 +35,8 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const binary = targetPath.endsWith("/artifacts") && upstream.ok && upstream.headers.get("content-type") === "application/zip";
     if (binary) {
       headers.set("content-type", "application/zip");
-      headers.set("content-disposition", 'attachment; filename="ai-team-python.zip"');
+      const disposition = upstream.headers.get("content-disposition");
+      headers.set("content-disposition", disposition === 'attachment; filename="ai-team-nextjs.zip"' ? disposition : 'attachment; filename="ai-team-python.zip"');
     }
     for (const cookie of upstream.headers.getSetCookie()) headers.append("set-cookie", cookie);
     const retry = upstream.headers.get("retry-after");

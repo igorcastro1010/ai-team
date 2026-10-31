@@ -218,13 +218,13 @@ test("CEO registra pedido e permite revisar, aprovar e cancelar com confirmaçã
     cwd: root, env: { ...process.env, AI_TEAM_DATABASE_URL: process.env.AI_TEAM_E2E_DB, AI_TEAM_ENVIRONMENT: "test" },
   });
   await page.goto("/aprovacoes");
-  await expect(page.getByText("Proposta textual, sem execução externa.")).toBeVisible();
+  await expect(runCard.getByText("Proposta textual, sem execução externa.")).toBeVisible();
   await page.screenshot({ path: "../../artifacts/approval-desktop.png", fullPage: true });
-  await page.getByRole("button", { name: "Aprovar próxima etapa" }).click();
+  await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
-  await expect(page.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Aprovar próxima etapa" }).click();
+  await expect(runCard.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
+  await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
   await dialog.getByRole("button", { name: "Autorizar elaboração", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await page.goto("/execucoes");
