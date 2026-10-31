@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, symlink, access } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { readHtml } from "./read-html.mjs";
+import { validateBrowserChecks, runBrowserChecks } from "./browser-checks.mjs";
 
 const source = /^(app\/page\.tsx|app\/globals\.css|components\/[a-z][a-z0-9-]{0,50}\.tsx|tests\/acceptance\.json)$/;
 const fixed = ["package.json", "package-lock.json", "tsconfig.json", "next-env.d.ts", "next.config.mjs", "app/layout.tsx"];
@@ -47,7 +48,10 @@ try {
     if (entries.get(path) !== expected) throw new Error("scaffold policy");
   }
   // Snapshot QA in memory before executing any untrusted source/build code.
-  const { checks } = JSON.parse(entries.get("tests/acceptance.json"));
+  const criteria = JSON.parse(entries.get("tests/acceptance.json"));
+  const { checks } = criteria;
+  if (Object.keys(criteria).some(key => !["checks", "browser_checks"].includes(key))) throw new Error("QA policy");
+  const browserChecks = validateBrowserChecks(criteria.browser_checks ?? []);
   if (!Array.isArray(checks) || checks.length < 1 || checks.length > 12) throw new Error("QA contract");
   for (const check of checks) {
     if (typeof check.name !== "string" || typeof check.contains !== "string" || !check.contains.length) throw new Error("QA contract");
@@ -82,7 +86,9 @@ try {
     console.log(JSON.stringify({ check: check.name, passed }));
     if (!passed) failures++;
   }
-  console.log(JSON.stringify({ build: "passed", checks: checks.length, failures }));
+  const browserResult = await runBrowserChecks(browserChecks);
+  failures += browserResult.browser_failures;
+  console.log(JSON.stringify({ build: "passed", checks: checks.length, failures, ...browserResult }));
   process.exitCode = failures ? 1 : 0;
 } catch {
   console.error("Next.js build/QA nao confirmou conclusao. Confira a saida limitada.");

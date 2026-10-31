@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from functools import lru_cache
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -34,6 +35,10 @@ def runtime_sources():
         **{
             name: (RUNTIME / name).read_text(encoding="utf-8")
             for name in ("Dockerfile", "run.mjs", "read-html.mjs")
+        },
+        **{
+            name: (RUNTIME / name).read_text(encoding="utf-8")
+            for name in ("browser-checks.mjs", "browser/package.json", "browser/package-lock.json")
         },
     }
 
@@ -79,9 +84,33 @@ class Check(BaseModel):
     status: int = Field(default=200, ge=100, le=599)
 
 
+class ClickAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["click"]
+    role: Literal["button", "link", "checkbox"]
+    name: str = Field(min_length=1, max_length=200)
+
+
+class FillAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["fill"]
+    label: str = Field(min_length=1, max_length=200)
+    value: str = Field(max_length=500)
+
+
+class BrowserCheck(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+    actions: list[Annotated[ClickAction | FillAction, Field(discriminator="action")]] = Field(
+        min_length=1, max_length=6
+    )
+    expect_text: str = Field(min_length=1, max_length=1000)
+
+
 class Acceptance(BaseModel):
     model_config = ConfigDict(extra="forbid")
     checks: list[Check] = Field(min_length=1, max_length=12)
+    browser_checks: list[BrowserCheck] = Field(default_factory=list, max_length=6)
 
 
 class NextSnapshot(BaseModel):
