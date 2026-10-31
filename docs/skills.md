@@ -24,6 +24,13 @@ Binário presente no Windows. Extração `graphify . --code-only` concluída em 
 
 ## Fontes primárias
 
+Na extensão Chromium de 31/10/2026, reutilizadas Playwright Best Practices
+(locators acessíveis e assertions com espera), LangGraph fundamentals/Python
+(instruções por papel) e Superpowers (plano, TDD, revisão e verificação).
+Playwright 1.64.1 foi revisado como dependência oficial do executor, com lock
+separado; nenhuma nova skill instalada ou habilitada nos agentes. Documentação
+oficial consultada para Docker, versões do navegador e limites do sandbox.
+
 Na extensão Next.js de 30/10/2026, reutilizadas LangGraph fundamentals/Python,
 Supabase (persistência no JSON existente), UI UX Pro Max, React/Next.js,
 Playwright e Superpowers (plano, testes, execução inline, revisão e verificação).

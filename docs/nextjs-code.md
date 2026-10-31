@@ -14,11 +14,13 @@ powershell -NoProfile -File .\tools\start.ps1
 1. Selecione um projeto em **Conversa com CEO**.
 2. Escolha **Projeto Next.js com build e testes** em **Tipo de entrega**.
 3. Descreva uma página pequena em português e autorize o envio ao executor.
-4. CEO planeja, DEV gera TSX, DESIGNER gera CSS e QA propõe critérios do HTML.
+4. CEO planeja, DEV gera TSX, DESIGNER gera CSS e QA propõe critérios do HTML
+   e cenários de interação quando aplicáveis.
 5. Revise fontes, CSS, critérios e SHA-256. O ZIP inclui o scaffold fixo completo.
 6. Clique em **Aprovar build e testes** e confirme a autorização. Esta aprovação
    é obrigatória também no modo automático, vinculada ao conteúdo e à execução.
-7. O worker faz build e valida o HTML. Depois o CEO consolida o resultado real.
+7. O worker faz build, valida HTML e executa os cenários de navegador incluídos.
+   Depois o CEO consolida o resultado real.
    Baixe em **Baixar projeto Next.js**. O escritório acompanha QA e CEO.
 
 O projeto gerado é novo e independente. Nenhuma edição de repositório, push,
@@ -52,8 +54,9 @@ publicação ou ampliação da GitHub App é feita por essa entrega.
   Falha ou resultado incerto não autoriza repetição automática. Nenhuma migração
   de tabelas: artefatos e resultados usam o JSON existente das etapas.
 
-A validação cobre build e HTML inicial. Interações, navegação, acessibilidade e
-comportamento no navegador do projeto gerado exigem revisão posterior. Critérios
+A validação cobre build, HTML inicial e os cenários de interação presentes no QA.
+Navegação arbitrária, acessibilidade e comportamentos fora desses cenários exigem
+revisão posterior. Critérios
 propostos por IA podem ser incompletos; passar não comprova correção integral.
 Docker local de proprietário único não é homologação para código hostil em um
 serviço público multiusuário. Workers Compose não recebem o socket Docker;
@@ -102,3 +105,67 @@ locais não substituem o resultado do CI; consulte os checks da revisão.
 
 Referências: [instalação oficial Next.js](https://nextjs.org/docs/app/getting-started/installation)
 e [isolamento Docker](https://docs.docker.com/reference/cli/docker/container/run/).
+
+## QA no Chromium — 31/10/2026
+
+Para páginas interativas, descreva também o comportamento esperado. Exemplo:
+`Crie um formulário com label Nome, botão Salvar e mensagem Olá, Igor depois de
+preencher Igor e salvar.` QA pode acrescentar `browser_checks` ao mesmo
+`tests/acceptance.json`. Revise esses critérios antes de aprovar.
+
+```json
+{
+  "checks": [{"name": "titulo", "contains": "AI TEAM"}],
+  "browser_checks": [{
+    "name": "salvar nome",
+    "actions": [
+      {"action": "fill", "label": "Nome", "value": "Igor"},
+      {"action": "click", "role": "button", "name": "Salvar"}
+    ],
+    "expect_text": "Olá, Igor"
+  }]
+}
+```
+
+Até 6 cenários, cada um com 1–6 ações e resultado visível exato. Click usa role
+`button`, `link` ou `checkbox` e nome acessível exato; fill usa label exata e
+valor de até 500 caracteres. Não aceita scripts, selectors, comandos nem URLs.
+Cada cenário começa na raiz fixa em contexto novo a 390x844; não herda sessão.
+Sem browser_checks, a entrega continua validando somente HTML.
+
+Playwright oficial 1.64.1 e Chromium Headless Shell são instalados em diretório
+separado ao preparar a imagem; não entram nas dependências do ZIP gerado.
+Execute novamente `tools/setup_next_sandbox.py` ao atualizar o runtime.
+O navegador tem prazo total de 30 s dentro dos 120 s existentes. Destinos fora
+do próprio servidor, downloads, popups, service workers e WebSockets são
+bloqueados. Operações bloqueadas invalidam o cenário.
+
+Chromium roda sem sandbox interno dentro do contêiner Docker restrito já
+documentado. Não foram adicionados capabilities, IPC host, portas ou mounts.
+Temporários ficam no tmpfs privado. Esta composição continua exclusiva para
+desenvolvimento local do proprietário; não visitar sites externos nem oferecer
+execução de código hostil como serviço público.
+
+A saída distingue verificações HTML e `browser_check`/`browser_failures`.
+Um build aprovado sozinho não comprova interação; o relatório CEO deve citar
+somente os cenários efetivamente executados. O painel exibe critérios e saída
+em **Ver saída dos testes**, preservando aprovação por hash, download e histórico.
+
+Referência: [Playwright oficial no Docker](https://playwright.dev/docs/docker).
+
+Validação local em 31/10/2026: 285 pytest aprovados com Docker real, 7 casos
+PostgreSQL omitidos por ausência de banco descartável. Após o último ajuste
+de deadline, os 14 testes de navegador foram repetidos e aprovados. Os 22 E2E
+do painel, lint, typecheck e build passaram. Docker cobriu formulário real,
+estado independente entre cenários, assertiva negativa e navegação externa
+bloqueada. A revisão encontrou TMPDIR somente leitura e prazo de abertura fora
+do orçamento; ambos corrigidos, com teste real RED/GREEN para o lançamento.
+Uma janela de expiração durante fechamento também foi fechada. Revisão final
+sem outro impedimento concreto no escopo.
+
+Smoke Hermes real: cinco chamadas, quatro checks HTML e um cenário Chromium,
+zero falhas, relatório CEO concluído. Uso reportado: 15.769 tokens de entrada
+e 3.811 de saída; preço monetário não confirmado. Evidências ignoradas em
+`artifacts/nextjs-code-smoke.json` e `artifacts/nextjs-project-smoke.zip`.
+PR incremental [#8](https://github.com/igorcastro1010/ai-team/pull/8), sem merge
+ou deploy; resultado do CI deve ser consultado separadamente.
