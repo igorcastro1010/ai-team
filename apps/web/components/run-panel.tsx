@@ -53,6 +53,7 @@ export function CeoConsole({ data, reload }: { data: Workspace; reload: () => Pr
 }
 
 export function RunList({ data, runs, reload }: { data: Workspace; runs: Run[]; reload: () => Promise<void> }) {
+  runs = runs.filter(run => run.scope !== "repository_code");
   const [pending, setPending] = useState<{ run: Run; action: "approve" | "reject" | "cancel" | "resume" } | null>(null);
   return <>
     {!runs.length && <section className="panel"><div className="empty-state"><CircleDashed size={29} aria-hidden="true" /><h2>Nenhuma execução por aqui.</h2><p>Envie uma solicitação ao CEO para iniciar um plano com histórico persistente.</p><Link href="/ceo" className="button">Conversa com CEO <ArrowUpRight size={17} aria-hidden="true" /></Link></div></section>}

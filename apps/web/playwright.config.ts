@@ -14,6 +14,6 @@ export default defineConfig({
       url: "http://127.0.0.1:8100/health", reuseExistingServer: false,
       env: { AI_TEAM_DATABASE_URL: database, AI_TEAM_PUBLIC_ORIGIN: "http://localhost:3100", AI_TEAM_ENVIRONMENT: "test" } },
     { command: "npm run dev -- --port 3100", url: "http://localhost:3100/login", reuseExistingServer: false,
-      timeout: 120000, env: { AI_TEAM_API_URL: "http://127.0.0.1:8100" } },
+      timeout: 120000, env: { AI_TEAM_API_URL: "http://127.0.0.1:8100", AI_TEAM_E2E: "1" } },
   ],
 });

@@ -17,6 +17,7 @@ import { SchedulePanel } from "./schedule-panel";
 import { ReportsPanel } from "./reports-panel";
 import { HermesPanel } from "./hermes-panel";
 import { PixelOffice } from "./pixel-office";
+import { RepositoryPanel } from "./repository-panel";
 
 import { views, type View } from "@/lib/navigation";
 
@@ -98,8 +99,8 @@ export function Dashboard({ view }: { view: View }) {
           {view === "historico" && <HistoryPanel data={workspace} />}
           {view === "integracoes" && <><Integrations data={workspace} /><HermesPanel data={workspace} reload={load} /><VercelPanel data={workspace} reload={load} /><GitHubPanel data={workspace} reload={load} /></>}
           {view === "relatorios" && <ReportsPanel />}
-          {view === "ceo" && <CeoConsole data={workspace} reload={load} />}
-          {view === "execucoes" && <RunList data={workspace} runs={workspace.runs} reload={load} />}
+          {view === "ceo" && <><CeoConsole data={workspace} reload={load} /><RepositoryPanel data={workspace} /></>}
+          {view === "execucoes" && <><RunList data={workspace} runs={workspace.runs} reload={load} /><RepositoryPanel data={workspace} /></>}
           {view === "agendamentos" && <SchedulePanel data={workspace} reload={load} />}
           {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>As aprovações autorizam somente a etapa indicada e o escopo textual. Propostas GitHub são revisadas separadamente em Integrações.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /></>}
         </>}
