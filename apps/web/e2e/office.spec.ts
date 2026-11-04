@@ -27,6 +27,7 @@ for (const width of [360, 390, 430, 1440]) {
     await page.getByRole("heading", { name: "Um escritório. Sete especialidades." }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `../../artifacts/office-${width}.png`, fullPage: true });
+    if (width === 1440) await page.locator(".office-campus").screenshot({ path: "../../artifacts/office-campus-1440.png" });
   });
 }
 

@@ -71,7 +71,7 @@ export function Dashboard({ view }: { view: View }) {
   }
   function newTask() { setDialog(workspace?.projects.length ? "task" : "project"); }
   const meta = views[view];
-  return <div className="workspace-shell">
+  return <div className={`workspace-shell ${view === "escritorio" ? "office-shell" : ""}`}>
     <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
     <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
       <Link href="/" className="brand" aria-label="AI TEAM início"><span className="brand-mark">ai</span><span>AI TEAM<small>INTELIGÊNCIA EM EQUIPE</small></span></Link>
