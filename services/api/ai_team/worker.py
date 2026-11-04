@@ -20,9 +20,12 @@ class Worker:
     def once(self):
         self.store.heartbeat(self.id)
         from .python_sandbox import PythonSandbox
+        from .repository_runs import RepositoryStore, execute_repository
 
         sandbox = self.sandbox or PythonSandbox()
         code_ready = self.store.recover_sandboxes(sandbox)
+        repository_store = RepositoryStore(self.store.database)
+        code_ready = repository_store.recover(sandbox) and code_ready
         run = self.store.claim(allow_code=code_ready)
         if run is None:
             return False
@@ -47,6 +50,9 @@ class Worker:
                     last_heartbeat = time.monotonic()
 
             tick()
+            if run.scope == "repository_code":
+                execute_repository(repository_store, run, provider, tick, self.sandbox)
+                return True
             if run.scope in {"python_code", "nextjs_code"} and run.stage == 4:
                 from .code_artifacts import bundle_for_scope
 

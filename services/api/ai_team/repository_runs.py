@@ -7,7 +7,7 @@ from typing import TypedDict
 from fastapi import HTTPException
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from .config import ROOT
 from .models import Event, Project, RepositoryJob, Run, RunExecutor, Task
@@ -170,6 +170,36 @@ class RepositoryStore:
             if changed.rowcount != 1:
                 raise RuntimeError("Limite de chamadas ou tokens")
 
+    def recover(self, sandbox):
+        with self.database.session() as db:
+            jobs = list(
+                db.scalars(
+                    select(RepositoryJob)
+                    .join(Run)
+                    .where(Run.scope == "repository_code", Run.status.in_(["failed", "cancelled"]))
+                )
+            )
+            for job in jobs:
+                state = dict(job.state)
+                if not state.get("execution_started") or state.get("cleanup_confirmed"):
+                    continue
+                try:
+                    sandbox.cleanup(state["container_name"])
+                except Exception:
+                    return False
+                state["cleanup_confirmed"] = True
+                job.state = state
+                db.add(
+                    Event(
+                        kind="repository.recovered",
+                        resource_id=job.run_id,
+                        actor="worker",
+                        summary="Sandbox encerrado; testes não repetidos",
+                    )
+                )
+            db.commit()
+        return True
+
     def decide(self, run_id, digest, approve, actor):
         view = self.view(run_id)
         if view["digest"] != digest or view["run"]["status"] != "awaiting_approval":
@@ -190,7 +220,6 @@ class RepositoryStore:
                     Run.id == run_id,
                     Run.status == "awaiting_approval",
                     Run.stage == stage,
-                    Run.steps == view["run"]["steps"],
                 )
                 .values(status=status)
             )

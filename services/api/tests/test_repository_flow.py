@@ -103,3 +103,34 @@ def test_cancelled_lease_cannot_persist_generated_files(setup):
     with pytest.raises(InterruptedError):
         store.save(claimed, {}, status="queued")
     assert store.view(run.id)["run"]["calls"] == 0
+
+
+def test_legacy_decision_cannot_bypass_repository_digest(setup):
+    store, queue, run = setup
+    for _ in range(5):
+        advance(store, queue)
+    with pytest.raises(HTTPException):
+        queue.decide(run.id, 5, True, "owner")
+    assert store.view(run.id)["run"]["status"] == "awaiting_approval"
+
+
+def test_recovery_confirms_cleanup_without_repeating_uncertain_test(setup):
+    store, queue, run = setup
+    for _ in range(5):
+        advance(store, queue)
+    view = store.view(run.id)
+    store.decide(run.id, view["digest"], True, "owner")
+    claimed = queue.claim()
+    state = dict(store.view(run.id)["state"])
+    state.update(execution_started=True, container_name=Sandbox.new_name(), cleanup_confirmed=False)
+    store.save(claimed, state, status="failed")
+    cleaned = []
+
+    class Cleaner:
+        def cleanup(self, name):
+            cleaned.append(name)
+
+    assert store.recover(Cleaner())
+    assert cleaned == [Sandbox.new_name()]
+    assert store.view(run.id)["state"]["cleanup_confirmed"]
+    assert store.view(run.id)["run"]["status"] == "failed"
