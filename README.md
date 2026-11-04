@@ -7,9 +7,11 @@ Sala de operações em português para projetos, tarefas e agentes de IA. Plataf
 Integração adicional com o **Hermes Agent oficial**, serviço independente via
 Docker Compose, API privada autenticada e executor escolhido por solicitação.
 Codex continua padrão; tarefas antigas e agendas não mudam de provedor.
-O escritório em `/escritorio` usa pixel art original, sete mesas e detalhes de
-histórico/resultados. Só anima execução persistida com lease e worker válidos;
-papéis ainda não provisionados são identificados.
+O escritório em `/escritorio` usa um mapa pixel 2D original, seis ambientes e
+sete personagens, com equipe, projetos e atividade recente. Agentes ociosos
+circulam pelos corredores; trabalho nas mesas exige execução persistida com
+lease e worker válidos. Pausa, zoom e movimento reduzido estão disponíveis;
+papéis ainda não provisionados são identificados. Veja [uso e limites](docs/pixel-office.md).
 
 | Fase | Entrega e limite atual |
 |---|---|

@@ -24,6 +24,15 @@ Binário presente no Windows. Extração `graphify . --code-only` concluída em 
 
 ## Fontes primárias
 
+Na atualização do escritório em 04/11/2026, UI UX Pro Max foi consultada com
+`pixel art office agents --design-system` e `motion pause reduced motion --domain ux`.
+Pixel Art corresponde à referência; o padrão comercial hero e a paleta vermelha
+retornados não se aplicam a este painel e não foram adotados. Usados mapa/sprites
+SVG originais, paleta própria, texto legível, pausa, reduced-motion e foco.
+React/Next.js e documentação local use-client orientaram os componentes; Playwright
+e axe verificaram comportamento e responsividade. Superpowers orientou plano,
+testes e revisão independente. Nenhuma skill ou dependência nova instalada.
+
 Na extensão Chromium de 31/10/2026, reutilizadas Playwright Best Practices
 (locators acessíveis e assertions com espera), LangGraph fundamentals/Python
 (instruções por papel) e Superpowers (plano, TDD, revisão e verificação).
