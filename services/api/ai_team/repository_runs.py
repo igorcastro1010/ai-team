@@ -7,7 +7,7 @@ from typing import TypedDict
 from fastapi import HTTPException
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 
 from .config import ROOT
 from .models import Event, Project, RepositoryJob, Run, RunExecutor, Task
@@ -69,6 +69,13 @@ class RepositoryStore:
         policy = RepositoryPolicy.model_validate(policy.model_dump())
         if executor not in {"codex", "hermes"}:
             raise HTTPException(422, "Executor inválido")
+        paths = policy.write_paths
+        if not (
+            any(p.endswith(".md") for p in paths)
+            and any(p.startswith("test_") and p.endswith(".py") for p in paths)
+            and any(p.endswith(".py") and not p.startswith("test_") for p in paths)
+        ):
+            raise HTTPException(422, "Autorize fonte .py, testes test_*.py e documentação .md")
         with self.database.session() as db:
             project = db.get(Project, project_id)
             if project is None:
@@ -109,6 +116,11 @@ class RepositoryStore:
             }
 
     def save(self, run, state, *, status="running", steps=None, stage=None, tokens=(0, 0)):
+        if steps is None and run.stage == 5 and len(run.steps) == 5:
+            steps = [dict(step) for step in run.steps]
+            steps[4].update(
+                {key: state[key] for key in ("execution_started", "test_result") if key in state}
+            )
         with self.database.session() as db:
             values = {
                 "status": status,
@@ -176,7 +188,13 @@ class RepositoryStore:
                 db.scalars(
                     select(RepositoryJob)
                     .join(Run)
-                    .where(Run.scope == "repository_code", Run.status.in_(["failed", "cancelled"]))
+                    .where(
+                        Run.scope == "repository_code",
+                        or_(
+                            Run.status.in_(["failed", "cancelled"]),
+                            (Run.status == "running") & (Run.lease_expires_at < int(time.time())),
+                        ),
+                    )
                 )
             )
             for job in jobs:
