@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from .auth import require_owner
-from .models import RepositoryJob
+from .models import RepositoryJob, Run
 from .repository_policy import RepositoryPolicy
 from .repository_runs import RepositoryStore
 from .workflow import WorkflowStore
@@ -35,8 +35,11 @@ class Decision(BaseModel):
 def list_runs(request: Request, owner: Owner):
     store = RepositoryStore(request.app.state.database)
     with store.database.session() as db:
-        ids = list(db.scalars(select(RepositoryJob.run_id).limit(100)))
-    return [store.view(run_id) for run_id in reversed(ids)]
+        ids = list(db.scalars(
+            select(RepositoryJob.run_id).join(Run)
+            .order_by(Run.created_at.desc(), Run.id.desc()).limit(100)
+        ))
+    return [store.view(run_id) for run_id in ids]
 
 
 @router.post("", status_code=201)
