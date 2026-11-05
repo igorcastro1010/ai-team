@@ -48,8 +48,18 @@ class MemoryStore:
     def __init__(self, database):
         self.database = database
 
-    def _project(self, db, project_id):
-        if not db.get(Project, project_id):
+    def _project(self, db, project_id, *, lock=False):
+        found = (
+            (
+                db.execute(
+                    update(Project).where(Project.id == project_id).values(name=Project.name)
+                ).rowcount
+                == 1
+            )
+            if lock
+            else db.get(Project, project_id) is not None
+        )
+        if not found:
             raise HTTPException(404, "Projeto não encontrado")
 
     def put(
@@ -64,7 +74,7 @@ class MemoryStore:
             raise HTTPException(422, str(error)) from None
         digest = text_digest(content)
         with self.database.session() as db:
-            self._project(db, project_id)
+            self._project(db, project_id, lock=True)
             row = db.get(MemoryEntry, note_id) if note_id else None
             if note_id and (not row or row.project_id != project_id or row.archived):
                 raise HTTPException(404, "Memória não encontrada neste projeto")

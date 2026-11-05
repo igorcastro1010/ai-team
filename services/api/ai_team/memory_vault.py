@@ -49,7 +49,7 @@ class Vault:
         }:
             raise VaultError("Nome reservado pelo Windows")
         target = self.root / project_id / relative_path
-        for path in (self.root, target.parent, target):
+        for path in (*reversed(self.root.parents), self.root, target.parent, target):
             if path.exists() or path.is_symlink():
                 if linked(path):
                     raise VaultError("Links não são permitidos no vault")
