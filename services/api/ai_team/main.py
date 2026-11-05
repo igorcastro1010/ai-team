@@ -16,6 +16,7 @@ from .hermes_job_routes import router as hermes_jobs_router
 from .hermes_routes import observation_snapshot as hermes_snapshot
 from .hermes_routes import router as hermes_router
 from .integrations import integration_statuses
+from .issue_routes import router as issues_router
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
 from .report_routes import router as report_router
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(report_router)
     app.include_router(hermes_router)
     app.include_router(hermes_jobs_router)
+    app.include_router(issues_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):

@@ -45,7 +45,7 @@ class Proposal(BaseModel):
                 raise ValueError("Use uma mensagem de commit convencional")
         if re.search(
             r"-----BEGIN [A-Z ]*PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}",
-            self.content + self.body,
+            self.title + self.content + self.body,
         ):
             raise ValueError("Não inclua credenciais na proposta")
         return self

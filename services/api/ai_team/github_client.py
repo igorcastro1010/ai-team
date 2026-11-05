@@ -120,11 +120,13 @@ class GitHubClient:
         if (
             repository.get("id") != repositories[0].get("id")
             or repository.get("full_name", "").lower() != REPOSITORY
-            or repository.get("private") is not True
+            or type(repository.get("private")) is not bool
+            or type(repository.get("id")) is not int
+            or repository["id"] <= 0
             or repository.get("archived") is not False
             or not repository.get("default_branch")
         ):
-            raise GitHubError("Repositório privado autorizado indisponível para desenvolvimento")
+            raise GitHubError("Repositório autorizado indisponível para desenvolvimento")
         return {
             "repository": REPOSITORY,
             "repository_id": repository["id"],
@@ -158,6 +160,14 @@ class GitHubClient:
             token,
         )
         return ref["object"]["sha"]
+
+    def issue(self, number):
+        """Read one issue with a freshly verified, repository-scoped read token."""
+        if type(number) is not int or not 0 < number <= 2147483647:
+            raise ValueError("Número de issue inválido")
+        verified = self.verify()
+        token = self._token(verified, {"issues": "read"})
+        return self._request("GET", f"/repos/{REPOSITORY}/issues/{number}", token)
 
     def execute(self, payload):
         from .github_actions import Proposal

@@ -4,7 +4,10 @@ from pathlib import Path
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session
 
-from . import memory_models  # noqa: F401 - register additive tables
+from . import (  # noqa: F401 - register additive tables
+    issue_models,
+    memory_models,  # noqa: F401 - register additive tables
+)
 from .config import Settings
 from .models import Base
 
