@@ -20,7 +20,7 @@ from ai_team.hermes_jobs import HermesJobs, jobs_snapshot
 from ai_team.hermes_journal import HermesJournal
 from ai_team.hermes_monitor import ReconciliationStore
 from ai_team.main import create_app
-from ai_team.models import AuthSession, Base, HermesAttempt, Owner, Project, Run, RunExecutor
+from ai_team.models import AuthSession, Base, Event, HermesAttempt, Owner, Project, Run, RunExecutor
 from ai_team.repository_policy import RepositoryPolicy
 from ai_team.repository_runs import RepositoryStore
 from ai_team.workflow import WorkflowStore
@@ -414,6 +414,31 @@ def test_monitor_lease_single_winner_and_stale_owner_cannot_finish(postgres):
     database.engine.dispose()
     assert store.state(attempt.id)["failures"] == 1
     assert store.state(attempt.id)["next_poll_at"] == now + 154
+
+
+def test_repository_usage_duplicate_reports_are_atomic_on_postgres(postgres):
+    database, _ = postgres
+    run = running_run(database)
+    with database.session() as session:
+        session.execute(update(Run).where(Run.id == run.id).values(scope="repository_code"))
+        session.commit()
+    WorkflowStore(database).cancel(run.id, "postgres-ci-owner")
+    barrier = Barrier(2, timeout=10)
+    store = RepositoryStore(database)
+
+    def report(_):
+        barrier.wait()
+        store.record_usage(run, 123, 45)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(report, range(2)))
+    current = WorkflowStore(database).get(run.id)
+    assert (current.input_tokens, current.output_tokens) == (123, 45)
+    assert current.status == "cancelled" and current.lease_token == ""
+    with database.session() as session:
+        assert session.scalar(select(func.count()).select_from(Event).where(
+            Event.resource_id == run.id, Event.kind == "repository.usage",
+        )) == 1
 
 
 def test_jobs_inventory_and_pause_evidence_survive_postgres_reconnect(postgres):
