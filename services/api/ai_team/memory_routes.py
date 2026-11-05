@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from .auth import require_owner
 from .memory_models import MemoryEntry
-from .memory_store import MemoryStore
+from .memory_store import MemoryStore, view
 from .memory_vault import Vault, VaultError
 
 router = APIRouter(prefix="/memory/{project_id}")
@@ -115,6 +115,15 @@ def revise(project_id: str, note_id: str, data: NoteInput, request: Request, own
 @router.get("/{note_id}/history")
 def history(project_id: str, note_id: str, request: Request, owner: Owner):
     return {"items": MemoryStore(request.app.state.database).history(project_id, note_id)}
+
+
+@router.get("/{note_id}")
+def get_note(project_id: str, note_id: str, request: Request, owner: Owner):
+    with request.app.state.database.session() as db:
+        note = db.get(MemoryEntry, note_id)
+        if not note or note.project_id != project_id or note.archived:
+            raise HTTPException(404, "Memória não encontrada neste projeto")
+        return view(note)
 
 
 @router.post("/sync")

@@ -30,6 +30,7 @@ def test_memory_api_auth_csrf_scope_and_vault_incremental_sync(tmp_path):
         saved = client.post(f"/memory/{project}", json=data)
         assert saved.status_code == 201, saved.text
         note = saved.json()
+        assert client.get(f"/memory/{project}/{note['id']}").json()["content"] == data["content"]
         assert client.post(f"/memory/{project}/{note['id']}/export", json={}).status_code == 200
         synced = client.post(f"/memory/{project}/sync").json()
         assert synced["imported"] == 0
