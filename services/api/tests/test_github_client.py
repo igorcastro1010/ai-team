@@ -262,3 +262,53 @@ def test_changed_pull_request_head_is_rejected_before_writing(credentials):
             }
         )
     assert not any(r.url.path.endswith("/pulls") for r in requests)
+
+
+def test_authorized_public_repository_keeps_exact_installation_scope(credentials):
+    from ai_team.github_client import GitHubClient
+
+    client, requests = fake_api(credentials)
+    original = client._transport.handler
+
+    def public(request):
+        response = original(request)
+        if request.url.path == "/repos/igorcastro1010/ai-team":
+            payload = response.json()
+            payload["private"] = False
+            return httpx.Response(200, json=payload)
+        return response
+
+    client._transport = httpx.MockTransport(public)
+    result = GitHubClient(credentials, client=client).verify()
+    assert result["repository_id"] == 456
+    assert len(requests) == 5
+
+
+def test_issue_sync_reads_exact_number_with_read_only_token(credentials):
+    from ai_team.github_client import GitHubClient
+
+    def operation(request):
+        assert request.method == "GET"
+        assert request.url.path == "/repos/igorcastro1010/ai-team/issues/17"
+        return httpx.Response(
+            200,
+            json={
+                "number": 17,
+                "state": "open",
+                "html_url": "https://github.com/igorcastro1010/ai-team/issues/17",
+            },
+        )
+
+    client, requests = fake_api(credentials, operation=operation)
+    provider = GitHubClient(credentials, client=client)
+    assert provider.issue(17)["state"] == "open"
+    token_scope = json.loads(requests[-2].content)
+    assert token_scope == {
+        "repository_ids": [456],
+        "permissions": {"metadata": "read", "issues": "read"},
+    }
+    assert not provider.mutation_attempted
+    with pytest.raises(ValueError):
+        provider.issue(True)
+    with pytest.raises(ValueError):
+        provider.issue("17/../../other")

@@ -1,5 +1,20 @@
 # Skills e pesquisa — 27/10/2026
 
+## Revisão V0.7 — 05/11/2026
+
+Find Skills e leaderboard skills.sh consultados; `npx skills find obsidian --owner kepano`
+localizou `kepano/obsidian-skills@obsidian-markdown` (94,8 mil instalações na consulta).
+SKILL.md lido na origem oficial `github.com/kepano/obsidian-skills`, somente leitura,
+sem instalar/rodar conteúdo remoto. Utilidade: Markdown/wikilinks compatíveis; não
+fornece isolamento nem sincronização, implementados e testados pelo AI TEAM.
+
+Skills locais lidas: TDD e depuração/verificação (Superpowers), LangGraph fundamentals,
+Supabase Postgres, segurança de prompts, UI/UX Pro Max, React/Vercel e Playwright.
+Nenhuma nova skill foi instalada. A identidade existente prevalece sobre sugestões
+visuais genéricas. Graphify instalado 0.9.93 foi validado em corpus sintético offline;
+nenhum hook, extração semântica ou provedor de inferência foi acionado.
+Fontes e limites: [V0.7](v07-memory-optimizer.md) e [Graphify](v07-graphify.md).
+
 ## Revisão V0.6 — 04/11/2026
 
 Find Skills local foi relida e a descoberta `npx skills find hermes --owner nousresearch`
@@ -118,3 +133,20 @@ Hermes de proteção de segredos e RFC 9110 sobre Retry-After. A própria imagem
 oficial executa a regressão de redator/JSON; não se desliga a proteção.
 O [relatório final](v061-final-homologation.md) distingue inferência real,
 testes de contrato, CI e publicação externa ainda não autorizada.
+
+## V0.7.1 — homologação final
+
+Find Skills: catálogo skills.sh consultado novamente; reutilizadas as skills
+locais já revisadas, sem instalação adicional ou ampliação de ferramentas.
+TDD, investigação sistemática e verificação antes de concluir (obra/superpowers):
+regressões vermelhas e verdes para concorrência, respostas antigas, busca vazia,
+reexportação e encoding Windows. Segurança de prompts: dados recuperados sem
+autoridade, cache e propostas sem credenciais conhecidas. LangGraph fundamentals:
+revisão dos contratos existentes, sem mudar o grafo nesta rodada.
+
+React/Vercel e documentação Next.js incluída na versão instalada: controle de
+respostas assíncronas e fronteira client/server. UI/UX Pro Max e Playwright:
+revisão explícita, foco, teclado, estados e testes do painel. Supabase Postgres:
+testes existentes no schema privado descartável; nenhuma migração nova.
+Limitações: skills não certificam segurança nem homologam integrações; revisão
+independente nesta rodada é automatizada, não humana. Ver evidências V0.7.1.

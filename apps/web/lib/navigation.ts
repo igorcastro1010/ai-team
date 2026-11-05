@@ -1,4 +1,5 @@
 export const views = {
+  memoria: { label: "Memória e contexto", title: "Conhecimento que acompanha o projeto.", description: "Decisões, tarefas e contexto relevante para cada especialista." },
   overview: { label: "Visão geral", title: "Sua sala de operações.", description: "Um lugar para pensar, coordenar e fazer acontecer." },
   escritorio: { label: "Escritório virtual", title: "Um escritório. Sete especialidades.", description: "Acompanhe o trabalho de verdade, com espaço para o time crescer." },
   ceo: { label: "Conversa com CEO", title: "Toda entrega começa com uma conversa.", description: "Dê contexto, defina a direção e acompanhe o plano." },

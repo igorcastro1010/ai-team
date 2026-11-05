@@ -44,6 +44,10 @@ class Worker:
                     run, "blocked", "Executor indisponível. Confira a configuração própria."
                 )
                 return True
+            if not delivery_only:
+                from .token_optimizer import OptimizedProvider
+
+                provider = OptimizedProvider(provider, self.store.database, run)
             last_heartbeat = 0
 
             def tick():
@@ -114,6 +118,13 @@ class Worker:
             self.store.finish_error(
                 run, "failed", "Falha no executor. Confira a configuração e os limites da conta."
             )
+        finally:
+            from .knowledge_automation import audit, index_run
+            try:
+                index_run(self.store.database, run.id)
+            except Exception:
+                # Optional indexing cannot alter committed execution/approval state.
+                audit(self.store.database, run.id, "knowledge.index_failed")
         return True
 
 

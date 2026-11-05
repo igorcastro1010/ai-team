@@ -286,8 +286,13 @@ class WorkflowStore:
                 db.rollback()
                 return False
             if run.stage == 0:
+                from .knowledge_automation_models import DelegatedTask
                 for task in draft.tasks:
-                    db.add(Task(project_id=run.project_id, **task.model_dump()))
+                    delegated = Task(project_id=run.project_id, **task.model_dump())
+                    db.add(delegated)
+                    db.flush()
+                    db.add(DelegatedTask(run_id=run.id, task_id=delegated.id,
+                                         project_id=run.project_id))
                 if draft.tasks:
                     db.add(
                         Event(

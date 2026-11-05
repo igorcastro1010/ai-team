@@ -1,8 +1,24 @@
 # AI TEAM
 
+**V0.7.1 — homologação:** revisão automatizada independente, correções de
+concorrência e reexportação Obsidian, painel estável e benchmark A/B preparado.
+Uma única [Issue real #12](https://github.com/igorcastro1010/ai-team/issues/12)
+foi publicada após aprovação específica e sincronizada pela App própria.
+Inferência A/B e economia real de tokens continuam pendentes de autorização.
+Veja [resultados e limites](docs/v071-homologation.md). Sem merge ou deploy.
+
+**V0.7 — memória e contexto:** painel `/memoria`, notas versionadas e isoladas por
+projeto, vault Markdown configurável, relações/Graphify, Issues supervisionadas e
+Token Optimizer com cache e orçamento persistentes. Veja [uso, segurança e evidências](docs/v07-memory-optimizer.md).
+Estimativas de contexto não representam economia real de tokens; esta entrega não
+realizou inferência nem publicação de Issues. Escritório Pixel Art e V0.6.1 preservados.
+
+
 **V0.6.1 — perfil Python homologado:** executor de repositório com seis papéis, workspace Git isolado,
 diff persistido, testes Docker e publicação de PR mediante aprovação específica.
 Primeiro perfil: Python/biblioteca padrão e Markdown no repositório autorizado.
+Registro histórico da homologação abaixo: a V0.6.1 foi integrada à `main` em 05/11/2026,
+preservando os 54 commits do PR #10.
 Seis chamadas Codex e sete testes Docker confirmados na V0.6; veja
 [operação, limites e evidências](docs/v06-executors.md). Não houve merge ou deploy.
 

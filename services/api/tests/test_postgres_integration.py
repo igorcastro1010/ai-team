@@ -29,6 +29,55 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("AI_TEAM_TEST_POSTGRES_URL"),
     reason="Requires explicit ephemeral PostgreSQL CI URL",
 )
+
+
+def test_v07_memory_restart_scope_and_optimizer_budget(postgres):
+    from ai_team.memory_store import MemoryStore
+    from ai_team.token_optimizer import OptimizerStore
+
+    database, settings = postgres
+    with database.session() as db:
+        first, second = Project(name="Memory PG A"), Project(name="Memory PG B")
+        db.add_all([first, second])
+        db.commit()
+    MemoryStore(database).put(first.id, "Decisão Python", "Workers Python privados.", "ci", "test")
+    restarted = Database(settings)
+    try:
+        assert MemoryStore(restarted).search(first.id, "decisao")[0]["version"] == 1
+        assert MemoryStore(restarted).search(second.id, "Python") == []
+        optimizer = OptimizerStore(restarted)
+        optimizer.set_budget(first.id, "project", "", 100, "test")
+        admission = optimizer.reserve(first.id, "DEV", "synthetic-task", 80)
+        optimizer.reconcile(admission, 20, 10)
+        optimizer.reconcile(admission, 20, 10)
+        project_budget = next(
+            item for item in optimizer.summary(first.id)["budgets"] if item["scope"] == "project"
+        )
+        assert project_budget["used"] == 30 and project_budget["reserved"] == 0
+    finally:
+        restarted.engine.dispose()
+
+
+def test_v07_postgres_concurrent_issue_dedup(postgres):
+    from ai_team.issue_store import IssueStore
+
+    database, _ = postgres
+    with database.session() as db:
+        project = Project(name="PG Issue dedup")
+        db.add(project)
+        db.commit()
+    data = {
+        "project_id": project.id,
+        "request_id": "pg-duplicate",
+        "title": "Revisar contrato local",
+        "body": "Não publicar",
+    }
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(lambda _: IssueStore(database).create(data, "test"), range(2)))
+    assert results[0]["id"] == results[1]["id"]
+    assert results[0]["action"]["status"] == "pending"
+
+
 OWNER_PASSWORD = "ci-only-synthetic-password-2026"
 
 
@@ -436,9 +485,17 @@ def test_repository_usage_duplicate_reports_are_atomic_on_postgres(postgres):
     assert (current.input_tokens, current.output_tokens) == (123, 45)
     assert current.status == "cancelled" and current.lease_token == ""
     with database.session() as session:
-        assert session.scalar(select(func.count()).select_from(Event).where(
-            Event.resource_id == run.id, Event.kind == "repository.usage",
-        )) == 1
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Event)
+                .where(
+                    Event.resource_id == run.id,
+                    Event.kind == "repository.usage",
+                )
+            )
+            == 1
+        )
 
 
 def test_jobs_inventory_and_pause_evidence_survive_postgres_reconnect(postgres):
@@ -488,7 +545,10 @@ def test_hermes_cooldown_survives_postgres_reconnect_and_blocks_http(postgres):
     database.engine.dispose()
     assert HermesJournal(database).cooldown_remaining() >= 115
     settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
-    client = HermesClient(settings, database=database,
-                          transport=httpx.MockTransport(lambda _: pytest.fail("HTTP admission")))
+    client = HermesClient(
+        settings,
+        database=database,
+        transport=httpx.MockTransport(lambda _: pytest.fail("HTTP admission")),
+    )
     with pytest.raises(HermesRateLimitError):
         client.request("POST", "/v1/runs")

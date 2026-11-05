@@ -168,8 +168,13 @@ class RepositoryStore:
                 )
             )
             if steps and run.stage == 0:
+                from .knowledge_automation_models import DelegatedTask
                 for task in steps[0]["tasks"]:
-                    db.add(Task(project_id=run.project_id, **task))
+                    delegated = Task(project_id=run.project_id, **task)
+                    db.add(delegated)
+                    db.flush()
+                    db.add(DelegatedTask(run_id=run.id, task_id=delegated.id,
+                                         project_id=run.project_id))
             db.commit()
 
     def reserve(self, run):

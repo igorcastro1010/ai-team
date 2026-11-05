@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select, update
 
 from .github_client import GitHubClient, GitHubError
+from .memory_safety import validate_text
 from .models import Event, GitHubAction, GitHubVerification, Project, new_id
 
 
@@ -28,6 +29,7 @@ class Proposal(BaseModel):
 
     @model_validator(mode="after")
     def validate_scope(self):
+        validate_text(self.title + "\n" + self.content + "\n" + self.body, maximum=100000)
         if self.operation != "issue" and not re.fullmatch(
             r"codex/ai-team/[a-z0-9][a-z0-9-]{0,60}", self.branch
         ):
@@ -45,7 +47,7 @@ class Proposal(BaseModel):
                 raise ValueError("Use uma mensagem de commit convencional")
         if re.search(
             r"-----BEGIN [A-Z ]*PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{20,}",
-            self.content + self.body,
+            self.title + self.content + self.body,
         ):
             raise ValueError("Não inclua credenciais na proposta")
         return self
