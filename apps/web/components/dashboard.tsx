@@ -18,6 +18,7 @@ import { ReportsPanel } from "./reports-panel";
 import { HermesPanel } from "./hermes-panel";
 import { PixelOffice } from "./pixel-office";
 import { RepositoryPanel } from "./repository-panel";
+import { KnowledgePanel } from "./knowledge-panel";
 
 import { views, type View } from "@/lib/navigation";
 
@@ -25,6 +26,7 @@ const navigation: { view: View; icon: LucideIcon; group: string }[] = [
   { view: "overview", icon: Grid2X2, group: "WORKSPACE" },
   { view: "escritorio", icon: Bot, group: "" },
   { view: "ceo", icon: MessageSquare, group: "" },
+  { view: "memoria", icon: Layers3, group: "" },
   { view: "projetos", icon: Folder, group: "" },
   { view: "tarefas", icon: ListTodo, group: "" },
   { view: "agentes", icon: Users, group: "OPERAÇÃO" },
@@ -96,6 +98,7 @@ export function Dashboard({ view }: { view: View }) {
           {view === "tarefas" && <TaskBoard data={workspace} create={newTask} move={move} busy={updating} />}
           {view === "agentes" && <Agents data={workspace} />}
           {view === "escritorio" && <PixelOffice data={workspace} connected={!error} />}
+          {view === "memoria" && <KnowledgePanel projects={workspace.projects} />}
           {view === "historico" && <HistoryPanel data={workspace} />}
           {view === "integracoes" && <><Integrations data={workspace} /><HermesPanel data={workspace} reload={load} /><VercelPanel data={workspace} reload={load} /><GitHubPanel data={workspace} reload={load} /></>}
           {view === "relatorios" && <ReportsPanel />}

@@ -6,12 +6,13 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const { path } = await context.params;
   const targetPath = path.join("/");
   const repositoryAllowed = /^repository-runs(?:\/[a-f0-9-]{36}(?:\/(decision|cancel|artifacts|publish))?)?$/;
-  if (!allowed.test(targetPath) && !repositoryAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
+  const knowledgeAllowed = /^(?:memory\/[a-f0-9-]{36}(?:\/(?:search|sync|[a-f0-9-]{36}(?:\/(?:history|export))?))?|knowledge\/[a-f0-9-]{36}\/graph|issues(?:\/[a-f0-9-]{36}(?:\/sync)?)?|projects\/[a-f0-9-]{36}\/optimizer(?:\/(?:budgets|preview))?)$/;
+  if (!allowed.test(targetPath) && !repositoryAllowed.test(targetPath) && !knowledgeAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
   const hasBody = !["GET", "HEAD"].includes(request.method);
   if (hasBody && request.headers.get("origin") !== request.nextUrl.origin) {
     return NextResponse.json({ detail: "Origem não autorizada" }, { status: 403 });
   }
-  const bodyLimit = targetPath === "github/proposals" ? 131072 : 32768;
+  const bodyLimit = targetPath === "github/proposals" || targetPath.startsWith("memory/") ? 131072 : 32768;
   if (Number(request.headers.get("content-length") || 0) > bodyLimit) {
     return NextResponse.json({ detail: "Solicitação muito grande" }, { status: 413 });
   }
@@ -23,6 +24,12 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const base = process.env.AI_TEAM_API_URL || "http://127.0.0.1:8000";
     const url = new URL(`/${targetPath}`, base);
     if (["reports", "hermes/executions"].includes(targetPath)) url.search = request.nextUrl.search;
+    if (knowledgeAllowed.test(targetPath)) {
+      for (const key of ["project_id", "q", "agent", "status", "priority", "limit"]) {
+        const value = request.nextUrl.searchParams.get(key);
+        if (value !== null) url.searchParams.set(key, value);
+      }
+    }
     const upstream = await fetch(url, {
       method: request.method, body, redirect: "error", cache: "no-store",
       signal: AbortSignal.timeout(12000),
@@ -50,4 +57,4 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     return NextResponse.json({ detail: "API indisponível. Verifique se o serviço FastAPI está em execução." }, { status: 503 });
   }
 }
-export { proxy as GET, proxy as POST, proxy as PATCH };
+export { proxy as GET, proxy as POST, proxy as PATCH, proxy as PUT };
