@@ -1,7 +1,13 @@
 import pytest
 from pydantic import ValidationError
 
-from ai_team.repository_policy import RepositoryBundle, RepositoryPolicy
+from ai_team.repository_policy import RepositoryBundle, RepositoryFile, RepositoryPolicy
+
+
+def test_corrupted_python_is_rejected_before_workspace_or_test_approval():
+    with pytest.raises(ValueError, match="Python inválido"):
+        RepositoryFile(path="budget.py", content="MAX_TOKENS=*** remaining_tokens(used):\n")
+    assert RepositoryFile(path="budget.py", content="MAX_TOKENS: int = 50_000\n")
 
 
 def policy(**values):

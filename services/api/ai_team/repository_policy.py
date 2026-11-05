@@ -1,5 +1,6 @@
 """Owner-granted repository boundaries, independent from model output."""
 
+import ast
 import hashlib
 import json
 import re
@@ -61,6 +62,13 @@ class RepositoryFile(BaseModel):
         filename(self.path)
         if "\x00" in self.content:
             raise ValueError("Arquivo binário proibido")
+        if self.path.endswith(".py"):
+            try:
+                ast.parse(self.content, filename=self.path)
+            except (SyntaxError, ValueError, RecursionError):
+                raise ValueError(
+                    "Código Python inválido; confira o conteúdo e a redação do provedor"
+                ) from None
         return self
 
 

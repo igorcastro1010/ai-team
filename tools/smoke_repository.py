@@ -79,6 +79,9 @@ def main():
             "consent": True,
             "prompt": (
                 "Melhore execution_limits.py preservando remaining_tokens, MAX_CALLS e MAX_TOKENS. "
+                "Declare as constantes com anotações: MAX_CALLS: int = 6 e "
+                "MAX_TOKENS: int = 50_000. O filtro de segredos do Hermes pode alterar "
+                "atribuições sem tipo dentro de JSON; não desative esse filtro. "
                 "Adicione summarize_usage(input_tokens, output_tokens, limit=MAX_TOKENS) que retorna "
                 "dict com used (soma), remaining (nunca negativo) e exhausted (used>=limit). "
                 "Rejeite bool, valores não inteiros, negativos e limite menor que 1 com ValueError. "
