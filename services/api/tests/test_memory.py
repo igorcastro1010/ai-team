@@ -84,3 +84,32 @@ def test_content_dedup_and_bounded_relevant_chunks(memory):
     assert memory.search("alpha", "unfindable") == []
     memory.archive("alpha", first["id"], "igor")
     assert memory.search("alpha", "PostgreSQL") == []
+
+
+def test_memory_survives_a_fresh_python_process(memory):
+    import json
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    note = memory.put("alpha", "Persistência", "PostgreSQL privado.", "owner", "test")
+    code = (
+        "import json,sys; from ai_team.config import Settings; from ai_team.db import Database; "
+        "from ai_team.memory_store import MemoryStore; "
+        "db=Database(Settings(_env_file=None,database_url=sys.argv[1],environment='test')); "
+        "print(json.dumps([n['id'] for n in MemoryStore(db).search('alpha','PostgreSQL')]))"
+    )
+    environment = {
+        key: os.environ[key] for key in ("SystemRoot", "WINDIR", "PATH") if key in os.environ
+    }
+    environment["PYTHONPATH"] = str(Path(__file__).resolve().parents[1])
+    process = subprocess.run(
+        [sys.executable, "-c", code, str(memory.database.engine.url)],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        env=environment,
+    )
+    assert process.returncode == 0, "Independent reader failed"
+    assert json.loads(process.stdout) == [note["id"]]
