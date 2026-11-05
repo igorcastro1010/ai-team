@@ -3,17 +3,26 @@
 import hashlib
 import re
 import time
+import unicodedata
 
 from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import delete, or_, select, update
 
-from .memory_models import MemoryEntry, MemoryRevision
+from .memory_models import MemoryChunk, MemoryEntry, MemoryRevision
 from .memory_safety import INJECTION, validate_text
 from .models import Event, Project
 
 
 def text_digest(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def normalized(text):
+    return "".join(
+        char
+        for char in unicodedata.normalize("NFKD", text.casefold())
+        if not unicodedata.combining(char)
+    )
 
 
 def view(row):
@@ -99,6 +108,23 @@ class MemoryStore:
                 row = MemoryEntry(project_id=project_id, **values)
                 db.add(row)
                 db.flush()
+            db.execute(delete(MemoryChunk).where(MemoryChunk.memory_id == row.id))
+            seen = set()
+            for ordinal, offset in enumerate(range(0, len(content), 1400)):
+                passage = content[offset : offset + 1600]
+                key = text_digest(passage)
+                if key in seen:
+                    continue
+                seen.add(key)
+                db.add(
+                    MemoryChunk(
+                        memory_id=row.id,
+                        ordinal=ordinal,
+                        project_id=project_id,
+                        content=passage,
+                        terms=normalized(title + "\n" + passage),
+                    )
+                )
             db.add(
                 MemoryRevision(
                     memory_id=row.id,
@@ -152,32 +178,30 @@ class MemoryStore:
             return text_digest(repr(rows))
 
     def search(self, project_id, query, limit=6):
-        words = set(re.findall(r"\w{3,}", query.casefold()))
+        words = sorted(set(re.findall(r"\w{3,}", normalized(query))))[:24]
         if not words:
             return []
         with self.database.session() as db:
             self._project(db, project_id)
-            rows = db.scalars(
-                select(MemoryEntry)
+            rows = db.execute(
+                select(MemoryEntry, MemoryChunk)
+                .join(MemoryChunk, MemoryEntry.id == MemoryChunk.memory_id)
                 .where(
                     MemoryEntry.project_id == project_id,
+                    MemoryChunk.project_id == project_id,
                     MemoryEntry.archived.is_(False),
                     MemoryEntry.quarantined.is_(False),
+                    or_(*(MemoryChunk.terms.contains(word, autoescape=True) for word in words)),
                 )
                 .order_by(MemoryEntry.updated_at.desc(), MemoryEntry.id)
-                .limit(1000)
+                .limit(240)
             ).all()
-            matches = []
-            for row in rows:
-                # Retrieve the most relevant bounded passage, not the entire document.
-                passages = [row.content[i : i + 1600] for i in range(0, len(row.content), 1400)]
-                ranked = [
-                    (sum(word in passage.casefold() for word in words), passage)
-                    for passage in passages
-                ]
-                score, passage = max(ranked, default=(0, ""))
-                if score:
-                    matches.append((score, {**view(row), "content": passage}))
+            best = {}
+            for row, chunk in rows:
+                score = sum(word in chunk.terms for word in words)
+                if score > best.get(row.id, (0, {}))[0]:
+                    best[row.id] = (score, {**view(row), "content": chunk.content})
+            matches = list(best.values())
             matches.sort(key=lambda item: (-item[0], item[1]["id"]))
             return [item[1] for item in matches[: max(0, min(limit, 12))]]
 

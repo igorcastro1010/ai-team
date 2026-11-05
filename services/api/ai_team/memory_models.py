@@ -34,3 +34,12 @@ class MemoryRevision(Base):
     digest: Mapped[str] = mapped_column(String(64))
     actor: Mapped[str] = mapped_column(String(80))
     created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+
+
+class MemoryChunk(Base):
+    __tablename__ = "memory_chunks"
+    memory_id: Mapped[str] = mapped_column(ForeignKey("memory_entries.id"), primary_key=True)
+    ordinal: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    terms: Mapped[str] = mapped_column(Text)

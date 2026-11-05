@@ -205,6 +205,8 @@ class KnowledgeGraph:
                 MemoryEntry = None
             if MemoryEntry is not None:
                 for memory in rows(db, MemoryEntry):
+                    if memory.archived or memory.quarantined:
+                        continue
                     ref, provenance = f"memory:{memory.id}", f"memory_entries:{memory.id}"
                     node(ref, "memory", memory.title, provenance)
                     edge(project_ref, ref, "documents", provenance)
