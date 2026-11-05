@@ -248,6 +248,39 @@ def test_publication_requires_distinct_exact_approval_and_cannot_replay(setup):
         store.request_publication(run.id, view["digest"], "owner")
 
 
+def test_failed_sandbox_result_blocks_final_approval_and_publication(setup):
+    store, queue, run = setup
+    for _ in range(5):
+        advance(store, queue)
+    store.decide(run.id, store.view(run.id)["digest"], True, "owner")
+
+    class FailedSandbox(Sandbox):
+        def run(self, bundle, tick, *, name):
+            return {"status": "failed", "artifact_digest": bundle.digest, "output": "FAIL"}
+
+    execute_repository(store, queue.claim(), Provider(), lambda: None, FailedSandbox())
+    advance(store, queue)
+    view = store.view(run.id)
+    assert view["state"]["test_result"]["status"] == "failed"
+    with pytest.raises(HTTPException):
+        store.decide(run.id, view["digest"], True, "owner")
+    with pytest.raises(HTTPException):
+        store.request_publication(run.id, view["digest"], "owner")
+
+
+def test_started_delivery_recovery_is_uncertain_and_never_requeued(setup):
+    store, queue, run = setup
+    claimed = queue.claim()
+    state = store.view(run.id)["state"]
+    state["delivery"] = {"status": "started"}
+    store.save(claimed, state, status="failed")
+    assert store.recover(Sandbox())
+    view = store.view(run.id)
+    assert view["state"]["delivery"]["status"] == "uncertain"
+    assert view["run"]["status"] == "failed"
+    assert queue.claim() is None
+
+
 def test_approved_github_delivery_does_not_require_an_available_model(setup, monkeypatch):
     from test_repository_delivery import Client
 
