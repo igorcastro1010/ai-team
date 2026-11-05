@@ -22,12 +22,25 @@ def main():
     parser.add_argument(
         "--real", action="store_true", help="Autoriza até 5 chamadas ao provedor"
     )
-    parser.add_argument(
+    scope_flags = parser.add_mutually_exclusive_group()
+    scope_flags.add_argument(
         "--python-code",
         action="store_true",
         help="Inclui geração Python, aprovação por hash e testes Docker reais",
     )
+    scope_flags.add_argument(
+        "--nextjs-code",
+        action="store_true",
+        help="Inclui TSX, CSS, build e verificações HTML reais",
+    )
     args = parser.parse_args()
+    scope = (
+        "nextjs_code"
+        if args.nextjs_code
+        else "python_code"
+        if args.python_code
+        else "draft_only"
+    )
     if not args.real:
         parser.error("Use --real para autorizar consumo da sua conta Hermes")
     base = Settings()
@@ -79,10 +92,19 @@ def main():
                     json={
                         "project_id": project["id"],
                         "executor": "hermes",
-                        "scope": "python_code" if args.python_code else "draft_only",
+                        "scope": scope,
                         "consent": True,
                         "prompt": (
-                            "Crie main.py com função add(a,b) que soma dois números. "
+                            "Crie uma pequena página Next.js em português sobre AI TEAM. "
+                            "Use h1 AI TEAM e formulário React interativo: input com label Nome, "
+                            "botão Salvar e mensagem Olá, Igor "
+                            "após preencher Igor e clicar Salvar. "
+                            "DEV: app/page.tsx mínimo. "
+                            "DESIGNER: CSS responsivo sem fontes externas. "
+                            "QA: checks do título AI TEAM no HTML inicial e browser_checks "
+                            "com fill Nome=Igor, click button Salvar, expect_text Olá, Igor."
+                            if args.nextjs_code
+                            else "Crie main.py com função add(a,b) que soma dois números. "
                             "QA: testes unittest de positivos, negativos e zero em test_main.py. "
                             "Use somente biblioteca padrão. Mantenha a entrega mínima."
                             if args.python_code
@@ -91,11 +113,14 @@ def main():
                         ),
                     },
                 ).json()
-                for index in range(5):
+                stages = [1, 2, 3, 4, 4, 5] if args.nextjs_code else [1, 2, 3, 4, 5]
+                for index, expected_stage in enumerate(stages):
                     # A fresh worker per checkpoint tests SQL persistence across instances.
                     Worker(database, settings, provider).once()
                     current = client.get(f"/runs/{run['id']}").json()
-                    assert current["stage"] == index + 1, "Etapa Hermes não concluída"
+                    assert current["stage"] == expected_stage, (
+                        "Etapa Hermes não concluída"
+                    )
                     if index == 0:
                         assert current["status"] == "awaiting_approval"
                         assert (
@@ -108,7 +133,7 @@ def main():
                             ).status_code
                             == 200
                         )
-                    if args.python_code and index == 3:
+                    if scope != "draft_only" and index == 3:
                         assert current["status"] == "awaiting_approval"
                         assert (
                             client.post(
@@ -123,8 +148,14 @@ def main():
                         )
                 assert current["status"] == "completed"
                 assert current["executor"] == "hermes"
-                if args.python_code:
+                if scope != "draft_only":
                     assert current["steps"][3]["test_result"]["status"] == "passed"
+                if args.nextjs_code:
+                    lines = current["steps"][3]["test_result"]["output"].splitlines()
+                    summary = [
+                        json.loads(line) for line in lines if line.startswith('{"build":')
+                    ][-1]
+                    assert summary["browser_checks"] > 0 and summary["browser_failures"] == 0
                 report = {
                     "status": "passed",
                     "executor": "hermes",
@@ -137,14 +168,16 @@ def main():
                 }
                 artifacts = ROOT / "artifacts"
                 artifacts.mkdir(exist_ok=True)
-                if args.python_code:
+                if scope != "draft_only":
                     report["test_result"] = current["steps"][3]["test_result"]
-                    report["scope"] = "python_code"
+                    report["scope"] = scope
                     report["note"] = (
-                        "Geração real, aprovação por hash e unittest Docker isolado."
+                        "Geração real, aprovação por hash e validação Docker isolada."
                     )
                 name = (
-                    "python-code-smoke.json"
+                    "nextjs-code-smoke.json"
+                    if args.nextjs_code
+                    else "python-code-smoke.json"
                     if args.python_code
                     else "hermes-smoke.json"
                 )
@@ -152,6 +185,12 @@ def main():
                     json.dumps(report, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
+                if args.nextjs_code:
+                    archive = client.get(f"/runs/{run['id']}/artifacts")
+                    assert archive.status_code == 200
+                    (artifacts / "nextjs-project-smoke.zip").write_bytes(
+                        archive.content
+                    )
                 print("PASS: Hermes real; cinco etapas e aprovação persistida.")
         except Exception:  # noqa: BLE001 - never print provider errors containing credentials
             parser.exit(

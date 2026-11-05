@@ -1,5 +1,16 @@
 # AI TEAM
 
+**V0.6.1 — perfil Python homologado:** executor de repositório com seis papéis, workspace Git isolado,
+diff persistido, testes Docker e publicação de PR mediante aprovação específica.
+Primeiro perfil: Python/biblioteca padrão e Markdown no repositório autorizado.
+Seis chamadas Codex e sete testes Docker confirmados na V0.6; veja
+[operação, limites e evidências](docs/v06-executors.md). Não houve merge ou deploy.
+
+**Hermes real na V0.6.1:** seis etapas, 37.628 tokens e 15 testes Docker aprovados.
+Veja [homologação final e pacote multifile](docs/v061-final-homologation.md).
+Artefatos permanecem privados; publicação exige revisão atualizada do SHA e
+autorização específica. Nenhuma publicação, merge ou deploy foi realizado.
+
 Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
 ## Hermes e escritório virtual
@@ -7,17 +18,19 @@ Sala de operações em português para projetos, tarefas e agentes de IA. Plataf
 Integração adicional com o **Hermes Agent oficial**, serviço independente via
 Docker Compose, API privada autenticada e executor escolhido por solicitação.
 Codex continua padrão; tarefas antigas e agendas não mudam de provedor.
-O escritório em `/escritorio` usa pixel art original, sete mesas e detalhes de
-histórico/resultados. Só anima execução persistida com lease e worker válidos;
-papéis ainda não provisionados são identificados.
+O escritório em `/escritorio` usa um mapa pixel 2D original, seis ambientes e
+sete personagens, com equipe, projetos e atividade recente. Agentes ociosos
+circulam pelos corredores; trabalho nas mesas exige execução persistida com
+lease e worker válidos. Pausa, zoom e movimento reduzido estão disponíveis;
+papéis ainda não provisionados são identificados. Veja [uso e limites](docs/pixel-office.md).
 
 | Fase | Entrega e limite atual |
 |---|---|
-| 1 · Hermes | Adaptador Runs, journal, diagnóstico e Compose; contêiner oficial, autenticação e persistência homologados em CI; inferência real aguarda provedor |
+| 1 · Hermes | Adaptador Runs oficial, journal e Compose; seis etapas reais e 15 testes Python homologados; 429 fecha admissão e respeita Retry-After |
 | 2 · Equipe | Sete perfis provisionados e reconhecidos pelo runtime oficial em CI; Bot Mode e subagentes reais ainda não homologados |
 | 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
 | 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |
-| 5 · Desenvolvimento | Codex e GitHub existentes preservados; execução de código/testes arbitrários continua bloqueada |
+| 5 · Desenvolvimento | Python em workspace isolado e testes Docker após aprovação exata; comandos livres, merge e deploy bloqueados; perfil de repositório TSX indisponível |
 | 6 · Automações | Agendas existentes preservadas; monitor separado com leases/backoff, consumo reportado e interrupção com confirmação; inventário e pausa de jobs nativos, sem criação/retomada pelo painel |
 | 7 · Produção | Compatibilidade PostgreSQL real validada em CI; arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
 
@@ -123,6 +136,7 @@ Após login, inicie o worker com `tools/start.ps1` (junto do painel) ou `tools/w
 ## Como executar uma solicitação
 
 Para gerar arquivos e executar testes, veja [Código Python com testes isolados](docs/python-code.md).
+Para páginas web novas, veja [Projeto Next.js com build e testes](docs/nextjs-code.md).
 Essa entrega exige revisão e aprovação dos artefatos antes dos testes. O fluxo
 textual abaixo continua disponível.
 

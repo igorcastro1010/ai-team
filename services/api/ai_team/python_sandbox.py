@@ -13,6 +13,7 @@ OUTPUT_LIMIT = 32768
 RUNNER = """
 import json, os, sys, unittest
 fd, nonce = int(sys.argv[1]), sys.argv[2]
+sys.argv[:] = ['ai-team-unittest']
 suite = unittest.TestLoader().discover('/work', pattern='test_*.py')
 if suite.countTestCases() == 0:
     print('Nenhum teste encontrado.', flush=True)
@@ -106,8 +107,19 @@ def sandbox_command(name):
 
 
 class PythonSandbox:
+    max_time = 30
+    image = IMAGE
+
     def __init__(self, time_limit=30):
-        self.time_limit = min(max(time_limit, 1), 30)
+        self.time_limit = min(max(time_limit, 1), self.max_time)
+
+    def command(self, name):
+        return sandbox_command(name)
+
+    def validate_bundle(self, bundle):
+        from .code_artifacts import CodeBundle
+
+        return CodeBundle.model_validate(bundle.model_dump())
 
     @staticmethod
     def new_name():
@@ -123,21 +135,25 @@ class PythonSandbox:
                 [
                     "docker",
                     "ps",
-                    "-aq",
+                    "-a",
                     "--filter",
                     f"name=^{name}$",
                     "--filter",
-                    "label=ai-team.scope=python-test",
+                    "label=ai-team.scope",
+                    "--format",
+                    '{{.ID}}|{{.Label "ai-team.scope"}}',
                 ],
                 capture_output=True,
                 timeout=5,
                 check=False,
             )
-            ids = found.stdout.decode("ascii").split()
+            records = [line.split("|") for line in found.stdout.decode("ascii").splitlines()]
+            ids = [record[0] for record in records]
             if (
                 found.returncode != 0
                 or len(ids) > 1
                 or any(not re.fullmatch(r"[a-f0-9]{12,64}", cid) for cid in ids)
+                or any(len(r) != 2 or r[1] not in {"python-test", "next-test"} for r in records)
             ):
                 raise RuntimeError("Inventário do sandbox indisponível")
             if ids:
@@ -149,15 +165,28 @@ class PythonSandbox:
                     check=False,
                 )
                 if removed.returncode != 0:
-                    raise RuntimeError("Encerramento do sandbox não confirmado")
+                    remaining = subprocess.run(
+                        [
+                            "docker",
+                            "ps",
+                            "-aq",
+                            "--filter",
+                            f"name=^{name}$",
+                            "--filter",
+                            "label=ai-team.scope",
+                        ],
+                        capture_output=True,
+                        timeout=5,
+                        check=False,
+                    )
+                    if remaining.returncode != 0 or remaining.stdout.strip():
+                        raise RuntimeError("Encerramento do sandbox não confirmado")
         except (OSError, subprocess.SubprocessError, UnicodeError):
             raise RuntimeError("Encerramento do sandbox não confirmado") from None
 
     def run(self, bundle, on_tick, *, name=None):
         # Revalidate even if called without the HTTP/schema boundary.
-        from .code_artifacts import CodeBundle
-
-        bundle = CodeBundle.model_validate(bundle.model_dump())
+        bundle = self.validate_bundle(bundle)
         name = name or self.new_name()
         if not valid_name(name):
             raise RuntimeError("Identificação de sandbox inválida")
@@ -176,7 +205,7 @@ class PythonSandbox:
         try:
             on_tick()
             process = subprocess.Popen(
-                sandbox_command(name),
+                self.command(name),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -231,7 +260,7 @@ class PythonSandbox:
                 "output": output.decode("utf-8", errors="replace")
                 .encode("utf-8")[:OUTPUT_LIMIT]
                 .decode("utf-8", errors="ignore"),
-                "image": IMAGE,
+                "image": self.image,
                 "artifact_digest": bundle.digest,
             }
         except InterruptedError:

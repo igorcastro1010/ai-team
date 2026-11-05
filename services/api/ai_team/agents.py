@@ -1,3 +1,13 @@
+RESEARCHER = {
+    "id": "PESQUISADOR",
+    "name": "PESQUISADOR",
+    "role": "Pesquisa de código e documentação",
+    "description": "Analisa evidências no snapshot autorizado e orienta os especialistas.",
+    "tools": ["ler snapshot autorizado", "relatar fontes locais"],
+    "status": "available",
+    "limit": "Sem navegação externa, shell ou acesso a credenciais",
+}
+
 AGENTS = [
     {
         "id": "CEO",
@@ -8,16 +18,16 @@ AGENTS = [
         ),
         "tools": ["planejar", "delegar", "relatar"],
         "status": "available",
-        "limit": "Sem execução de ferramentas externas nesta versão",
+        "limit": "Sem shell; publicação depende de autorização específica no executor",
     },
     {
         "id": "DEV",
         "name": "DEV",
         "role": "Engenharia e integrações",
         "description": "Prepara alterações de código em ambientes isolados e revisáveis.",
-        "tools": ["propor código", "especificar integrações"],
+        "tools": ["gerar arquivos do perfil", "especificar integrações"],
         "status": "available",
-        "limit": "Sem acesso a checkouts ou shell nesta versão",
+        "limit": "Somente arquivos autorizados do perfil; sem shell ou credenciais",
     },
     {
         "id": "DESIGNER",
@@ -26,15 +36,15 @@ AGENTS = [
         "description": "Define interfaces, linguagem visual e critérios de acessibilidade.",
         "tools": ["especificar UI", "revisar experiência"],
         "status": "available",
-        "limit": "Sem publicação de arquivos nesta versão",
+        "limit": "CSS ou documentação conforme o perfil; sem publicação autônoma",
     },
     {
         "id": "QA",
         "name": "QA",
         "role": "Qualidade e revisão",
         "description": "Verifica evidências, critérios de aceite e riscos antes da entrega.",
-        "tools": ["revisar resultados", "relatar riscos"],
+        "tools": ["gerar testes", "revisar resultados", "relatar riscos"],
         "status": "available",
-        "limit": "Sem execução de testes de projetos externos nesta versão",
+        "limit": "Comando fixo executado pelo worker no sandbox; sem shell de agente",
     },
 ]

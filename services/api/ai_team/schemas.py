@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=5000)]
-AgentName = Literal["CEO", "DEV", "DESIGNER", "QA"]
+AgentName = Literal["CEO", "DEV", "DESIGNER", "QA", "PESQUISADOR"]
 Mode = Literal["manual", "supervised", "automatic"]
 Status = Literal["backlog", "in_progress", "review", "done"]
 

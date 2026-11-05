@@ -7,6 +7,8 @@ import sys
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+CODE_SCOPES = frozenset({"python_code", "nextjs_code"})
+
 
 class CodeFile(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -58,3 +60,13 @@ def bundle_for_steps(steps):
     if any(not f.path.startswith("test_") for f in tests):
         raise ValueError("QA somente pode fornecer test_*.py")
     return CodeBundle(files=[*source, *tests])
+
+
+def bundle_for_scope(scope, steps):
+    if scope == "python_code":
+        return bundle_for_steps(steps)
+    if scope == "nextjs_code":
+        from .next_artifacts import project_for_steps
+
+        return project_for_steps(steps)
+    raise ValueError("Escopo sem artefatos executáveis")

@@ -3,6 +3,7 @@ import time
 from fastapi import HTTPException
 from sqlalchemy import func, select, update
 
+from .code_artifacts import CODE_SCOPES, bundle_for_scope
 from .models import Event, Project, Run, RunExecutor, Task, WorkerHeartbeat, new_id
 from .orchestration import STAGES, Draft
 
@@ -34,7 +35,7 @@ class WorkflowStore:
             )
 
     def create(self, project_id, prompt, actor, executor="codex", scope="draft_only"):
-        if scope not in {"draft_only", "python_code"}:
+        if scope not in {"draft_only", *CODE_SCOPES}:
             raise HTTPException(422, "Escopo inválido")
         if executor not in {"codex", "hermes"}:
             raise HTTPException(422, "Executor inválido")
@@ -59,11 +60,11 @@ class WorkflowStore:
 
     def decide(self, run_id, stage, approve, actor, artifact_digest=""):
         run = self.get(run_id)
+        if run.scope == "repository_code":
+            raise HTTPException(409, "Use a decisão vinculada ao checkpoint do repositório")
         values = {"status": "queued" if approve else "cancelled"}
-        if run.scope == "python_code" and stage == 4 and approve:
-            from .code_artifacts import bundle_for_steps
-
-            expected = bundle_for_steps(run.steps).digest
+        if run.scope in CODE_SCOPES and stage == 4 and approve:
+            expected = bundle_for_scope(run.scope, run.steps).digest
             if artifact_digest != expected:
                 raise HTTPException(409, "Revise e aprove o hash exato dos artefatos")
             values["steps"] = [
@@ -198,7 +199,8 @@ class WorkflowStore:
             db.commit()
             run_id = db.scalar(
                 select(Run.id)
-                .where(Run.status == "queued", True if allow_code else Run.scope != "python_code")
+                .where(Run.status == "queued", True if allow_code else
+                       ~Run.scope.in_([*CODE_SCOPES, "repository_code"]))
                 .order_by(Run.created_at, Run.id)
                 .limit(1)
             )
@@ -223,7 +225,7 @@ class WorkflowStore:
                     Run.lease_token == run.lease_token,
                     Run.calls < 5,
                     Run.input_tokens + Run.output_tokens < 50000,
-                    Run.scope.in_(["draft_only", "python_code"]),
+                    Run.scope.in_(["draft_only", *CODE_SCOPES]),
                 )
                 .values(calls=Run.calls + 1)
             )
@@ -250,6 +252,15 @@ class WorkflowStore:
                     raise ValueError("DEV não pode fornecer testes QA")
             if stage == 4:
                 bundle_for_steps([*run.steps, step])
+                status = "awaiting_approval"
+        if run.scope == "nextjs_code":
+            from .next_artifacts import validate_part
+
+            if run.stage in {1, 2, 3}:
+                validate_part(STAGES[run.stage], draft.deliverable)
+            if stage == 4:
+                project = bundle_for_scope(run.scope, [*run.steps, step])
+                step["project_snapshot"] = project.model_dump()
                 status = "awaiting_approval"
         with self.database.session() as db:
             changed = db.execute(
@@ -297,11 +308,10 @@ class WorkflowStore:
             db.commit()
             return True
 
-    def record_sandbox(self, run, *, result=None, container_name=""):
-        from .code_artifacts import bundle_for_steps
+    def record_sandbox(self, run, *, result=None, container_name="", release=False):
         from .python_sandbox import valid_name
 
-        bundle = bundle_for_steps(run.steps)
+        bundle = bundle_for_scope(run.scope, run.steps)
         qa = run.steps[3]
         if qa.get("approved_digest") != bundle.digest:
             raise RuntimeError("Execução sem aprovação exata dos artefatos")
@@ -322,6 +332,11 @@ class WorkflowStore:
                 }
             ),
         }
+        values = {"steps": [*run.steps[:3], qa]}
+        if release:
+            if result is None:
+                raise RuntimeError("Somente resultado confirmado libera a lease")
+            values.update(status="queued", lease_token="", lease_expires_at=0)
         with self.database.session() as db:
             changed = db.execute(
                 update(Run)
@@ -331,7 +346,7 @@ class WorkflowStore:
                     Run.stage == 4,
                     Run.lease_token == run.lease_token,
                 )
-                .values(steps=[*run.steps[:3], qa])
+                .values(**values)
             )
             if changed.rowcount != 1:
                 raise InterruptedError("Lease alterada; execução interrompida")
@@ -361,7 +376,7 @@ class WorkflowStore:
                         select(Run)
                         .where(
                             Run.id > cursor,
-                            Run.scope == "python_code",
+                            Run.scope.in_(CODE_SCOPES),
                             Run.stage == 4,
                             Run.status.in_(["running", "cancelled", "failed"]),
                             or_(Run.status != "running", Run.lease_expires_at < now),

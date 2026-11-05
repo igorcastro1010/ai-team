@@ -1,5 +1,7 @@
 """Durable local references to native Hermes runs, never a second execution engine."""
 
+import json
+import math
 import re
 import time
 
@@ -7,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, case, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
+from .hermes_backoff import retry_delay
 from .models import Event, HermesAttempt, Run
 
 REMOTE_ID = re.compile(r"[A-Za-z0-9_-]{1,160}\Z")
@@ -24,6 +27,23 @@ PREDECESSORS = {
 class HermesJournal:
     def __init__(self, database):
         self.database = database
+
+    def cooldown_remaining(self):
+        with self.database.session() as db:
+            deadlines = db.scalars(select(Event.summary).where(Event.kind == "hermes.rate_limit"))
+            until = max((json.loads(item)["retry_at"] for item in deadlines), default=0)
+        return max(0, math.ceil(until - time.time()))
+
+    def record_cooldown(self, seconds):
+        with self.database.session() as db:
+            previous = list(db.scalars(select(Event.id).where(Event.kind == "hermes.rate_limit")))
+            seconds = max(seconds, retry_delay(failures=len(previous) + 1))
+            db.add(Event(
+                kind="hermes.rate_limit", resource_id="hermes", actor="worker",
+                summary=json.dumps({"retry_at": math.ceil(time.time()) + seconds}),
+            ))
+            db.commit()
+        return seconds
 
     def get(self, attempt_id):
         with self.database.session() as db:
@@ -44,7 +64,7 @@ class HermesJournal:
                     Run.status == "running",
                     Run.stage == run.stage,
                     Run.lease_token == run.lease_token,
-                    Run.scope.in_(["draft_only", "python_code"]),
+                    Run.scope.in_(["draft_only", "python_code", "nextjs_code", "repository_code"]),
                     Run.lease_expires_at > int(time.time()),
                 )
                 .values(lease_token=Run.lease_token)
