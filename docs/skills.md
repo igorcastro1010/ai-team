@@ -108,3 +108,13 @@ somente leitura, verificação antes de concluir, segurança de prompts, LangGra
 fundamentals, Supabase Postgres, Playwright, UI/UX Pro Max e React/Next.js.
 Inspeções e testes não equivalem a inferência Hermes homologada. Limites e
 resultados reais: [relatório V0.6.1](v061-stabilization.md).
+
+### Homologação final V0.6.1
+
+Find Skills consultado novamente na origem oficial NousResearch; nenhuma skill
+instalada. Aplicadas TDD, investigação sistemática, revisão independente,
+LangGraph, segurança, Playwright e PostgreSQL. Consultados a referência oficial
+Hermes de proteção de segredos e RFC 9110 sobre Retry-After. A própria imagem
+oficial executa a regressão de redator/JSON; não se desliga a proteção.
+O [relatório final](v061-final-homologation.md) distingue inferência real,
+testes de contrato, CI e publicação externa ainda não autorizada.

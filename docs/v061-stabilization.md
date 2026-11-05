@@ -1,12 +1,14 @@
-# V0.6.1 — auditoria e homologação em andamento
+# V0.6.1 — auditoria inicial (histórico)
 
 Data: 05/11/2026. Branch `codex/ai-team/v06-agentes-executores`, PR #10.
 Base preservada: `fb6407b4370dab98983d5bd0a60f9149bd8c3b6b`, com 23 commits
 V0.6 sobre `1f02d09bd61b7f9f13ce7fa4efe2c8cbacee016a`.
 
-**Não está pronta para revisão final.** Falta homologação Hermes completa com
-testes aprovados e publicação supervisionada multifile real. Nenhum merge,
-deploy, ampliação de permissões ou alteração de outro projeto foi realizado.
+Ao término desta fase ainda faltavam Hermes completo e validação multifile.
+O resultado posterior está em [homologação final](v061-final-homologation.md):
+seis etapas reais aprovadas e pré-publicação validada dentro do novo limite
+autorizado. A falha abaixo permanece preservada. Nenhum merge, deploy ou
+ampliação de permissões foi realizado.
 
 ## Revisão e correções
 

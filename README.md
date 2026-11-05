@@ -1,14 +1,15 @@
 # AI TEAM
 
-**V0.6 — perfil Python homologado:** executor de repositório com seis papéis, workspace Git isolado,
+**V0.6.1 — perfil Python homologado:** executor de repositório com seis papéis, workspace Git isolado,
 diff persistido, testes Docker e publicação de PR mediante aprovação específica.
 Primeiro perfil: Python/biblioteca padrão e Markdown no repositório autorizado.
-Seis chamadas Codex e sete testes Docker confirmados; veja
+Seis chamadas Codex e sete testes Docker confirmados na V0.6; veja
 [operação, limites e evidências](docs/v06-executors.md). Não houve merge ou deploy.
 
-**V0.6.1 em homologação:** [auditoria e resultados atuais](docs/v061-stabilization.md).
-Hermes real ainda não passou o fluxo completo; publicação supervisionada multifile
-aguarda resultado válido e autorização específica do conteúdo.
+**Hermes real na V0.6.1:** seis etapas, 37.628 tokens e 15 testes Docker aprovados.
+Veja [homologação final e pacote multifile](docs/v061-final-homologation.md).
+Artefatos permanecem privados; publicação exige revisão atualizada do SHA e
+autorização específica. Nenhuma publicação, merge ou deploy foi realizado.
 
 Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
@@ -25,7 +26,7 @@ papéis ainda não provisionados são identificados. Veja [uso e limites](docs/p
 
 | Fase | Entrega e limite atual |
 |---|---|
-| 1 · Hermes | Adaptador Runs, journal, diagnóstico e Compose; contêiner oficial validado em CI; cinco etapas reais executadas, homologação completa pendente |
+| 1 · Hermes | Adaptador Runs oficial, journal e Compose; seis etapas reais e 15 testes Python homologados; 429 fecha admissão e respeita Retry-After |
 | 2 · Equipe | Sete perfis provisionados e reconhecidos pelo runtime oficial em CI; Bot Mode e subagentes reais ainda não homologados |
 | 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
 | 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |

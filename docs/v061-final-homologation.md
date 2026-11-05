@@ -77,7 +77,7 @@ anterior com código inválido não podia ser reaproveitada como entrega aprovad
 Referências: [RFC 9110, Retry-After](https://httpwg.org/specs/rfc9110.html#field.retry-after)
 e [segurança oficial Hermes](https://github.com/NousResearch/hermes-agent/blob/main/skills/autonomous-ai-agents/hermes-agent/references/security-privacy.md).
 
-## Multifle: validação até a autorização externa
+## Multifile: validação até a autorização externa
 
 Arquivos reais no snapshot/plano:
 
