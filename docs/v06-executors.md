@@ -36,7 +36,8 @@ pytest, lint, typecheck, build e E2E; mocks cobrem contratos, não homologação
    Um arquivo existente precisa estar na leitura antes de poder ser sobrescrito.
 3. Autorize pelo menos uma fonte `.py`, um `test_*.py` e um `.md` para os três
    especialistas. Até 12 nomes simples na mesma pasta; não há exclusão de arquivos.
-4. Escolha o orçamento de admissão (padrão 50 mil; até 100 mil tokens), o provedor
+4. Escolha o orçamento de admissão (formulário sugere 100 mil tokens; API sem valor
+   explícito conserva o padrão de 50 mil), o provedor
    próprio e o consentimento. O worker fará somente leitura na App durante a geração.
 5. Revise o plano conforme o modo. Depois do QA gerar os testes, confira o diff,
    baixe o ZIP e autorize o digest exato para execução no Docker.
@@ -104,10 +105,29 @@ nenhum desses arquivos vai para Git.
 Em 04/11/2026, a primeira execução real `eed98a94-436a-4dbb-811b-af87d7809b0e`
 concluiu CEO, PESQUISADOR, DEV e DESIGNER. A etapa seguinte esgotou o orçamento de
 50 mil e a tarefa encerrou com falha; não foi declarada homologação completa. A nova
-execução aguarda autorização do proprietário para o orçamento de até 100 mil.
+execução foi autorizada pelo proprietário com orçamento de até 100 mil.
 O journal registrou cinco chamadas e 63.840 tokens (60.262 de entrada e 3.578 de saída):
 o excesso da resposta em andamento foi detectado depois de seu término. A margem de
 admissão foi adicionada após essa evidência, sem apagar ou reclassificar a falha.
+
+A segunda execução real **`ba77794c-ec53-430e-8be0-a0bad8d8acf6` passou**:
+
+- Snapshot real via App no SHA `62e9798515b61afebe13ff571ee49760302b930f`.
+- Seis inferências próprias: CEO, PESQUISADOR, DEV, DESIGNER, QA, CEO.
+- 78.613 tokens de entrada e 4.076 de saída: **82.689 no total**, dentro do orçamento autorizado.
+- DEV adicionou `summarize_usage` preservando o módulo; DESIGNER gerou guia em português;
+  QA criou sete testes com casos válidos, limites, erros de tipo e valores negativos.
+- Aprovação de teste vinculada ao digest
+  `e9017282a5189903453d90e21f196ff6b012d6448119ab764c576b7996b95600`.
+- Docker real confirmou **7 testes, exit code 0, passed** na imagem fixada por digest.
+- CEO revisou o diff e a saída efetiva. A proposta de PR foi persistida e o ZIP foi
+  validado pela API. Resultado aguarda revisão final; nenhum arquivo gerado foi aplicado
+  ao checkout do proprietário, publicado no GitHub ou implantado.
+- Banco, diff, código, guia e logs continuam em `.data`/`artifacts`, ignorados pelo Git.
+
+Isso homologa o critério de execução real no **perfil Python**, com aprovação sintética
+exclusivamente no teste isolado. Não representa um teste de publicação remota nem da
+variante Hermes de seis etapas.
 
 Publicação remota da nova árvore multifile tem testes de contrato; não foi homologada
 ao vivo. A conexão/leitura da GitHub App foi verificada no repositório real. O fluxo
@@ -123,11 +143,11 @@ Verificação local final em 04/11/2026:
 - Playwright completo: **27 passed**, incluindo autorização de repositório mobile e
   regressões do CEO, escritório, autenticação, GitHub e Next.js/Chromium.
 - Ruff, ESLint, TypeScript e build de produção: aprovados.
-- Novo teste de checkpoint/digest PostgreSQL incluído na suíte opt-in (oito testes);
-  execução real específica da revisão depende do job PostgreSQL do PR.
+- PostgreSQL real no CI: **8 passed em 2,31 s**, incluindo checkpoint/digest e replay:
+  [run 41940552408](https://github.com/igorcastro1010/ai-team/actions/runs/41940552408).
 
-Essas verificações não substituem a homologação real das seis inferências. A primeira
-tentativa falhou e permanece registrada. Nenhum teste mockado é apresentado como
+A primeira tentativa falhou e permanece registrada; a segunda homologação confirmou
+as seis inferências e o sandbox reais. Nenhum teste mockado é apresentado como
 homologação de Codex, Hermes ou escrita remota.
 
 ### Referências oficiais consultadas

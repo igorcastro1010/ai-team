@@ -1,9 +1,9 @@
 # AI TEAM
 
-**V0.6 em validação:** executor de repositório com seis papéis, workspace Git isolado,
+**V0.6 — perfil Python homologado:** executor de repositório com seis papéis, workspace Git isolado,
 diff persistido, testes Docker e publicação de PR mediante aprovação específica.
 Primeiro perfil: Python/biblioteca padrão e Markdown no repositório autorizado.
-Homologação real completa ainda pendente do orçamento do provedor; veja
+Seis chamadas Codex e sete testes Docker confirmados; veja
 [operação, limites e evidências](docs/v06-executors.md). Não houve merge ou deploy.
 
 Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
