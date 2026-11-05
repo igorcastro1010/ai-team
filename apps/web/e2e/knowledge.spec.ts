@@ -58,6 +58,15 @@ test("Issues usa proposta persistente e revisão explícita, otimizador estima s
   await page.getByRole("button", { name: "Preparar proposta local" }).click();
   const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Revisar navegação acessível", exact: true }) });
   await expect(card).toContainText("Aguardando revisão");
+  await expect(page.getByLabel("Filtrar agente")).toBeVisible({ timeout: 1000 });
+  await page.getByLabel("Filtrar agente").selectOption("QA");
+  await expect(card).toHaveCount(0);
+  await page.getByLabel("Filtrar agente").selectOption("DEV");
+  await expect(card).toBeVisible();
+  await page.getByLabel("Filtrar prioridade").selectOption("low");
+  await expect(card).toHaveCount(0);
+  await page.getByLabel("Filtrar prioridade").selectOption("medium");
+  await expect(card).toBeVisible();
   await expect(card).toContainText("Validar foco por teclado");
   const response = await page.request.get(`/api/control/issues?project_id=${projectId}`);
   const issue = (await response.json()).issues[0];
