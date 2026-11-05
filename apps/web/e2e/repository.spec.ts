@@ -21,4 +21,6 @@ test("Repositório: autorização explícita persiste sem executar no HTTP", asy
   await expect(page.getByTestId("repository-card").first()).toContainText("Na fila");
   await expect(page.getByTestId("repository-card").first()).toContainText("0/6");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.getByTestId("repository-card").first().getByRole("button", { name: "Cancelar tarefa isolada" }).click();
+  await expect(page.getByTestId("repository-card").first()).toContainText("Cancelada");
 });
