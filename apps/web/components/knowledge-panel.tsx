@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, dateTime, type Project } from "@/lib/api";
 import "@/styles/knowledge.css";
@@ -50,20 +50,23 @@ function ProjectKnowledge({ project }: { project: string }) {
   const [limit, setLimit] = useState("500000");
   const [scope, setScope] = useState("project");
   const [scopeId, setScopeId] = useState("");
+  const generation = useRef(0);
 
   async function refresh(signal?: AbortSignal) {
+    const current = ++generation.current;
     const [memory, issueData, usage, relations] = await Promise.all([
       api<{ items: Note[]; vault_configured: boolean }>(`/memory/${project}`, { signal }),
       api<{ issues: Issue[] }>(`/issues?project_id=${project}`, { signal }),
       api<Summary>(`/projects/${project}/optimizer`, { signal }),
       api<Graph>(`/knowledge/${project}/graph`, { signal }),
     ]);
-    if (signal?.aborted) return;
+    if (signal?.aborted || current !== generation.current) return false;
     setNotes(memory.items); setVault(memory.vault_configured); setIssues(issueData.issues); setSummary(usage); setGraph(relations);
+    return true;
   }
   useEffect(() => {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => { void refresh(controller.signal).then(() => { if (!controller.signal.aborted) setStatus("Conhecimento atualizado"); }).catch(err => { if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Falha ao carregar"); }); }, 0);
+    const timer = window.setTimeout(() => { const pendingGeneration = generation.current + 1; void refresh(controller.signal).then(updated => { if (updated && !controller.signal.aborted) setStatus("Conhecimento atualizado"); }).catch(err => { if (!controller.signal.aborted && generation.current === pendingGeneration) setError(err instanceof Error ? err.message : "Falha ao carregar"); }); }, 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
     // The parent remounts this component on project changes, clearing all scoped state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,6 +74,7 @@ function ProjectKnowledge({ project }: { project: string }) {
 
   async function perform(action: () => Promise<void>, message: string, reload = true) {
     if (busy) return;
+    generation.current += 1;
     setBusy(true); setError(""); setStatus("");
     try { await action(); if (reload) await refresh(); setStatus(message); }
     catch (err) { setError(err instanceof Error ? err.message : "Não foi possível concluir."); }
@@ -90,7 +94,7 @@ function ProjectKnowledge({ project }: { project: string }) {
         <p>{vault ? "Vault Obsidian configurado no servidor." : "Obsidian: configure AI_TEAM_MEMORY_VAULT no servidor para sincronizar Markdown."}</p>
         <button type="button" className="button" disabled={busy || !vault} onClick={() => void perform(async () => { const result = await api<{ imported: number; rejected: number }>(`/memory/${project}/sync`, { method: "POST" }); if (result.rejected) throw new Error(`${result.rejected} arquivo(s) recusado(s); revise o vault. ${result.imported} importado(s).`); }, "Vault sincronizado")}>Sincronizar Obsidian</button>
       </form>
-      <div><form className="knowledge-search" onSubmit={event => { event.preventDefault(); void perform(async () => { if (query.trim()) setNotes((await api<{ items: Note[] }>(`/memory/${project}/search?q=${encodeURIComponent(query)}`)).items); }, "Busca concluída", false); }}><label>Buscar memórias<input value={query} onChange={event => setQuery(event.target.value)} maxLength={1000} /></label><button className="button" disabled={busy}>Buscar</button></form>
+      <div><form className="knowledge-search" onSubmit={event => { event.preventDefault(); void perform(async () => { setNotes((await api<{ items: Note[] }>(query.trim() ? `/memory/${project}/search?q=${encodeURIComponent(query)}` : `/memory/${project}`)).items); }, "Busca concluída", false); }}><label>Buscar memórias<input value={query} onChange={event => setQuery(event.target.value)} maxLength={1000} /></label><button className="button" disabled={busy}>Buscar</button></form>
         {!notes.length && <p>Nenhuma memória neste projeto.</p>}
         {notes.map(note => <article className="panel knowledge-note" key={note.id}><div className="knowledge-note-heading"><h2>{note.title}</h2><span className="tag">Versão {note.version}</span></div><p className="knowledge-prose">{note.content}</p><small>{note.source} · {dateTime(note.updated_at)}{note.quarantined && " · Quarentena: não enviada aos agentes"}</small><div className="knowledge-actions"><button className="button" disabled={busy} onClick={() => void perform(async () => { const current = await api<Note>(`/memory/${project}/${note.id}`); setEditing(current); setTitle(current.title); setContent(current.content); }, "Memória carregada para edição", false)}>Editar memória</button><button className="button" disabled={busy} onClick={() => void perform(async () => { setHistory((await api<{ items: Revision[] }>(`/memory/${project}/${note.id}/history`)).items); }, "Histórico carregado")}>Ver histórico</button>{vault && <button className="button" disabled={busy || note.quarantined} onClick={() => void perform(async () => { await api(`/memory/${project}/${note.id}/export`, { method: "POST", body: "{}" }); }, "Markdown exportado")}>Exportar Markdown</button>}</div></article>)}
         {!!history.length && <section className="panel" aria-label="Histórico da memória"><h2>Histórico da memória</h2>{history.map(item => <details key={item.version}><summary>Versão {item.version} · {dateTime(item.created_at)}</summary><p className="knowledge-prose">{item.content}</p></details>)}</section>}

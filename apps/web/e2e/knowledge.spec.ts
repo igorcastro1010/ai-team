@@ -35,6 +35,9 @@ test("memória cria, busca, revisa histórico e isola projetos no backend real",
   await expect(page.getByRole("status")).toContainText("Busca concluída");
   await expect(card).toBeVisible();
   await expect(page.getByRole("heading", { name: "Nota sem relação", exact: true })).toHaveCount(0);
+  await page.getByLabel("Buscar memórias").fill("");
+  await page.getByRole("button", { name: "Buscar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Nota sem relação", exact: true })).toBeVisible();
   await card.getByRole("button", { name: "Editar memória" }).click();
   await page.getByLabel("Conteúdo da memória").fill("Catálogo preserva cores verdes, identidade e acessibilidade.");
   await page.getByRole("button", { name: "Salvar revisão" }).click();
@@ -48,6 +51,40 @@ test("memória cria, busca, revisa histórico e isola projetos no backend real",
   await page.getByLabel("Projeto do conhecimento").selectOption(ids[0]);
   await expect(card).toContainText("Versão 2");
   expect((await new AxeBuilder({ page }).include(".knowledge-panel").withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
+});
+
+test("resposta inicial antiga não apaga memória salva enquanto o grafo carrega", async ({ page }) => {
+  const ids = await enter(page);
+  await page.getByLabel("Projeto do conhecimento").selectOption(ids[1]);
+  await expect(page.getByRole("status")).toContainText("Conhecimento atualizado");
+  let release!: () => void;
+  let captured!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const started = new Promise<void>(resolve => { captured = resolve; });
+  let first = true;
+  const graphUrl = `**/api/control/knowledge/${ids[0]}/graph`;
+  await page.route(graphUrl, async route => {
+    if (!first) { await route.continue(); return; }
+    first = false;
+    const response = await route.fetch();
+    captured();
+    await held;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.getByLabel("Projeto do conhecimento").selectOption(ids[0]);
+    await started;
+    await page.getByLabel("Título da memória").fill("Decisão durante carregamento");
+    await page.getByLabel("Conteúdo da memória").fill("Preservar o snapshot mais recente.");
+    await page.getByRole("button", { name: "Salvar memória", exact: true }).click();
+    const card = page.getByRole("heading", { name: "Decisão durante carregamento", exact: true });
+    await expect(card).toBeVisible();
+    const returned = page.waitForResponse(response => response.url().endsWith(`/knowledge/${ids[0]}/graph`));
+    release();
+    await returned;
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(card).toBeVisible();
+  } finally { release(); }
 });
 
 test("Issues usa proposta persistente e revisão explícita, otimizador estima sem inferência", async ({ page }) => {
