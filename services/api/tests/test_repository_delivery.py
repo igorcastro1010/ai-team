@@ -18,7 +18,7 @@ class Client:
     def _request(self, method, path, token, **kwargs):
         self.calls.append((method, path, kwargs.get("body")))
         if "/ref/heads/" in path:
-            return {"object": {"sha": self.current}}
+            return {"object": {"sha": self.current if path.endswith("main") else "d" * 40}}
         if "/commits/" in path:
             return {"tree": {"sha": "b" * 40}}
         if path.endswith("/trees"):
@@ -33,7 +33,11 @@ class Client:
             assert kwargs["body"]["ref"].startswith("refs/heads/codex/ai-team/task-")
             return {}
         assert path.endswith("/pulls") and kwargs["body"]["draft"] is True
-        return {"number": 99, "html_url": "https://github.com/igorcastro1010/ai-team/pull/99"}
+        return {
+            "number": 99,
+            "html_url": "https://github.com/igorcastro1010/ai-team/pull/99",
+            "head": {"sha": "d" * 40},
+        }
 
 
 def bundle():

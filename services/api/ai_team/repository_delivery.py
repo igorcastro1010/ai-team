@@ -57,6 +57,9 @@ def publish(client, run_id, bundle, title, body):
         expected=201,
         body={"ref": "refs/heads/" + branch, "sha": commit["sha"]},
     )
+    current = client._request("GET", root + "/git/ref/heads/" + quote(branch, safe=""), token)
+    if current.get("object", {}).get("sha") != commit["sha"]:
+        raise ValueError("Branch de entrega alterada; publicação exige revisão")
     pr = client._request(
         "POST",
         root + "/pulls",
@@ -71,6 +74,6 @@ def publish(client, run_id, bundle, title, body):
         },
     )
     expected = f"https://github.com/{REPOSITORY}/pull/{pr['number']}"
-    if pr.get("html_url") != expected:
-        raise ValueError("Endereço de PR inesperado")
+    if pr.get("html_url") != expected or pr.get("head", {}).get("sha") != commit["sha"]:
+        raise ValueError("PR não corresponde ao commit revisado")
     return {"status": "published", "url": expected, "sha": commit["sha"], "branch": branch}
