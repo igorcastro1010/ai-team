@@ -310,8 +310,10 @@ class OptimizedProvider:
         return self.provider.ready()
 
     def generate(self, role, instructions, context, on_tick):
+        from .knowledge_automation import refresh_vault
         from .memory_store import MemoryStore
 
+        refresh_vault(self.database, self.run.project_id)
         memory = MemoryStore(self.database)
         notes = memory.search(self.run.project_id, self.run.prompt, limit=6)
         store = OptimizerStore(self.database)

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from . import (  # noqa: F401 - register additive tables
     issue_models,
+    knowledge_automation_models,
     memory_models,  # noqa: F401 - register additive tables
     optimizer_models,
 )
@@ -15,6 +16,7 @@ from .models import Base
 
 class Database:
     def __init__(self, settings: Settings):
+        self.settings = settings
         sqlite = settings.database_url.startswith("sqlite:")
         if sqlite and ":memory:" not in settings.database_url:
             Path(settings.database_url.removeprefix("sqlite:///")).parent.mkdir(
