@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import or_, select, update
 
 from .config import ROOT
+from .execution_limits import MAX_CALLS, MAX_TOKENS
 from .models import Event, Project, RepositoryJob, Run, RunExecutor, Task
 from .orchestration import BOUNDARIES, Draft
 from .python_sandbox import PythonSandbox
@@ -173,8 +174,8 @@ class RepositoryStore:
                     Run.status == "running",
                     Run.stage == run.stage,
                     Run.lease_token == run.lease_token,
-                    Run.calls < 6,
-                    Run.input_tokens + Run.output_tokens < 50000,
+                    Run.calls < MAX_CALLS,
+                    Run.input_tokens + Run.output_tokens < MAX_TOKENS,
                 )
                 .values(calls=Run.calls + 1)
             )
