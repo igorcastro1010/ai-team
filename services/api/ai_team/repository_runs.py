@@ -6,7 +6,7 @@ from typing import TypedDict
 
 from fastapi import HTTPException
 from langgraph.graph import END, START, StateGraph
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import or_, select, update
 
 from .config import ROOT
@@ -37,6 +37,14 @@ class ExecutionBundle(BaseModel):
     files: list[RepositoryFile] = Field(min_length=1, max_length=12)
     binding: str = Field(pattern=r"^[a-f0-9]{64}$")
 
+    @model_validator(mode="after")
+    def bounded_files(self):
+        if len({f.path for f in self.files}) != len(self.files):
+            raise ValueError("Arquivos duplicados")
+        if sum(len(f.content.encode()) for f in self.files) > 49152:
+            raise ValueError("Limite de 48 KiB")
+        return self
+
     @property
     def digest(self):
         return fingerprint(self.model_dump())
@@ -44,12 +52,7 @@ class ExecutionBundle(BaseModel):
 
 class RepositorySandbox(PythonSandbox):
     def validate_bundle(self, bundle):
-        result = ExecutionBundle.model_validate(bundle.model_dump())
-        if len({f.path for f in result.files}) != len(result.files):
-            raise ValueError("Arquivos duplicados")
-        if sum(len(f.content.encode()) for f in result.files) > 49152:
-            raise ValueError("Limite de 48 KiB")
-        return result
+        return ExecutionBundle.model_validate(bundle.model_dump())
 
 
 def execution_bundle(state):

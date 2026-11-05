@@ -105,6 +105,25 @@ def test_cancelled_lease_cannot_persist_generated_files(setup):
     assert store.view(run.id)["run"]["calls"] == 0
 
 
+def test_combined_snapshot_size_is_rejected_before_approval():
+    from ai_team.repository_runs import execution_bundle
+
+    policy = RepositoryPolicy(
+        base_sha="a" * 40, directory="tools",
+        read_paths=["one.py", "two.py", "three.py"],
+        write_paths=["budget.py", "test_budget.py", "guide.md"],
+    )
+    state = {
+        "snapshot": {name: "x" * 11000 for name in policy.read_paths},
+        "bundle": {
+            "policy": policy.model_dump(),
+            "files": [{"path": name, "content": "y" * 6000} for name in policy.write_paths],
+        },
+    }
+    with pytest.raises(ValueError, match="48 KiB"):
+        execution_bundle(state)
+
+
 def test_nearly_exhausted_budget_does_not_start_another_paid_call(setup):
     store, queue, run = setup
     with store.database.session() as db:
