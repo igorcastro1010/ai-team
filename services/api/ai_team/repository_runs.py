@@ -25,7 +25,10 @@ INSTRUCTIONS = [
     "Pesquise o snapshot autorizado. Explique contratos, riscos e evidências presentes. "
     "Você não tem acesso à internet; não invente fontes ou arquivos.",
     "Implemente o pedido nos arquivos .py autorizados, sem test_*.py. Biblioteca padrão. "
-    "Entregue conteúdo completo dos arquivos alterados, não patches.",
+    "Entregue conteúdo completo dos arquivos alterados, não patches. "
+    "Use anotações de tipo nas constantes numéricas, como MAX_TOKENS: int = 50_000, "
+    "para preservar código no JSON redigido pelo provedor. Nunca inclua credenciais "
+    "nem desative ou tente contornar sua proteção.",
     "Crie documentação de uso em arquivos .md autorizados. Preserve código e testes. "
     "Entregue arquivos completos. Este perfil não permite alterar interfaces TSX.",
     "Escreva testes unittest independentes em test_*.py autorizados. Cubra comportamento "
