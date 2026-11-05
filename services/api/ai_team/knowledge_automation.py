@@ -83,5 +83,5 @@ def index_run(database, run_id):
     for task_id in task_ids:
         try:
             IssueStore(database).prepare_task(task_id, f"ceo:{run_id}:{task_id}")
-        except HTTPException:
+        except (HTTPException, ValueError):
             audit(database, run_id, "issue.delegation_rejected")

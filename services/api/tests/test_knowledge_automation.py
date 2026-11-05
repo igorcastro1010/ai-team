@@ -34,6 +34,10 @@ def test_run_checkpoints_index_summaries_and_prepare_issues_without_publication(
         db.add(run)
         db.flush()
         db.add(DelegatedTask(run_id=run.id, task_id=task.id, project_id=project.id))
+        invalid = Task(project_id=project.id, title="X", agent="DEV")
+        db.add(invalid)
+        db.flush()
+        db.add(DelegatedTask(run_id=run.id, task_id=invalid.id, project_id=project.id))
         db.commit()
         run_id, project_id = run.id, project.id
     index_run(database, run_id)
