@@ -122,12 +122,17 @@ de segredos permanece ligada; não foi feita modificação no runtime oficial.
 
 ## Verificações e próximos bloqueios
 
+- pytest completo final: **333 passed, 24 skipped** em 85,88 s. Opt-ins de Docker
+  e PostgreSQL são executados separadamente e não são contabilizados como passes
+  nessa rodada padrão.
 - 27 testes Docker reais aprovados, incluindo timeout, cancelamento, isolamento,
   limite de saída, suíte vazia, saída prematura e morte do controlador.
 - 27 E2E aprovados, incluindo escritório ligado a checkpoints persistidos,
   `/ceo`, criação/cancelamento de tarefa de repositório mobile, login e CSRF.
   Fixtures de provedor em E2E são testes de interface, não homologação de inferência.
 - Ruff, ESLint, typecheck e build de produção aprovados localmente.
+- Smoke Windows nativo: API `/health` 200, painel `/login` 200 e
+  `/repository-runs` sem sessão 401. Serviços existentes preservados.
 - PostgreSQL real: 9 testes aprovados no CI, incluindo concorrência de consumo:
   [run 42009758321](https://github.com/igorcastro1010/ai-team/actions/runs/42009758321).
 - Runtime Hermes oficial e startup Windows têm verificações CI próprias; boot,
@@ -140,3 +145,6 @@ Se avançar, o executor recusa a entrega e exige nova revisão. Nunca merge/depl
 
 Os commits novos e seus SHAs podem ser reproduzidos com:
 `git log fb6407b..HEAD --format='%H %s'`. Os 23 originais foram preservados.
+Esta etapa registra **18 novos commits, 41 acumulados** desde a base da V0.6.
+O registro completo de SHAs também é exportado para
+`artifacts/v061-commits.json` (evidência local, ignorada pelo Git).
