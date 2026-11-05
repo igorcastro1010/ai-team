@@ -60,6 +60,8 @@ class WorkflowStore:
 
     def decide(self, run_id, stage, approve, actor, artifact_digest=""):
         run = self.get(run_id)
+        if run.scope == "repository_code":
+            raise HTTPException(409, "Use a decisão vinculada ao checkpoint do repositório")
         values = {"status": "queued" if approve else "cancelled"}
         if run.scope in CODE_SCOPES and stage == 4 and approve:
             expected = bundle_for_scope(run.scope, run.steps).digest
@@ -197,7 +199,8 @@ class WorkflowStore:
             db.commit()
             run_id = db.scalar(
                 select(Run.id)
-                .where(Run.status == "queued", True if allow_code else ~Run.scope.in_(CODE_SCOPES))
+                .where(Run.status == "queued", True if allow_code else
+                       ~Run.scope.in_([*CODE_SCOPES, "repository_code"]))
                 .order_by(Run.created_at, Run.id)
                 .limit(1)
             )

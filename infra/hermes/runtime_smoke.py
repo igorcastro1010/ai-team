@@ -116,6 +116,19 @@ def check_http(key):
         require(isinstance(item.get("tools"), list), "concrete tools contract")
 
 
+def check_redaction():
+    from agent.redact import redact_sensitive_text
+
+    code = "MAX_TOKENS: int = 50_000\n\ndef remaining_tokens():\n    return 1\n"
+    payload = json.dumps({"deliverable": json.dumps({"files": [
+        {"path": "budget.py", "content": code},
+    ]})})
+    actual = json.loads(json.loads(redact_sensitive_text(payload))["deliverable"])
+    require(actual["files"][0]["content"] == code, "typed constant JSON round-trip")
+    synthetic_key = "sk-proj-" + "A" * 48
+    require(synthetic_key not in redact_sensitive_text(synthetic_key), "secret redaction enabled")
+
+
 def check_policy():
     from healthcheck import validate_policy
     from hermes_cli.config import load_config
@@ -351,6 +364,8 @@ def main():
         ):
             label = "HTTP authentication and official capability/toolset contracts"
             check_http(key)
+            label = "official redactor: code integrity and credential protection"
+            check_redaction()
             label = "effective tool policy including default MCP"
             check_policy()
             label = "official native profile discovery and persistence"
@@ -367,7 +382,7 @@ def main():
         return 1
     print(
         f"Hermes runtime smoke {'write' if args.write else 'check'} passed: "
-        "auth, capabilities, API/cron text-only policy, profiles, SessionDB, paused native job."
+        "auth, capabilities, redaction, API/cron policy, profiles, SessionDB, paused native job."
     )
     return 0
 

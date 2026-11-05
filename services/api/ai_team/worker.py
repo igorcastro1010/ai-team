@@ -4,6 +4,7 @@ import time
 from .config import Settings
 from .db import Database
 from .github_actions import GitHubWorker
+from .hermes import HermesRateLimitError
 from .models import new_id
 from .orchestration import Draft, build_graph
 from .workflow import WorkflowStore
@@ -20,17 +21,25 @@ class Worker:
     def once(self):
         self.store.heartbeat(self.id)
         from .python_sandbox import PythonSandbox
+        from .repository_runs import RepositoryStore, execute_repository
 
         sandbox = self.sandbox or PythonSandbox()
         code_ready = self.store.recover_sandboxes(sandbox)
+        repository_store = RepositoryStore(self.store.database)
+        code_ready = repository_store.recover(sandbox) and code_ready
         run = self.store.claim(allow_code=code_ready)
         if run is None:
             return False
         try:
-            provider = self.providers[run.executor] if self.providers else self.provider
+            delivery_only = run.scope == "repository_code" and run.stage == 6
+            provider = (
+                None
+                if delivery_only
+                else (self.providers[run.executor] if self.providers else self.provider)
+            )
             if hasattr(provider, "for_run"):
                 provider = provider.for_run(self.store.database, run)
-            if not provider.ready():
+            if not delivery_only and not provider.ready():
                 self.store.finish_error(
                     run, "blocked", "Executor indisponível. Confira a configuração própria."
                 )
@@ -40,13 +49,20 @@ class Worker:
             def tick():
                 nonlocal last_heartbeat
                 current = self.store.get(run.id)
-                if current.status != "running" or current.lease_token != run.lease_token:
+                if (
+                    current.status != "running"
+                    or current.lease_token != run.lease_token
+                    or current.lease_expires_at <= int(time.time())
+                ):
                     raise InterruptedError("Execução cancelada")
                 if time.monotonic() - last_heartbeat >= 5:
                     self.store.heartbeat(self.id)
                     last_heartbeat = time.monotonic()
 
             tick()
+            if run.scope == "repository_code":
+                execute_repository(repository_store, run, provider, tick, self.sandbox)
+                return True
             if run.scope in {"python_code", "nextjs_code"} and run.stage == 4:
                 from .code_artifacts import bundle_for_scope
 
@@ -86,6 +102,10 @@ class Worker:
             self.store.finish_error(run, "cancelled", "Execução interrompida pelo proprietário.")
         except TimeoutError:
             self.store.finish_error(run, "failed", "Timeout do executor. Chamada não repetida.")
+        except HermesRateLimitError:
+            self.store.finish_error(
+                run, "failed", "Cota do provedor Hermes indisponível. Chamada não repetida."
+            )
         except KeyboardInterrupt:
             self.store.finish_error(run, "failed", "Worker encerrado. Chamada não repetida.")
             raise
@@ -121,7 +141,7 @@ def main():
         codex,
         providers={
             "codex": codex,
-            "hermes": HermesProvider(HermesClient(settings)),
+            "hermes": HermesProvider(HermesClient(settings, database=database)),
         },
     )
     github_worker = GitHubWorker(database, tick=lambda: worker.store.heartbeat(worker.id))

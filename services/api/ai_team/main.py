@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 
-from .agents import AGENTS
+from .agents import AGENTS, RESEARCHER
 from .auth import COOKIE_NAME, authenticate, digest, require_owner
 from .config import Settings
 from .db import Database
@@ -19,6 +19,7 @@ from .integrations import integration_statuses
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
 from .report_routes import router as report_router
+from .repository_routes import router as repository_router
 from .run_routes import RunView
 from .run_routes import router as runs_router
 from .schedule_routes import ScheduleView
@@ -57,12 +58,13 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.5.0",
+        version="0.6.1",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
     app.state.database, app.state.settings = database, settings
     app.include_router(runs_router)
+    app.include_router(repository_router)
     app.include_router(github_router)
     app.include_router(vercel_router)
     app.include_router(schedule_router)
@@ -84,7 +86,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.5.0"}
+        return {"status": "ok", "version": "0.6.1"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -236,12 +238,12 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         runs = store.all()
         usage = store.usage()
         return {
-            "version": "0.5.0",
+            "version": "0.6.1",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
             "events": [EventView.model_validate(e) for e in events(owner)],
-            "agents": AGENTS,
+            "agents": [*AGENTS, RESEARCHER],
             "runs": [RunView.model_validate(run) for run in runs],
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
             "usage": usage,

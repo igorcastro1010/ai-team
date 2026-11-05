@@ -13,7 +13,7 @@ class Delegation(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: Annotated[str, StringConstraints(min_length=1, max_length=200)]
     description: Annotated[str, StringConstraints(max_length=5000)]
-    agent: Literal["DEV", "DESIGNER", "QA"]
+    agent: Literal["DEV", "DESIGNER", "QA", "PESQUISADOR"]
 
 
 class DraftContent(BaseModel):

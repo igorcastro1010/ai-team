@@ -18,7 +18,8 @@ def test_inspection_persists_sanitized_observation_without_inference(client, mon
     calls = []
 
     class Reader:
-        def __init__(self, settings):
+        def __init__(self, settings, *, database):
+            assert database is client.app.state.database
             pass
 
         def inspect(self):
