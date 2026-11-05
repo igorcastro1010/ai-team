@@ -3,6 +3,21 @@ from types import SimpleNamespace
 from ai_team.office import office_snapshot
 
 
+def test_repository_research_and_testing_are_real_stage_projections():
+    researching = run(scope="repository_code", stage=1)
+    snapshot = office_snapshot([researching], worker_online=True)
+    researcher = next(a for a in snapshot if a["id"] == "PESQUISADOR")
+    assert researcher["enabled"] and researcher["animate"]
+    assert researcher["activity"] == "Pesquisando"
+    testing = run(
+        scope="repository_code",
+        stage=5,
+        steps=[{"agent": "QA", "execution_started": True, "summary": "Testes gerados"}],
+    )
+    snapshot = office_snapshot([testing], worker_online=True)
+    assert next(a for a in snapshot if a["id"] == "QA")["animate"]
+
+
 def run(**changes):
     values = dict(
         id="test",

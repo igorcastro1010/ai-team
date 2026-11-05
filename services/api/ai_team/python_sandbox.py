@@ -13,6 +13,7 @@ OUTPUT_LIMIT = 32768
 RUNNER = """
 import json, os, sys, unittest
 fd, nonce = int(sys.argv[1]), sys.argv[2]
+sys.argv[:] = ['ai-team-unittest']
 suite = unittest.TestLoader().discover('/work', pattern='test_*.py')
 if suite.countTestCases() == 0:
     print('Nenhum teste encontrado.', flush=True)

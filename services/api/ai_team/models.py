@@ -127,6 +127,12 @@ class WorkerHeartbeat(Base):
     last_seen: Mapped[int] = mapped_column(Integer, index=True)
 
 
+class RepositoryJob(Base):
+    __tablename__ = "repository_jobs"
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), primary_key=True)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
 class HermesAttempt(Base):
     __tablename__ = "hermes_attempts"
     __table_args__ = (

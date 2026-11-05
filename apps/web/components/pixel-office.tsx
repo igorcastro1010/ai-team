@@ -8,6 +8,7 @@ import "@/styles/office.css";
 
 const labels = { available: "Disponível", working: "Trabalhando", awaiting_approval: "Aguardando aprovação", completed: "Concluído", error: "Erro" };
 const colors = ["#b6ec81", "#83c6ff", "#dbabff", "#ffd185", "#81d8c8", "#ffa9be", "#b8bdff"];
+const activity = (agent: OfficeAgent) => agent.status === "working" ? agent.activity || labels[agent.status] : labels[agent.status];
 
 function actorStyle(index: number): CSSProperties {
   const place = agentPlaces[index % agentPlaces.length];
@@ -59,7 +60,7 @@ export function PixelOffice({ data, connected }: { data: Workspace; connected: b
           <div className="office-agent-list">{filtered.map(agent => {
             const index = agents.indexOf(agent);
             return <button type="button" key={agent.id} className={`office-roster-agent ${selected === agent.id ? "selected" : ""}`} style={{ "--agent-color": colors[index % colors.length] } as CSSProperties} onClick={() => setSelected(agent.id)} aria-pressed={selected === agent.id} aria-label={`Abrir detalhes de ${agent.name}: ${agent.enabled ? labels[agent.status] : "Papel preparado"}`}>
-              <span className="office-roster-avatar"><AgentSprite variant={index} /></span><span><strong>{agent.name}</strong><small>{agent.enabled ? labels[agent.status] : "Em preparação"}</small></span><i className={`office-dot state-${agent.status}`} aria-hidden="true" />
+              <span className="office-roster-avatar"><AgentSprite variant={index} /></span><span><strong>{agent.name}</strong><small>{agent.enabled ? activity(agent) : "Em preparação"}</small></span><i className={`office-dot state-${agent.status}`} aria-hidden="true" />
             </button>;
           })}{!filtered.length && <p className="office-no-results">Nenhum agente encontrado.</p>}</div>
           <div className="office-project-list"><div className="office-roster-heading"><h3>Projetos</h3><Link href="/projetos" aria-label="Ver todos os projetos"><ArrowUpRight size={16} aria-hidden="true" /></Link></div>
@@ -98,7 +99,7 @@ export function PixelOffice({ data, connected }: { data: Workspace; connected: b
 
 function AgentDetail({ current, place, fresh }: { current: OfficeAgent; place: string; fresh: boolean }) {
   return <section className="panel office-detail" aria-labelledby="office-agent-title"><div className="office-detail-summary">
-    <div><p className="eyebrow">NA MESA DE {current.name} <span aria-hidden="true">/</span> {place}</p><h2 id="office-agent-title">{current.role}</h2><span className={`office-state state-${current.status}`}>{current.enabled ? labels[current.status] : "Papel preparado"}</span></div>
+    <div><p className="eyebrow">NA MESA DE {current.name} <span aria-hidden="true">/</span> {place}</p><h2 id="office-agent-title">{current.role}</h2><span className={`office-state state-${current.status}`}>{current.enabled ? activity(current) : "Papel preparado"}</span></div>
     <Link href={current.status === "awaiting_approval" ? "/aprovacoes" : "/execucoes"} className="button">{current.status === "awaiting_approval" ? "Revisar aprovação" : "Abrir execuções"}<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
     {!current.enabled && <p>Perfil Hermes ainda não provisionado.</p>}
     {current.status === "working" && (!current.animate || !fresh) && <p className="notice">Execução registrada, sem sinal recente suficiente para animar atividade.</p>}

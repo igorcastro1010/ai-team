@@ -1,5 +1,20 @@
 # Skills e pesquisa — 27/10/2026
 
+## Revisão V0.6 — 04/11/2026
+
+Find Skills local foi relida e a descoberta `npx skills find hermes --owner nousresearch`
+localizou `nousresearch/hermes-agent@hermes-agent`. A skill oficial MIT, versão 3.3.0,
+foi lida na origem para revisar compatibilidade, sem instalação nem execução de conteúdo
+remoto. Reutilizados os adaptadores oficiais existentes de Hermes/Codex, sem dar shell,
+skills ou credenciais aos modelos.
+
+Reutilizadas LangGraph fundamentals/referência Python (nós e checkpoints no banco do
+executor), Supabase (nova tabela privada com FK), segurança de prompts, UI UX Pro Max,
+React/Next.js e Playwright. Superpowers orientou TDD, investigação de regressão,
+verificação e revisão independente de código. OpenAI Docs e referências GitHub REST
+orientaram integração e limites reais, sem endpoints inventados. Nenhuma nova skill
+foi instalada. Graphify continua opcional; não é necessário ao runtime ou à homologação.
+
 Skills são ferramentas de desenvolvimento. Não são plugins executáveis pelos agentes da aplicação.
 
 | Capacidade | Origem revisada | Descoberta | Uso / limite |
@@ -79,3 +94,27 @@ de legibilidade prevalecem sobre usar fonte pixel pequena nos resultados.
 Playwright e React Best Practices aplicados aos fluxos, stale state e acessibilidade.
 
 Skills são exclusivas do desenvolvimento; Hermes não as instala nem executa.
+
+## V0.6.1 — estabilização
+
+Find Skills executado com `npx skills find hermes --owner nousresearch`;
+nenhuma instalação adicional. Revisados o hub oficial NousResearch (MIT), sua
+referência `security-privacy.md` e o redator oficial `agent/redact.py`.
+Origem: https://github.com/NousResearch/hermes-agent/tree/main/skills/autonomous-ai-agents/hermes-agent.
+O runtime continua fixado por digest; descoberta não autoriza ferramentas novas.
+
+Aplicadas skills existentes: TDD (RED/GREEN nas correções), revisão independente
+somente leitura, verificação antes de concluir, segurança de prompts, LangGraph
+fundamentals, Supabase Postgres, Playwright, UI/UX Pro Max e React/Next.js.
+Inspeções e testes não equivalem a inferência Hermes homologada. Limites e
+resultados reais: [relatório V0.6.1](v061-stabilization.md).
+
+### Homologação final V0.6.1
+
+Find Skills consultado novamente na origem oficial NousResearch; nenhuma skill
+instalada. Aplicadas TDD, investigação sistemática, revisão independente,
+LangGraph, segurança, Playwright e PostgreSQL. Consultados a referência oficial
+Hermes de proteção de segredos e RFC 9110 sobre Retry-After. A própria imagem
+oficial executa a regressão de redator/JSON; não se desliga a proteção.
+O [relatório final](v061-final-homologation.md) distingue inferência real,
+testes de contrato, CI e publicação externa ainda não autorizada.
