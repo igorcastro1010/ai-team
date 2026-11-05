@@ -1,7 +1,8 @@
 # Issue de teste — proposta para aprovação
 
 Repositório único: `igorcastro1010/ai-team` (público). Preparada em banco local
-isolado de homologação, sem worker ativo. Não publicada nem aprovada.
+isolado de homologação. Publicação autorizada especificamente pelo proprietário
+nesta conversa, vinculada ao digest abaixo; execução única pelo worker existente.
 
 Título: **[Homologação V0.7.1] GitHub Issues supervisionado**
 
@@ -28,3 +29,15 @@ Validação local real: duas chamadas `IssueStore.create` retornaram o mesmo ID;
 Publicação deve usar esta ação/digest e a App própria pelo executor existente,
 seguida somente de GET/sync. Resultado incerto exige reconciliação, sem novo POST.
 Recriar a proposta após falha não autoriza duplicar uma Issue remota.
+
+## Evidência real
+
+Issue [#12](https://github.com/igorcastro1010/ai-team/issues/12) criada pela App
+própria e deixada **aberta**. GET confirmou título e corpo idênticos à proposta;
+`IssueStore.sync` persistiu `remote_state=open`. Segunda admissão da fila retornou
+vazia. Auditoria persistida: `issue.proposed`, `github.decided`,
+`github.succeeded`, `issue.synced`. Não houve edição/fechamento de Issues,
+novas permissões, branches, commits de artefatos, merge, deploy ou inferência.
+
+Banco/evidências privados em `artifacts/`, ignorados pelo Git. Testes de falhas e
+resultado incerto usam dublês; não se provocou falha real do GitHub para testar retry.
