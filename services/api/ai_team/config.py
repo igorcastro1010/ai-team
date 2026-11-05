@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     session_ttl_seconds: int = 43200
     hermes_url: str = ""
     hermes_key: SecretStr = SecretStr("")
+    memory_vault: str = ""
 
     @model_validator(mode="after")
     def validate_hermes(self):
