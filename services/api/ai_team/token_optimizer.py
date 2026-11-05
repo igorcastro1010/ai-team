@@ -6,8 +6,9 @@ import re
 from copy import deepcopy
 
 from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
+from .memory_safety import validate_text
 from .models import Event, Project
 from .optimizer_models import BudgetAccount, OptimizerAdmission, OptimizerRecord
 
@@ -205,6 +206,16 @@ class OptimizerStore:
             records = db.scalars(
                 select(OptimizerRecord).where(OptimizerRecord.project_id == project_id).limit(100)
             ).all()
+            cache_counts = dict(
+                db.execute(
+                    select(Event.kind, func.count())
+                    .where(
+                        Event.resource_id == project_id,
+                        Event.kind.in_(["optimizer.cache_hit", "optimizer.cache_miss"]),
+                    )
+                    .group_by(Event.kind)
+                ).all()
+            )
             return {
                 "budgets": [
                     {
@@ -221,6 +232,8 @@ class OptimizerStore:
                 "measured_input_tokens": sum(r.input_tokens or 0 for r in admissions),
                 "measured_output_tokens": sum(r.output_tokens or 0 for r in admissions),
                 "measured_savings": None,
+                "cache_hits": cache_counts.get("optimizer.cache_hit", 0),
+                "cache_misses": cache_counts.get("optimizer.cache_miss", 0),
                 "records": [{k: v for k, v in r.result.items() if k != "context"} for r in records],
             }
 
@@ -238,6 +251,12 @@ class OptimizerStore:
         permissions,
         budget,
     ):
+        try:
+            validate_text(json.dumps([context, memories], ensure_ascii=False), maximum=250000)
+        except (ValueError, TypeError):
+            raise HTTPException(
+                422, "Contexto inválido ou contém credenciais; não armazenado"
+            ) from None
         key = digest(
             [
                 project_id,
@@ -257,9 +276,26 @@ class OptimizerStore:
             self.project(db, project_id, True)
             record = db.get(OptimizerRecord, key)
             if record:
+                db.add(
+                    Event(
+                        kind="optimizer.cache_hit",
+                        resource_id=project_id,
+                        summary="Contexto versionado reutilizado",
+                        actor=agent,
+                    )
+                )
+                db.commit()
                 return {**record.result, "cache_hit": True}
             result = optimize_context(context, memories, budget)
             db.add(OptimizerRecord(key=key, project_id=project_id, result=result))
+            db.add(
+                Event(
+                    kind="optimizer.cache_miss",
+                    resource_id=project_id,
+                    summary="Contexto versionado selecionado",
+                    actor=agent,
+                )
+            )
             db.commit()
             return {**result, "cache_hit": False}
 
