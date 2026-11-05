@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select, update
 
 from .memory_safety import validate_text
+from .memory_store import normalized
 from .models import Event, Project
 from .optimizer_models import BudgetAccount, OptimizerAdmission, OptimizerRecord
 
@@ -28,16 +29,30 @@ def estimate(value):
 
 def optimize_context(context, memories, budget):
     result = deepcopy(context)
-    query = set(re.findall(r"\w+", str(context.get("request", "")).casefold()))
+    query = set(re.findall(r"\w+", normalized(str(context.get("request", "")))))
     before = estimate(context)
     optional = result.pop("optional_sections", [])
+    if not isinstance(optional, list) or any(
+        not isinstance(item, dict) or not isinstance(item.get("content"), str) for item in optional
+    ):
+        return {
+            "context": deepcopy(context),
+            "estimated_before": before,
+            "estimated_after": before,
+            "measured_savings": None,
+            "estimate_method": "utf8_bytes_upper_bound",
+            "mandatory_over_budget": before > budget,
+            "fallback_reason": "unsupported_optional_format",
+            "discarded_optional": 0,
+            "selected_memories": [],
+        }
     selected, seen = [], set()
     for item in optional:
         if not isinstance(item, dict) or not isinstance(item.get("content"), str):
             continue
         text = item["content"]
         key = digest(text.strip())
-        words = set(re.findall(r"\w+", text.casefold()))
+        words = set(re.findall(r"\w+", normalized(text)))
         if key in seen or not (query & words):
             continue
         seen.add(key)
@@ -54,7 +69,9 @@ def optimize_context(context, memories, budget):
         }
         if not isinstance(entry["content"], str):
             continue
-        words = set(re.findall(r"\w+", entry["content"].casefold()))
+        words = set(
+            re.findall(r"\w+", normalized(str(entry.get("title") or "") + " " + entry["content"]))
+        )
         key = digest(entry["content"].strip())
         if key in seen or not (query & words):
             continue
@@ -80,6 +97,8 @@ def optimize_context(context, memories, budget):
         "measured_savings": None,
         "estimate_method": "utf8_bytes_upper_bound",
         "mandatory_over_budget": estimate(result) > budget,
+        "discarded_optional": len(optional) - len(selected),
+        "selected_memories": [entry["id"] for entry in chosen],
     }
 
 
@@ -235,6 +254,25 @@ class OptimizerStore:
                 "cache_hits": cache_counts.get("optimizer.cache_hit", 0),
                 "cache_misses": cache_counts.get("optimizer.cache_miss", 0),
                 "records": [{k: v for k, v in r.result.items() if k != "context"} for r in records],
+                "usage_by_agent_task": [
+                    {
+                        "agent": agent,
+                        "task_id": task_id,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                    }
+                    for agent, task_id, input_tokens, output_tokens in db.execute(
+                        select(
+                            OptimizerAdmission.agent,
+                            OptimizerAdmission.task_id,
+                            func.coalesce(func.sum(OptimizerAdmission.input_tokens), 0),
+                            func.coalesce(func.sum(OptimizerAdmission.output_tokens), 0),
+                        )
+                        .where(OptimizerAdmission.project_id == project_id)
+                        .group_by(OptimizerAdmission.agent, OptimizerAdmission.task_id)
+                        .limit(200)
+                    ).all()
+                ],
             }
 
     def prepare(
