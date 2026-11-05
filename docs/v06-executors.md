@@ -85,6 +85,8 @@ original e troca somente os arquivos permitidos, preservando os demais.
 - Publicação grava `started` antes das escritas. Falha após possível mutação vira
   `uncertain`, inclusive na recuperação. Confira GitHub antes de criar outra tarefa;
   não há retry automático, force push, merge, deploy ou exclusão de branch.
+  Uma entrega já aprovada usa somente a GitHub App; não exige disponibilidade do
+  modelo e não consome outra inferência. Essa separação tem regressão automatizada.
 - Retry de inferência exige nova tarefa/consentimento; não há retomada automática de
   uma chamada interrompida. Artefatos e logs anteriores ficam disponíveis para revisão.
 
@@ -137,7 +139,7 @@ edição de repositórios Next.js e DESIGNER de TSX ficam para extensão do perf
 
 Verificação local final em 04/11/2026:
 
-- pytest completo: **310 passed, 23 skipped** (opt-ins de sandbox/PostgreSQL).
+- pytest completo: **311 passed, 23 skipped** (opt-ins de sandbox/PostgreSQL).
 - Sandbox Python com Docker real habilitado: **27 passed**, incluindo isolamento,
   timeout, cancelamento, watchdog e regressão do protocolo de resultado.
 - Playwright completo: **27 passed**, incluindo autorização de repositório mobile e
