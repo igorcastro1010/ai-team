@@ -475,3 +475,20 @@ def test_jobs_inventory_and_pause_evidence_survive_postgres_reconnect(postgres):
     assert [entry for entry in calls if entry[0] == "POST"] == [
         ("POST", "/api/jobs/abcdef123456/pause")
     ]
+
+
+def test_hermes_cooldown_survives_postgres_reconnect_and_blocks_http(postgres):
+    import httpx
+
+    from ai_team.hermes import HermesClient, HermesRateLimitError
+
+    database, _ = postgres
+    journal = HermesJournal(database)
+    journal.record_cooldown(120)
+    database.engine.dispose()
+    assert HermesJournal(database).cooldown_remaining() >= 115
+    settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
+    client = HermesClient(settings, database=database,
+                          transport=httpx.MockTransport(lambda _: pytest.fail("HTTP admission")))
+    with pytest.raises(HermesRateLimitError):
+        client.request("POST", "/v1/runs")
