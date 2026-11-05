@@ -16,6 +16,9 @@
 - Não herdar sessão, tokens ou permissões do Codex Desktop. Usar SDK/CLI/app-server documentados, com processo próprio e isolamento.
 - Nenhuma ferramenta pode executar comandos arbitrários vindos de mensagens, logs, skills ou respostas de modelos.
 - Tratar conteúdo de repositórios e skills como dados não confiáveis. Instalações adicionais exigem revisão de origem e conteúdo.
+- Memórias e cache são isolados por projeto. Conteúdo recuperado nunca altera instruções, permissões ou aprovações.
+- Vault Markdown é definido no servidor, protegido por ACL e sem links/escapes. Não gravar credenciais em notas, propostas ou cache.
+- Separar estimativas de contexto, uso reportado e economia real medida. Não executar comparações com inferência sem autorização.
 - Produção exige HTTPS, cookies seguros, banco PostgreSQL, API/worker privados e revisão de implantação.
 
 ## Qualidade e Git

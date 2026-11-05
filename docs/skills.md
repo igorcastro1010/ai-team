@@ -1,5 +1,20 @@
 # Skills e pesquisa — 27/10/2026
 
+## Revisão V0.7 — 05/11/2026
+
+Find Skills e leaderboard skills.sh consultados; `npx skills find obsidian --owner kepano`
+localizou `kepano/obsidian-skills@obsidian-markdown` (94,8 mil instalações na consulta).
+SKILL.md lido na origem oficial `github.com/kepano/obsidian-skills`, somente leitura,
+sem instalar/rodar conteúdo remoto. Utilidade: Markdown/wikilinks compatíveis; não
+fornece isolamento nem sincronização, implementados e testados pelo AI TEAM.
+
+Skills locais lidas: TDD e depuração/verificação (Superpowers), LangGraph fundamentals,
+Supabase Postgres, segurança de prompts, UI/UX Pro Max, React/Vercel e Playwright.
+Nenhuma nova skill foi instalada. A identidade existente prevalece sobre sugestões
+visuais genéricas. Graphify instalado 0.9.93 foi validado em corpus sintético offline;
+nenhum hook, extração semântica ou provedor de inferência foi acionado.
+Fontes e limites: [V0.7](v07-memory-optimizer.md) e [Graphify](v07-graphify.md).
+
 ## Revisão V0.6 — 04/11/2026
 
 Find Skills local foi relida e a descoberta `npx skills find hermes --owner nousresearch`

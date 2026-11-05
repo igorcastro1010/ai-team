@@ -80,3 +80,7 @@ Files: knowledge-panel.tsx, knowledge.css, navigation/dashboard additions, E2E.
 ## Progress
 
 - Base verified: V0.6.1 and PR #10 merged; clean checkout at start. Graphify installed; CLI supports query/export obsidian and graph.json. Find Skills located kepano/obsidian-skills@obsidian-markdown; source reviewed read-only, no installation.
+- Tasks 1–5 implemented in independent commits: memory/revisions/chunks, protected vault, optimizer/budgets, Graphify interchange, Issues queue and responsive /memoria panel.
+- Task 6: full Python 418 passed/28 skipped before final two restart/automatic retrieval tests (both green); Docker real 27 passed; E2E29 passed plus focused filter regressions; lint/typecheck/build green. Real PostgreSQL12 passed in CI; real own GitHub App read Issue1; real Graphify0.9.93 offline query/export passed.
+- Review rulings: preserve all mandatory previous context; optimize explicitly optional sections and retrieved memory only. Byte reduction is not measured provider savings. Unknown provider usage retains reservations. Exported-note mirror conflicts require review. Remote Issue publication and real model comparison remain outside authorization; final independent review pending.
+- All commits are on the V0.7 branch, PR11 draft until final checks. Main untouched, zero real inference admissions, no merge/deploy or permission changes.
