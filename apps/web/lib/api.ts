@@ -49,6 +49,7 @@ export type HermesAttempt = {
 };
 export type HermesPage = { items: HermesAttempt[]; next_cursor: string | null };
 export type OfficeAgent = {
+  activity?: string;
   id: string; name: string; role: string; enabled: boolean;
   status: "available" | "working" | "awaiting_approval" | "completed" | "error";
   animate: boolean; run_id: string | null; executor: string | null;

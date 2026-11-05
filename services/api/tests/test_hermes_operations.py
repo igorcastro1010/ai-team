@@ -57,7 +57,8 @@ def test_refresh_uses_only_persisted_id_and_sanitizes_remote_response(client, ap
     calls = []
 
     class Reader:
-        def __init__(self, settings):
+        def __init__(self, settings, *, database):
+            assert database is client.app.state.database
             pass
 
         def request(self, method, path, **kwargs):
@@ -90,7 +91,8 @@ def test_stop_requires_local_cancellation_and_observes_native_terminal_state(
     calls = []
 
     class Controller:
-        def __init__(self, settings):
+        def __init__(self, settings, *, database):
+            assert database is client.app.state.database
             pass
 
         def request(self, method, path, **kwargs):
@@ -116,7 +118,8 @@ def test_failed_stop_is_uncertain_and_error_detail_is_private(client, app, monke
     client.post(f"/runs/{run.id}/cancel")
 
     class Broken:
-        def __init__(self, settings):
+        def __init__(self, settings, *, database):
+            assert database is client.app.state.database
             pass
 
         def request(self, *args, **kwargs):

@@ -208,7 +208,7 @@ test("CEO registra pedido e permite revisar, aprovar e cancelar com confirmaçã
   await page.goto("/ceo");
   await page.getByLabel("Projeto da solicitação").selectOption({ label: "Projeto CEO E2E" });
   await page.getByLabel("O que você quer construir?").fill("Planejar interface de exemplo para revisão E2E.");
-  await page.getByRole("checkbox").check();
+  await page.getByRole("checkbox", { name: /Autorizo enviar esta solicitação/ }).check();
   await page.getByRole("button", { name: "Enviar ao CEO" }).click();
   const runCard = page.getByTestId("run-card").filter({ hasText: "Planejar interface de exemplo" });
   await expect(runCard.getByText("Na fila", { exact: true })).toBeVisible();

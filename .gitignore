@@ -24,3 +24,4 @@ dist/
 .coverage
 *.tsbuildinfo
 apps/web/next-env.d.ts
+.next-e2e/

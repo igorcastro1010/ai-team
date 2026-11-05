@@ -107,7 +107,7 @@ def test_refuses_inference_when_toolset_enabled():
         HermesProvider(client).generate("CEO", "plan", {}, lambda: None)
 
 
-def run_client(status="completed", invalid=False):
+def run_client(status="completed", invalid=False, output=None):
     calls = []
 
     def handler(request):
@@ -128,7 +128,7 @@ def run_client(status="completed", invalid=False):
             200,
             json={
                 "status": status,
-                "output": "invalid"
+                "output": output if output is not None else "invalid"
                 if invalid
                 else json.dumps({"summary": "Plano real", "deliverable": "Resultado", "tasks": []}),
                 "usage": {"input_tokens": 12, "output_tokens": 8},
@@ -152,6 +152,16 @@ def test_non_success_status_is_never_a_completed_draft(status):
     client, _ = run_client(status)
     with pytest.raises(RuntimeError):
         HermesProvider(client).generate("CEO", "plan", {}, lambda: None)
+
+
+def test_rate_limit_is_typed_without_exposing_provider_output():
+    from ai_team.hermes import HermesRateLimitError
+
+    client, calls = run_client("failed", output="HTTP 429 private-provider-detail")
+    with pytest.raises(HermesRateLimitError) as error:
+        HermesProvider(client).generate("CEO", "plan", {}, lambda: None)
+    assert "private-provider-detail" not in str(error.value)
+    assert calls.count(("POST", "/v1/runs")) == 1
 
 
 def test_invalid_output_not_accepted():

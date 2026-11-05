@@ -96,10 +96,13 @@ def main():
                         "consent": True,
                         "prompt": (
                             "Crie uma pequena página Next.js em português sobre AI TEAM. "
-                            "Use um h1 com texto exato AI TEAM e um botão Começar. "
+                            "Use h1 AI TEAM e formulário React interativo: input com label Nome, "
+                            "botão Salvar e mensagem Olá, Igor "
+                            "após preencher Igor e clicar Salvar. "
                             "DEV: app/page.tsx mínimo. "
                             "DESIGNER: CSS responsivo sem fontes externas. "
-                            "QA: checks do título AI TEAM e botão Começar no HTML inicial."
+                            "QA: checks do título AI TEAM no HTML inicial e browser_checks "
+                            "com fill Nome=Igor, click button Salvar, expect_text Olá, Igor."
                             if args.nextjs_code
                             else "Crie main.py com função add(a,b) que soma dois números. "
                             "QA: testes unittest de positivos, negativos e zero em test_main.py. "
@@ -147,6 +150,12 @@ def main():
                 assert current["executor"] == "hermes"
                 if scope != "draft_only":
                     assert current["steps"][3]["test_result"]["status"] == "passed"
+                if args.nextjs_code:
+                    lines = current["steps"][3]["test_result"]["output"].splitlines()
+                    summary = [
+                        json.loads(line) for line in lines if line.startswith('{"build":')
+                    ][-1]
+                    assert summary["browser_checks"] > 0 and summary["browser_failures"] == 0
                 report = {
                     "status": "passed",
                     "executor": "hermes",

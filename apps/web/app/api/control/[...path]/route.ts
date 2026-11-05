@@ -5,7 +5,8 @@ const allowed = /^(auth\/(login|logout|me)|workspace|reports|projects|tasks(?:\/
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const targetPath = path.join("/");
-  if (!allowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
+  const repositoryAllowed = /^repository-runs(?:\/[a-f0-9-]{36}(?:\/(decision|cancel|artifacts|publish))?)?$/;
+  if (!allowed.test(targetPath) && !repositoryAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
   const hasBody = !["GET", "HEAD"].includes(request.method);
   if (hasBody && request.headers.get("origin") !== request.nextUrl.origin) {
     return NextResponse.json({ detail: "Origem não autorizada" }, { status: 403 });
@@ -36,7 +37,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     if (binary) {
       headers.set("content-type", "application/zip");
       const disposition = upstream.headers.get("content-disposition");
-      headers.set("content-disposition", disposition === 'attachment; filename="ai-team-nextjs.zip"' ? disposition : 'attachment; filename="ai-team-python.zip"');
+      headers.set("content-disposition", [
+        'attachment; filename="ai-team-nextjs.zip"',
+        'attachment; filename="ai-team-repository.zip"',
+      ].includes(disposition || "") ? disposition! : 'attachment; filename="ai-team-python.zip"');
     }
     for (const cookie of upstream.headers.getSetCookie()) headers.append("set-cookie", cookie);
     const retry = upstream.headers.get("retry-after");
