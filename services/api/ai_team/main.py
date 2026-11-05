@@ -17,6 +17,7 @@ from .hermes_routes import observation_snapshot as hermes_snapshot
 from .hermes_routes import router as hermes_router
 from .integrations import integration_statuses
 from .issue_routes import router as issues_router
+from .knowledge_routes import router as knowledge_router
 from .memory_routes import router as memory_router
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
@@ -77,6 +78,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(issues_router)
     app.include_router(optimizer_router)
     app.include_router(memory_router)
+    app.include_router(knowledge_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
