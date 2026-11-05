@@ -1,5 +1,12 @@
 # AI TEAM
 
+**V0.7.1 — homologação:** revisão automatizada independente, correções de
+concorrência e reexportação Obsidian, painel estável e benchmark A/B preparado.
+Uma única [Issue real #12](https://github.com/igorcastro1010/ai-team/issues/12)
+foi publicada após aprovação específica e sincronizada pela App própria.
+Inferência A/B e economia real de tokens continuam pendentes de autorização.
+Veja [resultados e limites](docs/v071-homologation.md). Sem merge ou deploy.
+
 **V0.7 — memória e contexto:** painel `/memoria`, notas versionadas e isoladas por
 projeto, vault Markdown configurável, relações/Graphify, Issues supervisionadas e
 Token Optimizer com cache e orçamento persistentes. Veja [uso, segurança e evidências](docs/v07-memory-optimizer.md).

@@ -25,3 +25,24 @@ Segredos e injection são tratados por defesa em camadas; regex não certifica
 segurança de qualquer texto. ACL do vault continua obrigatória. Chamadas já
 admitidas podem superar estimativas; reservas incertas não expiram. Metadados de
 branch/SHA/PR não comprovam existência remota. Nenhuma revisão humana foi obtida.
+
+## Resolução dos achados
+
+- Exportações concorrentes: lock exclusivo de filesystem entre processos (`5c3cbcb`),
+  regressão de threads e processo Python separado. Lock remanescente após crash
+  bloqueia novas exportações; não é removido automaticamente.
+- Reexportação: API de revisão (`6055273`) e painel com arquivo atual, conteúdo
+  proposto, digest, versão e confirmação/cancelamento (`421a987`).
+- Snapshot antigo e busca vazia: geração monotônica e restauração da lista,
+  com reprodução RED/GREEN no Playwright (`ac5dfb1`).
+- Revisão adicional independente confirmou edição normal externa durante preparo
+  do temporário: rechecagem de caminho/digest/ausência antes de substituir
+  (`937e2c2`), com duas regressões (edição e criação externas).
+- Benchmark no Windows: console não UTF-8 corrompia JSON ou rejeitava texto válido;
+  saída ASCII JSON preserva caracteres com escapes (`b51d9c3`).
+
+O lock coordena escritores do AI TEAM; Obsidian não participa dele. A rechecagem
+final detecta mudanças durante o preparo, mas não é CAS atômico perante editor
+externo entre a última leitura e `os.replace`. Conclua/pare edições externas antes
+de confirmar uma substituição. Esse limite não deve ser confundido com isolamento
+entre processos do AI TEAM ou com a ressalva de administrador hostil.

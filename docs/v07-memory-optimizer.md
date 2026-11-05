@@ -3,6 +3,10 @@
 Base: V0.6.1 integrada na main (`8686559`). Desenvolvimento exclusivo em
 `codex/ai-team/v07-memoria-optimizer`; PR #11. Nenhum merge ou deploy da V0.7.
 
+Homologação posterior: [V0.7.1](v071-homologation.md), incluindo Issue real
+autorizada, revisão independente automatizada e correções. Os resultados abaixo
+registram a rodada original V0.7; consulte o relatório novo para as verificações atuais.
+
 ## Como usar
 
 1. Atualize o checkout e execute `tools/setup.ps1` / `tools/start.ps1` conforme o README.
