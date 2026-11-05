@@ -5,6 +5,7 @@ import os
 import re
 import stat
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from .memory_safety import validate_text
@@ -12,6 +13,23 @@ from .memory_safety import validate_text
 
 class VaultError(ValueError):
     pass
+
+
+@contextmanager
+def export_lock(target):
+    # O_EXCL is shared by processes, not just threads. Never remove someone else's lock.
+    lock = target.with_name("." + target.name + ".lock")
+    try:
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except OSError:
+        raise VaultError(
+            "Exportação bloqueada; outra escrita ou lock pendente exige revisão"
+        ) from None
+    try:
+        yield
+    finally:
+        os.close(descriptor)
+        lock.unlink()
 
 
 def linked(path):
@@ -77,6 +95,12 @@ class Vault:
             raise VaultError(str(error)) from None
         target = self._path(project_id, relative_path)
         target.parent.mkdir(parents=True, exist_ok=True)
+        self._path(project_id, relative_path)
+        with export_lock(target):
+            return self._write_locked(project_id, relative_path, content, expected_digest)
+
+    def _write_locked(self, project_id, relative_path, content, expected_digest):
+        target = self._path(project_id, relative_path)
         self._path(project_id, relative_path)
         if target.exists():
             current = self.read(project_id, relative_path)
