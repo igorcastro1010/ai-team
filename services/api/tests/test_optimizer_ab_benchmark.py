@@ -1,3 +1,5 @@
+import json
+import os
 import subprocess
 import sys
 from copy import deepcopy
@@ -142,3 +144,17 @@ def test_offline_cli_has_no_live_option():
                              capture_output=True, text=True, timeout=15, check=False)
     assert command.returncode == 2
     assert "unrecognized arguments: --live" in command.stderr
+
+
+def test_offline_cli_emits_portable_json_with_non_utf8_windows_stdout(tmp_path):
+    prepared = pair()
+    data = {**prepared["initial"], **prepared["identity"], "instructions": "Preservar decisão"}
+    source = tmp_path / "input.json"
+    source.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    script = Path(__file__).resolve().parents[3] / "tools" / "prepare_optimizer_ab.py"
+    result = subprocess.run([sys.executable, str(script), str(source)], capture_output=True,
+                            env={**os.environ, "PYTHONIOENCODING": "ascii"}, timeout=15,
+                            check=False)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout.decode("utf-8"))
+    assert output["pair"]["arms"]["baseline"]["input"]["instructions"] == "Preservar decisão"

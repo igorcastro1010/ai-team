@@ -28,7 +28,8 @@ def main():
             output["analysis"] = analyze_receipts(
                 prepared, read_json(args.receipts)
             )
-        print(json.dumps(output, ensure_ascii=False, indent=2, allow_nan=False))
+        # ASCII JSON escapes preserve Portuguese across Windows console encodings.
+        print(json.dumps(output, ensure_ascii=True, indent=2, allow_nan=False))
     except (OSError, ValueError, TypeError):
         parser.exit(2, "Entrada inválida; não inclua credenciais. Nenhuma chamada executada.\n")
 
