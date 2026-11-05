@@ -166,6 +166,17 @@ def test_nearly_exhausted_budget_does_not_start_another_paid_call(setup):
     assert store.view(run.id)["run"]["calls"] == 0
 
 
+def test_expired_lease_cannot_reserve_another_inference(setup):
+    store, queue, run = setup
+    claimed = queue.claim()
+    with store.database.session() as db:
+        db.get(Run, run.id).lease_expires_at = 1
+        db.commit()
+    with pytest.raises(RuntimeError):
+        store.reserve(claimed)
+    assert store.view(run.id)["run"]["calls"] == 0
+
+
 def test_legacy_decision_cannot_bypass_repository_digest(setup):
     store, queue, run = setup
     for _ in range(5):

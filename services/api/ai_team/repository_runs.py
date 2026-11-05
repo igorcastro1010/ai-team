@@ -181,6 +181,7 @@ class RepositoryStore:
                     Run.stage == run.stage,
                     Run.lease_token == run.lease_token,
                     Run.calls < MAX_CALLS,
+                    Run.lease_expires_at > int(time.time()),
                     Run.input_tokens + Run.output_tokens <= budget - 16000,
                 )
                 .values(calls=Run.calls + 1)
@@ -385,7 +386,6 @@ def generate(provider, run, state, tick):
     return Draft.model_validate(
         builder.compile().invoke({"context": context}, {"recursion_limit": 4})["draft"]
     )
-
 
 def execute_repository(store, run, provider, tick, sandbox=None, snapshot_reader=None):
     state = dict(store.view(run.id)["state"])
