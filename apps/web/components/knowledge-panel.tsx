@@ -7,6 +7,7 @@ import "@/styles/knowledge.css";
 
 type Note = { id: string; title: string; content: string; source: string; version: number; digest: string; quarantined: boolean; updated_at: number };
 type Revision = { version: number; content: string; created_at: number };
+type ExportReview = { id: string; filename: string; exists: boolean; content: string; digest: string | null; note_content: string; note_version: number };
 type Issue = { id: string; request_id: string; agent: string; priority: string; status: string; remote_state: string; action: { id: string; status: string; digest: string; payload: { title: string; body: string }; result: { url?: string } } };
 type Preview = { estimated_before: number; estimated_after: number; cache_hit: boolean; mandatory_over_budget: boolean; context: Record<string, unknown>; discarded_optional?: number; selected_memories?: string[] };
 type Budget = { scope: string; scope_id: string; limit: number; used: number; reserved: number; over_budget: boolean };
@@ -51,6 +52,9 @@ function ProjectKnowledge({ project }: { project: string }) {
   const [scope, setScope] = useState("project");
   const [scopeId, setScopeId] = useState("");
   const generation = useRef(0);
+  const [exportReview, setExportReview] = useState<ExportReview | null>(null);
+  const reviewRegion = useRef<HTMLElement>(null);
+  useEffect(() => { if (exportReview) reviewRegion.current?.focus(); }, [exportReview]);
 
   async function refresh(signal?: AbortSignal) {
     const current = ++generation.current;
@@ -84,6 +88,14 @@ function ProjectKnowledge({ project }: { project: string }) {
   return <>
     <div className="knowledge-tabs" aria-label="Seções do conhecimento">{["Memórias", "Issues", "Otimizador", "Relações"].map(item => <button type="button" key={item} className={tab === item ? "button primary" : "button"} aria-pressed={tab === item} onClick={() => setTab(item)}>{item}</button>)}<button className="button" disabled={busy} onClick={() => void perform(async () => {}, "Conhecimento atualizado")}>Atualizar</button></div>
     <p role="status" className="knowledge-status">{status}</p>{error && <p role="alert" className="knowledge-error">{error}</p>}
+    {exportReview && <section ref={reviewRegion} tabIndex={-1} className="panel knowledge-note" role="region" aria-label="Revisão da exportação Markdown">
+      <h2>Revise antes de exportar</h2><p>{exportReview.filename} · Versão {exportReview.note_version}</p>
+      <h3>Arquivo atual no vault</h3><pre className="knowledge-prose">{exportReview.exists ? exportReview.content : "Arquivo novo"}</pre>
+      <h3>Conteúdo que será gravado</h3><pre className="knowledge-prose">{exportReview.note_content}</pre>
+      <small>Digest revisado: {exportReview.digest || "arquivo ainda não existe"}</small>
+      <p>Conclua edições no Obsidian antes de confirmar. Se o arquivo mudar, revise novamente.</p>
+      <div className="knowledge-actions"><button className="button primary" disabled={busy} onClick={() => void perform(async () => { await api(`/memory/${project}/${exportReview.id}/export`, { method: "POST", body: JSON.stringify({ expected_digest: exportReview.digest, expected_version: exportReview.note_version }) }); setExportReview(null); }, "Markdown exportado")}>Confirmar exportação revisada</button><button className="button" disabled={busy} onClick={() => setExportReview(null)}>Cancelar exportação</button></div>
+    </section>}
     {tab === "Memórias" && <div className="knowledge-columns">
       <form className="panel knowledge-form" onSubmit={event => { event.preventDefault(); void perform(async () => { await api(`/memory/${project}${editing ? `/${editing.id}` : ""}`, { method: editing ? "PUT" : "POST", body: JSON.stringify({ title, content, ...(editing ? { expected_version: editing.version } : {}) }) }); setTitle(""); setContent(""); setEditing(null); }, "Memória salva"); }}>
         <h2>{editing ? "Revisar conhecimento" : "Uma decisão para o time lembrar"}</h2><p>Registre fatos, decisões e referências. Não inclua senhas ou tokens.</p>
@@ -96,7 +108,7 @@ function ProjectKnowledge({ project }: { project: string }) {
       </form>
       <div><form className="knowledge-search" onSubmit={event => { event.preventDefault(); void perform(async () => { setNotes((await api<{ items: Note[] }>(query.trim() ? `/memory/${project}/search?q=${encodeURIComponent(query)}` : `/memory/${project}`)).items); }, "Busca concluída", false); }}><label>Buscar memórias<input value={query} onChange={event => setQuery(event.target.value)} maxLength={1000} /></label><button className="button" disabled={busy}>Buscar</button></form>
         {!notes.length && <p>Nenhuma memória neste projeto.</p>}
-        {notes.map(note => <article className="panel knowledge-note" key={note.id}><div className="knowledge-note-heading"><h2>{note.title}</h2><span className="tag">Versão {note.version}</span></div><p className="knowledge-prose">{note.content}</p><small>{note.source} · {dateTime(note.updated_at)}{note.quarantined && " · Quarentena: não enviada aos agentes"}</small><div className="knowledge-actions"><button className="button" disabled={busy} onClick={() => void perform(async () => { const current = await api<Note>(`/memory/${project}/${note.id}`); setEditing(current); setTitle(current.title); setContent(current.content); }, "Memória carregada para edição", false)}>Editar memória</button><button className="button" disabled={busy} onClick={() => void perform(async () => { setHistory((await api<{ items: Revision[] }>(`/memory/${project}/${note.id}/history`)).items); }, "Histórico carregado")}>Ver histórico</button>{vault && <button className="button" disabled={busy || note.quarantined} onClick={() => void perform(async () => { await api(`/memory/${project}/${note.id}/export`, { method: "POST", body: "{}" }); }, "Markdown exportado")}>Exportar Markdown</button>}</div></article>)}
+        {notes.map(note => <article className="panel knowledge-note" key={note.id}><div className="knowledge-note-heading"><h2>{note.title}</h2><span className="tag">Versão {note.version}</span></div><p className="knowledge-prose">{note.content}</p><small>{note.source} · {dateTime(note.updated_at)}{note.quarantined && " · Quarentena: não enviada aos agentes"}</small><div className="knowledge-actions"><button className="button" disabled={busy} onClick={() => void perform(async () => { const current = await api<Note>(`/memory/${project}/${note.id}`); setEditing(current); setTitle(current.title); setContent(current.content); }, "Memória carregada para edição", false)}>Editar memória</button><button className="button" disabled={busy} onClick={() => void perform(async () => { setHistory((await api<{ items: Revision[] }>(`/memory/${project}/${note.id}/history`)).items); }, "Histórico carregado")}>Ver histórico</button>{vault && <button className="button" disabled={busy || note.quarantined} onClick={() => void perform(async () => { const review = await api<Omit<ExportReview, "id">>(`/memory/${project}/${note.id}/export`); setExportReview({ ...review, id: note.id }); }, "Exportação pronta para revisão", false)}>Exportar Markdown</button>}</div></article>)}
         {!!history.length && <section className="panel" aria-label="Histórico da memória"><h2>Histórico da memória</h2>{history.map(item => <details key={item.version}><summary>Versão {item.version} · {dateTime(item.created_at)}</summary><p className="knowledge-prose">{item.content}</p></details>)}</section>}
       </div>
     </div>}
