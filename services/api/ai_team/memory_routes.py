@@ -1,5 +1,6 @@
 """Owner-only knowledge management. Vault root is server configuration, never request data."""
 
+import hashlib
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -25,6 +26,7 @@ class NoteInput(BaseModel):
 class ExportInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_digest: str | None = Field(default=None, pattern="^[a-f0-9]{64}$")
+    expected_version: int | None = Field(default=None, ge=1)
 
 
 def vault_for(request):
@@ -137,6 +139,31 @@ def sync(project_id: str, request: Request, owner: Owner):
         raise HTTPException(409, str(error)) from None
 
 
+@router.get("/{note_id}/export")
+def review_export(project_id: str, note_id: str, request: Request, owner: Owner):
+    store = MemoryStore(request.app.state.database)
+    store.history(project_id, note_id)
+    with store.database.session() as db:
+        note = db.get(MemoryEntry, note_id)
+        if note.archived or note.quarantined:
+            raise HTTPException(409, "Memória arquivada ou em quarentena")
+        try:
+            vault = vault_for(request)
+            filename = note_id + ".md"
+            exists = filename in vault.files(project_id)
+            content = vault.read(project_id, filename) if exists else ""
+        except VaultError as error:
+            raise HTTPException(409, str(error)) from None
+        return {
+            "filename": filename,
+            "exists": exists,
+            "content": content,
+            "digest": hashlib.sha256(content.encode()).hexdigest() if exists else None,
+            "note_content": note.content,
+            "note_version": note.version,
+        }
+
+
 @router.post("/{note_id}/export")
 def export(project_id: str, note_id: str, data: ExportInput, request: Request, owner: Owner):
     store = MemoryStore(request.app.state.database)
@@ -145,6 +172,8 @@ def export(project_id: str, note_id: str, data: ExportInput, request: Request, o
         note = db.get(MemoryEntry, note_id)
         if note.archived or note.quarantined:
             raise HTTPException(409, "Memória arquivada ou em quarentena")
+        if data.expected_version is not None and note.version != data.expected_version:
+            raise HTTPException(409, "Memória mudou; revise a exportação novamente")
         try:
             digest = vault_for(request).write(
                 project_id, note_id + ".md", note.content, expected_digest=data.expected_digest
