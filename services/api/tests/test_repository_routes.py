@@ -59,11 +59,15 @@ def test_repository_history_limits_newest_runs_in_stable_order(environment):
         db.add(project)
         db.flush()
         for index in range(101):
-            run = Run(project_id=project.id, prompt=f"Request {index}", mode="manual", scope="repository_code", created_at=index)
+            run = Run(
+                project_id=project.id, prompt=f"Request {index}", mode="manual",
+                scope="repository_code", created_at=index,
+            )
             db.add(run)
             db.flush()
             db.add(RepositoryJob(run_id=run.id, state={}))
         db.commit()
     history = client.get("/repository-runs").json()
     assert len(history) == 100
-    assert [item["run"]["prompt"] for item in history] == [f"Request {i}" for i in range(100, 0, -1)]
+    expected = [f"Request {i}" for i in range(100, 0, -1)]
+    assert [item["run"]["prompt"] for item in history] == expected
