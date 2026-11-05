@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  distDir: process.env.AI_TEAM_E2E === "1" ? ".next-e2e" : ".next",
   poweredByHeader: false,
   async headers() {
     return [{ source: "/(.*)", headers: [

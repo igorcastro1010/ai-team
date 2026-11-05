@@ -50,7 +50,8 @@ services:
     pids_limit: 256
     mem_limit: 2g
     healthcheck:
-      test: [CMD, python, /opt/ai-team/healthcheck.py]
+      # Runtime imports can write auth.lock; use the same UID as the gateway.
+      test: [CMD, /command/s6-setuidgid, hermes, python, /opt/ai-team/healthcheck.py]
       interval: 30s
       timeout: 5s
       start_period: 90s

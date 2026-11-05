@@ -20,6 +20,10 @@ def office_snapshot(runs, *, worker_online):
         history = []
         candidates = []
         for run in runs:
+            repository = getattr(run, "scope", "") == "repository_code"
+            stages = (
+                ["CEO", "PESQUISADOR", "DEV", "DESIGNER", "QA", "CEO"] if repository else STAGES
+            )
             for step in run.steps:
                 if step["agent"] == agent_id:
                     history.append(
@@ -30,9 +34,19 @@ def office_snapshot(runs, *, worker_online):
                             "created_at": step.get("created_at", run.created_at),
                         }
                     )
-            if run.stage >= len(STAGES):
+            if run.stage >= len(stages) and not (repository and run.stage == 6):
                 continue
-            owner = STAGES[run.stage]
+            owner = stages[min(run.stage, len(stages) - 1)]
+            if repository and run.stage == 5 and run.steps and not run.steps[-1].get("test_result"):
+                owner = "QA"
+            if (
+                getattr(run, "scope", "draft_only") in {"python_code", "nextjs_code"}
+                and run.stage == 4
+                and len(run.steps) == 4
+                and run.steps[3].get("execution_started")
+                and not run.steps[3].get("test_result")
+            ):
+                owner = "QA"
             if run.status == "awaiting_approval" and run.steps:
                 owner = run.steps[-1]["agent"]
             if owner == agent_id:
@@ -63,7 +77,22 @@ def office_snapshot(runs, *, worker_online):
                 "id": agent_id,
                 "name": definition["name"],
                 "role": definition["role"],
-                "enabled": definition in AGENTS,
+                "enabled": definition in AGENTS
+                or (
+                    agent_id == "PESQUISADOR"
+                    and any(getattr(r, "scope", "") == "repository_code" for r in runs)
+                ),
+                "activity": (
+                    {
+                        "CEO": "Planejando" if selected and selected.stage == 0 else "Revisando",
+                        "DEV": "Programando",
+                        "DESIGNER": "Documentando",
+                        "QA": "Testando" if selected and selected.stage == 5 else "Revisando",
+                        "PESQUISADOR": "Pesquisando",
+                    }.get(agent_id, "Disponível")
+                    if selected and getattr(selected, "scope", "") == "repository_code"
+                    else "Trabalhando"
+                ),
                 "status": state,
                 "animate": bool(
                     state == "working" and worker_online and selected.lease_expires_at > now

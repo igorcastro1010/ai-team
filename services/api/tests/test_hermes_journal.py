@@ -41,6 +41,75 @@ def test_cancelled_or_wrong_lease_cannot_admit(journal):
         store.begin(run, "ai-team-unique")
 
 
+def test_rate_limit_cooldown_survives_restart_without_extending_on_read(journal, monkeypatch):
+    store, _ = journal
+    monkeypatch.setattr("ai_team.hermes_journal.time.time", lambda: 1000)
+    assert store.cooldown_remaining() == 0
+    store.record_cooldown(120)
+    assert store.cooldown_remaining() == 120
+    store.database.engine.dispose()
+    monkeypatch.setattr("ai_team.hermes_journal.time.time", lambda: 1060)
+    reopened = HermesJournal(store.database)
+    assert reopened.cooldown_remaining() == 60
+    monkeypatch.setattr("ai_team.hermes_journal.time.time", lambda: 1121)
+    assert reopened.cooldown_remaining() == 0
+    reopened.record_cooldown(1)  # Repeated 429 uses exponential fallback.
+    assert reopened.cooldown_remaining() == 120
+
+
+def test_durable_cooldown_blocks_before_any_remote_admission(journal):
+    import httpx
+
+    from ai_team.hermes import HermesClient, HermesProvider, HermesRateLimitError
+
+    store, run = journal
+    store.record_cooldown(120)
+    settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
+    client = HermesClient(settings, transport=httpx.MockTransport(lambda _: pytest.fail("HTTP")))
+    provider = HermesProvider(client).for_run(store.database, run)
+    with pytest.raises(HermesRateLimitError):
+        provider.ready()
+
+
+def test_independent_clients_share_http_and_cleanup_cooldowns(journal):
+    import httpx
+
+    from ai_team.hermes import HermesClient, HermesRateLimitError
+
+    store, _ = journal
+    settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
+
+    def handler(request):
+        delay = "3600" if request.url.path.endswith("/stop") else "120"
+        return httpx.Response(429, headers={"Retry-After": delay})
+
+    first = HermesClient(settings, database=store.database, transport=httpx.MockTransport(handler))
+    with pytest.raises(HermesRateLimitError):
+        first.request("GET", "/v1/runs/run_test")
+    with pytest.raises(HermesRateLimitError):
+        first.request("POST", "/v1/runs/run_test/stop")
+    assert store.cooldown_remaining() >= 3599
+    second = HermesClient(settings, database=store.database,
+                          transport=httpx.MockTransport(lambda _: pytest.fail("admission")))
+    with pytest.raises(HermesRateLimitError):
+        second.request("POST", "/v1/runs")
+
+
+@pytest.mark.parametrize("scope", ["python_code", "nextjs_code", "host_shell"])
+def test_admission_scope_allowlist_includes_generated_python_only(journal, scope):
+    from ai_team.models import Run
+
+    store, run = journal
+    with store.database.session() as db:
+        db.get(Run, run.id).scope = scope
+        db.commit()
+    if scope in {"python_code", "nextjs_code"}:
+        assert store.begin(run, "ai-team-code").bridge_status == "admitting"
+    else:
+        with pytest.raises(RuntimeError):
+            store.begin(run, "ai-team-code")
+
+
 def test_remote_reference_usage_and_terminal_status_do_not_regress(journal):
     store, run = journal
     attempt = store.begin(run, "ai-team-unique")

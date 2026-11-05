@@ -16,6 +16,17 @@ def test_runtime_config_disables_external_login_adoption():
     assert config["auth"]["adopt_external_logins"] is False
 
 
+def test_container_healthcheck_runs_as_gateway_user():
+    import yaml
+
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+    command = compose["services"]["hermes"]["healthcheck"]["test"]
+    assert command == [
+        "CMD", "/command/s6-setuidgid", "hermes",
+        "python", "/opt/ai-team/healthcheck.py",
+    ]
+
+
 def test_effective_policy_includes_mcp_and_non_configurable_toolsets():
     config = {"platform_toolsets": {"api_server": [], "cron": []}, "mcp_servers": {}}
     assert policy.validate_policy(config, set(), set())

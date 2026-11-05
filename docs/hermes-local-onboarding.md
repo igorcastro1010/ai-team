@@ -30,7 +30,23 @@ e [Microsoft WSL](https://learn.microsoft.com/windows/wsl/install).
   e `auth.adopt_external_logins: false`.
 - `.data/hermes-local/compose.local.yaml`: substitui somente o mount da
   configuração Hermes por essa cópia gravável. O assistente oficial pode
-  salvar o modelo escolhido; nenhuma porta Hermes é publicada.
+  salvar o modelo escolhido. Para conectar o worker Windows, publicar somente
+  `127.0.0.1:8642:8642`, com a chave privada exigida pelo gateway. O Compose base
+  continua sem porta Hermes publicada. Nunca usar `8642:8642` sem endereço.
+
+Override privado para o worker Windows (caminhos relativos ao Compose da raiz):
+
+```yaml
+services:
+  hermes:
+    volumes:
+      - ./.data/hermes-local/config.yaml:/opt/data/config.yaml
+    ports:
+      - "127.0.0.1:8642:8642"
+```
+
+Validar com `docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml config --quiet`.
+Não imprimir a configuração resolvida: ela contém a chave do gateway.
 
 Esses arquivos não constituem login válido ou homologação de inferência.
 Não sobrescrever arquivos privados existentes em uma nova preparação.
@@ -56,8 +72,11 @@ com autorização explícita, por fontes oficiais e sem reiniciar. O Windows reg
 reinício pendente e hipervisor inativo. O primeiro instalador Docker recusou a
 ausência de VirtualMachinePlatform; após o instalador WSL concluir, a instalação
 Docker por usuário terminou com êxito. O runtime Hermes continua sem homologação
-local até reiniciar, iniciar a engine e concluir o login próprio. Nenhuma chave
+local naquele momento, até reiniciar, iniciar a engine e concluir o login próprio. Nenhuma chave
 ou sessão externa foi importada.
+
+Após o reinício e o login próprio, o teste textual real passou em cinco etapas.
+Ver as evidências e os limites atuais em [homologação local](hermes-validation.md#homologação-local-após-login-próprio--30102026).
 
 Fontes: [instalação WSL](https://learn.microsoft.com/windows/wsl/basic-commands)
 e [instalação Docker por usuário](https://docs.docker.com/desktop/setup/install/windows-install/).
@@ -68,7 +87,7 @@ Na raiz do projeto, conferir primeiro `docker version` e `docker compose version
 Iniciar somente o Hermes, mantendo os volumes:
 
 ```powershell
-docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml up -d hermes
+docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml up -d --no-deps hermes
 docker compose -f compose.yaml -f .data/hermes-local/compose.local.yaml exec --user hermes hermes hermes model
 ```
 
@@ -79,6 +98,21 @@ credenciais ou tokens em documentos, mensagens, capturas ou logs compartilhados.
 Revisar a configuração sem imprimir segredos; confirmar que ferramentas e
 adoção externa continuam desabilitadas. Depois iniciar API/worker/monitor e
 executar o smoke opt-in documentado em [configuração](hermes-setup.md).
+
+### Falha ao salvar login: `auth.lock`
+
+O gateway e os comandos de autenticação usam o usuário `hermes` (UID 10000
+na imagem fixada). O health check também deve executar como esse usuário,
+via `/command/s6-setuidgid hermes`, pois os imports do runtime podem criar
+`/opt/data/auth.lock`. Executá-lo como root pode deixar a trava inacessível
+ao login, mesmo com o gateway saudável.
+
+Na recuperação local de 30/10/2026, a trava era de root e o teste como `hermes`
+reproduziu `PermissionError`. O contêiner foi parado, somente o proprietário
+da trava foi corrigido para `hermes:hermes`, com modo `0600`, e o serviço foi
+recriado com o health check corrigido. Nenhum volume ou credencial foi excluído.
+Validar a aquisição da trava como `hermes` antes de pedir novo login. Não usar
+`chmod 777`, apagar o volume nem desabilitar o mecanismo de lock.
 
 O volume Compose é separado do banco Windows existente. Não migrar ou substituir
 dados implicitamente e não usar `docker compose down -v`.

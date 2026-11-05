@@ -46,7 +46,8 @@ def test_cached_get_does_not_contact_gateway_and_live_inspect_is_sanitized(clien
 
     calls = []
 
-    def factory(settings):
+    def factory(settings, *, database):
+        assert database is client.app.state.database
         settings = settings.model_copy(update={"hermes_url": "http://hermes:8642"})
         from pydantic import SecretStr
 
@@ -56,7 +57,7 @@ def test_cached_get_does_not_contact_gateway_and_live_inspect_is_sanitized(clien
             calls.append((request.method, request.url.path))
             return httpx.Response(200, json={"jobs": []})
 
-        return HermesClient(settings, transport=httpx.MockTransport(handler))
+        return HermesClient(settings, database=database, transport=httpx.MockTransport(handler))
 
     monkeypatch.setattr(routes, "HermesClient", factory)
     login(client)

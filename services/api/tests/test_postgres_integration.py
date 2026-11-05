@@ -20,7 +20,9 @@ from ai_team.hermes_jobs import HermesJobs, jobs_snapshot
 from ai_team.hermes_journal import HermesJournal
 from ai_team.hermes_monitor import ReconciliationStore
 from ai_team.main import create_app
-from ai_team.models import AuthSession, Base, HermesAttempt, Owner, Project, Run, RunExecutor
+from ai_team.models import AuthSession, Base, Event, HermesAttempt, Owner, Project, Run, RunExecutor
+from ai_team.repository_policy import RepositoryPolicy
+from ai_team.repository_runs import RepositoryStore
 from ai_team.workflow import WorkflowStore
 
 pytestmark = pytest.mark.skipif(
@@ -134,6 +136,46 @@ def running_run(database):
         )
         session.commit()
     return store.get(run.id)
+
+
+def test_repository_checkpoint_and_digest_decision_use_real_postgres(postgres, tmp_path):
+    database, _ = postgres
+    with database.session() as session:
+        project = Project(name="Repository CI checkpoint", mode="supervised")
+        session.add(project)
+        session.commit()
+    store = RepositoryStore(database, root=tmp_path)
+    policy = RepositoryPolicy(
+        base_sha="a" * 40,
+        directory="tools",
+        read_paths=["budget.py"],
+        write_paths=["budget.py", "test_budget.py", "guide.md"],
+    )
+    run = store.create(
+        project.id, "CI database contract only", policy, "postgres-ci-owner", "codex"
+    )
+    with database.session() as session:
+        session.execute(
+            update(Run)
+            .where(Run.id == run.id)
+            .values(
+                status="running",
+                lease_token=secrets.token_hex(16),
+                lease_expires_at=int(time.time()) + 120,
+            )
+        )
+        session.commit()
+    claimed = WorkflowStore(database).get(run.id)
+    store.save(claimed, store.view(run.id)["state"], status="awaiting_approval", stage=1)
+    view = store.view(run.id)
+    approved = store.decide(run.id, view["digest"], True, "postgres-ci-owner")
+    assert approved["run"]["status"] == "queued"
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException):
+        store.decide(run.id, view["digest"], True, "postgres-ci-owner")
+    # Prevent this synthetic queued probe from interfering with subsequent queue tests.
+    WorkflowStore(database).cancel(run.id, "postgres-ci-owner")
 
 
 def test_private_schema_and_initialize_preserve_owner_and_rows(postgres):
@@ -374,10 +416,40 @@ def test_monitor_lease_single_winner_and_stale_owner_cannot_finish(postgres):
     assert store.state(attempt.id)["next_poll_at"] == now + 154
 
 
+def test_repository_usage_duplicate_reports_are_atomic_on_postgres(postgres):
+    database, _ = postgres
+    run = running_run(database)
+    with database.session() as session:
+        session.execute(update(Run).where(Run.id == run.id).values(scope="repository_code"))
+        session.commit()
+    WorkflowStore(database).cancel(run.id, "postgres-ci-owner")
+    barrier = Barrier(2, timeout=10)
+    store = RepositoryStore(database)
+
+    def report(_):
+        barrier.wait()
+        store.record_usage(run, 123, 45)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(report, range(2)))
+    current = WorkflowStore(database).get(run.id)
+    assert (current.input_tokens, current.output_tokens) == (123, 45)
+    assert current.status == "cancelled" and current.lease_token == ""
+    with database.session() as session:
+        assert session.scalar(select(func.count()).select_from(Event).where(
+            Event.resource_id == run.id, Event.kind == "repository.usage",
+        )) == 1
+
+
 def test_jobs_inventory_and_pause_evidence_survive_postgres_reconnect(postgres):
     database, _ = postgres
-    native = {"id": "abcdef123456", "name": "Synthetic PG job", "enabled": True,
-              "state": "scheduled", "schedule": {"kind": "interval"}}
+    native = {
+        "id": "abcdef123456",
+        "name": "Synthetic PG job",
+        "enabled": True,
+        "state": "scheduled",
+        "schedule": {"kind": "interval"},
+    }
     calls = []
 
     class Reader:
@@ -403,3 +475,20 @@ def test_jobs_inventory_and_pause_evidence_survive_postgres_reconnect(postgres):
     assert [entry for entry in calls if entry[0] == "POST"] == [
         ("POST", "/api/jobs/abcdef123456/pause")
     ]
+
+
+def test_hermes_cooldown_survives_postgres_reconnect_and_blocks_http(postgres):
+    import httpx
+
+    from ai_team.hermes import HermesClient, HermesRateLimitError
+
+    database, _ = postgres
+    journal = HermesJournal(database)
+    journal.record_cooldown(120)
+    database.engine.dispose()
+    assert HermesJournal(database).cooldown_remaining() >= 115
+    settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
+    client = HermesClient(settings, database=database,
+                          transport=httpx.MockTransport(lambda _: pytest.fail("HTTP admission")))
+    with pytest.raises(HermesRateLimitError):
+        client.request("POST", "/v1/runs")

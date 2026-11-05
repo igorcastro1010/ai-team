@@ -41,7 +41,7 @@ def snapshot(request: Request, owner: Owner):
 @router.post("/inspect", response_model=Observation)
 def inspect(request: Request, owner: Owner):
     result = Observation.model_validate(
-        HermesClient(request.app.state.settings).inspect()
+        HermesClient(request.app.state.settings, database=request.app.state.database).inspect()
     ).model_dump()
     with request.app.state.database.session() as db:
         db.merge(ProviderObservation(id="hermes", details=result))
@@ -73,12 +73,14 @@ def executions(
 @router.post("/executions/{attempt_id}/refresh")
 def refresh_execution(attempt_id: str, request: Request, owner: Owner):
     return HermesOperations(
-        request.app.state.database, HermesClient(request.app.state.settings)
+        request.app.state.database,
+        HermesClient(request.app.state.settings, database=request.app.state.database),
     ).refresh(attempt_id)
 
 
 @router.post("/executions/{attempt_id}/stop")
 def stop_execution(attempt_id: str, data: StopDecision, request: Request, owner: Owner):
     return HermesOperations(
-        request.app.state.database, HermesClient(request.app.state.settings)
+        request.app.state.database,
+        HermesClient(request.app.state.settings, database=request.app.state.database),
     ).stop(attempt_id)

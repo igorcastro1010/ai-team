@@ -3,6 +3,7 @@ import time
 from fastapi import HTTPException
 from sqlalchemy import func, select, update
 
+from .code_artifacts import CODE_SCOPES, bundle_for_scope
 from .models import Event, Project, Run, RunExecutor, Task, WorkerHeartbeat, new_id
 from .orchestration import STAGES, Draft
 
@@ -33,14 +34,16 @@ class WorkflowStore:
                 )
             )
 
-    def create(self, project_id, prompt, actor, executor="codex"):
+    def create(self, project_id, prompt, actor, executor="codex", scope="draft_only"):
+        if scope not in {"draft_only", *CODE_SCOPES}:
+            raise HTTPException(422, "Escopo inválido")
         if executor not in {"codex", "hermes"}:
             raise HTTPException(422, "Executor inválido")
         with self.database.session() as db:
             project = db.get(Project, project_id)
             if not project:
                 raise HTTPException(404, "Projeto não encontrado")
-            run = Run(project_id=project_id, prompt=prompt, mode=project.mode)
+            run = Run(project_id=project_id, prompt=prompt, mode=project.mode, scope=scope)
             run.executor_binding = RunExecutor(executor=executor)
             db.add(run)
             db.flush()
@@ -49,14 +52,28 @@ class WorkflowStore:
                     kind="run.requested",
                     resource_id=run.id,
                     actor=actor,
-                    summary=f"Solicitação autorizada ({executor}): planos e pareceres textuais",
+                    summary=f"Solicitação autorizada ({executor}): {scope}",
                 )
             )
             db.commit()
             return run
 
-    def decide(self, run_id, stage, approve, actor):
-        self.get(run_id)
+    def decide(self, run_id, stage, approve, actor, artifact_digest=""):
+        run = self.get(run_id)
+        if run.scope == "repository_code":
+            raise HTTPException(409, "Use a decisão vinculada ao checkpoint do repositório")
+        values = {"status": "queued" if approve else "cancelled"}
+        if run.scope in CODE_SCOPES and stage == 4 and approve:
+            expected = bundle_for_scope(run.scope, run.steps).digest
+            if artifact_digest != expected:
+                raise HTTPException(409, "Revise e aprove o hash exato dos artefatos")
+            values["steps"] = [
+                *run.steps[:-1],
+                {
+                    **run.steps[-1],
+                    "approved_digest": expected,
+                },
+            ]
         with self.database.session() as db:
             changed = db.execute(
                 update(Run)
@@ -65,7 +82,7 @@ class WorkflowStore:
                     Run.status == "awaiting_approval",
                     Run.stage == stage,
                 )
-                .values(status="queued" if approve else "cancelled")
+                .values(**values)
             )
             if changed.rowcount != 1:
                 raise HTTPException(
@@ -77,7 +94,15 @@ class WorkflowStore:
                     resource_id=run_id,
                     actor=actor,
                     summary=f"Etapa {stage + 1}: "
-                    + ("elaboração textual autorizada" if approve else "execução rejeitada"),
+                    + (
+                        (
+                            f"artefatos {artifact_digest} autorizados"
+                            if artifact_digest
+                            else "elaboração autorizada"
+                        )
+                        if approve
+                        else "execução rejeitada"
+                    ),
                 )
             )
             db.commit()
@@ -135,7 +160,7 @@ class WorkflowStore:
             db.commit()
         return self.get(run_id)
 
-    def claim(self):
+    def claim(self, *, allow_code=True):
         now = int(time.time())
         with self.database.session() as db:
             stale = list(
@@ -174,7 +199,8 @@ class WorkflowStore:
             db.commit()
             run_id = db.scalar(
                 select(Run.id)
-                .where(Run.status == "queued")
+                .where(Run.status == "queued", True if allow_code else
+                       ~Run.scope.in_([*CODE_SCOPES, "repository_code"]))
                 .order_by(Run.created_at, Run.id)
                 .limit(1)
             )
@@ -199,7 +225,7 @@ class WorkflowStore:
                     Run.lease_token == run.lease_token,
                     Run.calls < 5,
                     Run.input_tokens + Run.output_tokens < 50000,
-                    Run.scope == "draft_only",
+                    Run.scope.in_(["draft_only", *CODE_SCOPES]),
                 )
                 .values(calls=Run.calls + 1)
             )
@@ -217,6 +243,25 @@ class WorkflowStore:
         status = "completed" if stage == 5 else "queued"
         if stage < 5 and (run.mode == "manual" or (run.mode == "supervised" and stage == 1)):
             status = "awaiting_approval"
+        if run.scope == "python_code":
+            from .code_artifacts import CodeBundle, bundle_for_steps
+
+            if run.stage == 1:
+                files = CodeBundle.model_validate_json(draft.deliverable).files
+                if any(file.path.startswith("test_") for file in files):
+                    raise ValueError("DEV não pode fornecer testes QA")
+            if stage == 4:
+                bundle_for_steps([*run.steps, step])
+                status = "awaiting_approval"
+        if run.scope == "nextjs_code":
+            from .next_artifacts import validate_part
+
+            if run.stage in {1, 2, 3}:
+                validate_part(STAGES[run.stage], draft.deliverable)
+            if stage == 4:
+                project = bundle_for_scope(run.scope, [*run.steps, step])
+                step["project_snapshot"] = project.model_dump()
+                status = "awaiting_approval"
         with self.database.session() as db:
             changed = db.execute(
                 update(Run)
@@ -262,6 +307,134 @@ class WorkflowStore:
             )
             db.commit()
             return True
+
+    def record_sandbox(self, run, *, result=None, container_name="", release=False):
+        from .python_sandbox import valid_name
+
+        bundle = bundle_for_scope(run.scope, run.steps)
+        qa = run.steps[3]
+        if qa.get("approved_digest") != bundle.digest:
+            raise RuntimeError("Execução sem aprovação exata dos artefatos")
+        if result is None and qa.get("execution_started"):
+            raise RuntimeError("Sandbox já admitido; não repetir execução incerta")
+        if result is None and not valid_name(container_name):
+            raise RuntimeError("Identificação de sandbox inválida")
+        if result is not None and result.get("artifact_digest") != bundle.digest:
+            raise RuntimeError("Resultado não corresponde aos artefatos aprovados")
+        qa = {
+            **qa,
+            **(
+                {"test_result": result}
+                if result is not None
+                else {
+                    "execution_started": True,
+                    "container_name": container_name,
+                }
+            ),
+        }
+        values = {"steps": [*run.steps[:3], qa]}
+        if release:
+            if result is None:
+                raise RuntimeError("Somente resultado confirmado libera a lease")
+            values.update(status="queued", lease_token="", lease_expires_at=0)
+        with self.database.session() as db:
+            changed = db.execute(
+                update(Run)
+                .where(
+                    Run.id == run.id,
+                    Run.status == "running",
+                    Run.stage == 4,
+                    Run.lease_token == run.lease_token,
+                )
+                .values(**values)
+            )
+            if changed.rowcount != 1:
+                raise InterruptedError("Lease alterada; execução interrompida")
+            db.add(
+                Event(
+                    kind="run.sandbox_finished" if result is not None else "run.sandbox_started",
+                    resource_id=run.id,
+                    actor="QA",
+                    summary="Resultado dos testes persistido"
+                    if result is not None
+                    else "Testes isolados autorizados por hash",
+                )
+            )
+            db.commit()
+        return self.get(run.id)
+
+    def recover_sandboxes(self, sandbox):
+        """Reconcile only persisted containers of cancelled/expired executions."""
+        from sqlalchemy import or_
+
+        cursor = ""
+        now = int(time.time())
+        while True:
+            with self.database.session() as db:
+                runs = list(
+                    db.scalars(
+                        select(Run)
+                        .where(
+                            Run.id > cursor,
+                            Run.scope.in_(CODE_SCOPES),
+                            Run.stage == 4,
+                            Run.status.in_(["running", "cancelled", "failed"]),
+                            or_(Run.status != "running", Run.lease_expires_at < now),
+                        )
+                        .order_by(Run.id)
+                        .limit(50)
+                    )
+                )
+            if not runs:
+                return True
+            for current in runs:
+                cursor = current.id
+                qa = current.steps[3] if len(current.steps) == 4 else {}
+                if not qa.get("execution_started") or qa.get("cleanup_confirmed"):
+                    continue
+                confirmed = True
+                try:
+                    sandbox.cleanup(qa.get("container_name", ""))
+                except (RuntimeError, OSError):
+                    confirmed = False
+                state = "confirmed" if confirmed else "uncertain"
+                with self.database.session() as db:
+                    changed = db.execute(
+                        update(Run)
+                        .where(
+                            Run.id == current.id,
+                            Run.lease_token == current.lease_token,
+                            or_(Run.status != "running", Run.lease_expires_at < now),
+                        )
+                        .values(
+                            steps=[
+                                *current.steps[:3],
+                                {
+                                    **qa,
+                                    "cleanup_confirmed": confirmed,
+                                    "cleanup_state": state,
+                                },
+                            ]
+                        )
+                    )
+                    if changed.rowcount and qa.get("cleanup_state") != state:
+                        db.add(
+                            Event(
+                                kind="run.sandbox_reconciled"
+                                if confirmed
+                                else "run.sandbox_uncertain",
+                                resource_id=current.id,
+                                actor="worker",
+                                summary=(
+                                    "Sandbox anterior encerrado; sem repetição"
+                                    if confirmed
+                                    else "Encerramento incerto; novas execuções Python aguardam"
+                                ),
+                            )
+                        )
+                    db.commit()
+                if not confirmed:
+                    return False
 
     def finish_error(self, run, status, message):
         with self.database.session() as db:

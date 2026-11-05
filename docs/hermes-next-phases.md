@@ -59,7 +59,11 @@ aprovadas, sem merge. O [OpenAI Codex app-server/SDK](https://developers.openai.
 Hermes também documenta provedor `openai-codex` com autenticação própria. Usar
 Codex como provedor não dá automaticamente permissão de editar checkouts.
 
-Execução de código/testes arbitrários ainda não é habilitada. Para fazê-lo:
+O novo [fluxo Python local](python-code.md) gera módulos e executa unittest em
+Docker após aprovação dos artefatos por hash. Ele preserva ferramentas Hermes
+desativadas e não edita checkouts nem amplia a política GitHub.
+
+Execução geral sobre repositórios existentes ainda não é habilitada. Para fazê-lo:
 sandbox por tarefa, checkout isolado, credencial GitHub de escopo mínimo fora do
 modelo, política de comandos, nenhum socket Docker do host, diffs/testes como
 artefatos e aprovação vinculada ao SHA para PR. Merge e deploy exigem autorização

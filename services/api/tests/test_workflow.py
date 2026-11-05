@@ -66,6 +66,25 @@ def request_run(client, mode="supervised"):
     return response.json()
 
 
+def test_worker_reports_hermes_quota_without_retry_or_raw_error(environment):
+    from ai_team.hermes import HermesRateLimitError
+
+    client, database, settings = environment
+    run = request_run(client)
+
+    class LimitedProvider(TestProvider):
+        def generate(self, *args):
+            raise HermesRateLimitError("private-provider-detail")
+
+    worker = Worker(database, settings, LimitedProvider())
+    assert worker.once()
+    current = WorkflowStore(database).get(run["id"])
+    assert current.status == "failed"
+    assert "Cota do provedor Hermes" in current.error
+    assert "private-provider-detail" not in current.error
+    assert not worker.once()
+
+
 def test_request_is_persistent_and_does_not_call_model_in_http(environment):
     client, db, settings = environment
     run = request_run(client)

@@ -27,6 +27,7 @@ for (const width of [360, 390, 430, 1440]) {
     await page.getByRole("heading", { name: "Um escritório. Sete especialidades." }).click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `../../artifacts/office-${width}.png`, fullPage: true });
+    if (width === 1440) await page.locator(".office-campus").screenshot({ path: "../../artifacts/office-campus-1440.png" });
   });
 }
 
@@ -76,8 +77,9 @@ test("escritório acompanha checkpoints e aprovações reais do backend", async 
   checkpoint();
   await expect(page.getByRole("button", { name: "Abrir detalhes de CEO: Aguardando aprovação", exact: true })).toBeVisible({ timeout: 12000 });
   await page.getByRole("button", { name: /Abrir detalhes de CEO:/ }).click();
-  await page.getByText("Parecer CEO", { exact: true }).click();
-  await expect(page.getByText("Proposta textual, sem execução externa.", { exact: true })).toBeVisible();
+  const result = page.locator(".office-result").filter({ hasText: "Proposta textual, sem execução externa." });
+  await result.getByText("Parecer CEO", { exact: true }).click();
+  await expect(result.getByText("Proposta textual, sem execução externa.", { exact: true })).toBeVisible();
   expect((await page.request.post(`/api/control/runs/${run.id}/decision`, {
     headers, data: { stage: 1, approve: true },
   })).status()).toBe(200);
