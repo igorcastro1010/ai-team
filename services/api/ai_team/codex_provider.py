@@ -7,10 +7,32 @@ import signal
 import subprocess
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 from .codex_access import child_environment, executor_home
 from .orchestration import Draft, DraftContent
+
+
+@contextmanager
+def temporary_job_directory(jobs):
+    temporary = tempfile.TemporaryDirectory(prefix="draft-", dir=jobs)
+    directory = Path(temporary.name)
+    try:
+        yield directory
+    finally:
+        if directory.resolve().parent != jobs.resolve() or not directory.name.startswith("draft-"):
+            raise RuntimeError("Diretório temporário fora do escopo do executor")
+        # Windows scanners can briefly retain a handle after the child has exited.
+        # Retry only sharing violations; never ignore cleanup or other permission errors.
+        for attempt in range(20):
+            try:
+                temporary.cleanup()
+                break
+            except PermissionError as error:
+                if getattr(error, "winerror", None) != 32 or attempt == 19:
+                    raise
+                time.sleep(0.05)
 
 
 def execution_command(command: list[str], directory: Path) -> list[str]:
@@ -114,8 +136,7 @@ class CodexProvider:
             raise RuntimeError("Codex não encontrado")
         jobs = self.home.parent / "jobs"
         jobs.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix="draft-", dir=jobs) as temporary:
-            directory = Path(temporary)
+        with temporary_job_directory(jobs) as directory:
             (directory / "schema.json").write_text(
                 json.dumps(DraftContent.model_json_schema()), encoding="utf-8"
             )

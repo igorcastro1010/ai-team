@@ -65,6 +65,34 @@ def test_cancellation_stops_child(tmp_path):
         provider.generate("CEO", "teste", {"request": "teste"}, cancelled)
 
 
+def test_windows_sharing_violation_cleanup_does_not_mask_cancellation(tmp_path, monkeypatch):
+    import tempfile
+
+    script = tmp_path / "cancel.py"
+    script.write_text("import time; time.sleep(30)", encoding="utf-8")
+    provider = CodexProvider(command=[sys.executable, str(script)], home=tmp_path / "home")
+    original = tempfile.TemporaryDirectory.cleanup
+    attempts = []
+
+    def cleanup(directory):
+        attempts.append(directory.name)
+        if len(attempts) < 3:
+            error = PermissionError("Synthetic Windows sharing violation")
+            error.winerror = 32
+            raise error
+        return original(directory)
+
+    monkeypatch.setattr(tempfile.TemporaryDirectory, "cleanup", cleanup)
+
+    def cancelled():
+        raise InterruptedError("Cancelado")
+
+    with pytest.raises(InterruptedError):
+        provider.generate("CEO", "teste", {"request": "teste"}, cancelled)
+    assert len(attempts) == 3
+    assert not list((tmp_path / "jobs").glob("draft-*"))
+
+
 def test_timeout_also_applies_when_child_never_reads_large_stdin(tmp_path):
     script = tmp_path / "unread.py"
     script.write_text("import time; time.sleep(3)", encoding="utf-8")
