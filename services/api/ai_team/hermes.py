@@ -21,11 +21,12 @@ RUN_ID = re.compile(r"[A-Za-z0-9_-]{1,160}\Z")
 
 
 class HermesClient:
-    def __init__(self, settings, *, transport=None, request_timeout=5):
+    def __init__(self, settings, *, transport=None, request_timeout=5, database=None):
         self.settings = settings
         self.transport = transport
         self.request_timeout = min(request_timeout, 5)
         self.backoff = HermesBackoff()
+        self.journal = HermesJournal(database) if database else None
 
     @property
     def configured(self):
@@ -35,12 +36,29 @@ class HermesClient:
         # An explicit stop remains available to clean up an already-admitted run.
         if not (method == "POST" and path.endswith("/stop")):
             self.backoff.check()
+            if self.journal and (remaining := self.journal.cooldown_remaining()):
+                raise HermesRateLimitError(retry_after=remaining)
         budget = self.request_timeout
         if deadline is not None:
             budget = min(budget, deadline - time.monotonic())
         if budget <= 0:
             raise TimeoutError("Prazo Hermes esgotado")
-        return asyncio.run(self._request(method, path, body=body, key=key, budget=budget))
+        try:
+            return asyncio.run(self._request(method, path, body=body, key=key, budget=budget))
+        except HermesRateLimitError as error:
+            if self.journal:
+                try:
+                    self.record_cooldown(error.retry_after)
+                    error.recorded = True
+                except Exception:
+                    pass  # Memory gate remains closed if durable storage fails.
+            raise
+
+    def record_cooldown(self, seconds):
+        self.backoff.until = max(self.backoff.until, time.time() + seconds)
+        if self.journal:
+            seconds = self.journal.record_cooldown(seconds)
+        self.backoff.until = max(self.backoff.until, time.time() + seconds)
 
     async def _request(self, method, path, *, body, key, budget):
         if not self.configured:
@@ -130,6 +148,7 @@ class HermesProvider:
             self.client, time_limit=self.time_limit, poll_interval=self.poll_interval
         )
         provider.journal = HermesJournal(database)
+        provider.client.journal = provider.journal
         provider.local_run = run
         return provider
 
@@ -139,15 +158,11 @@ class HermesProvider:
             raise HermesRateLimitError(retry_after=remaining)
         result = self.client.inspect(deadline=deadline)
         if result.get("retry_after"):
-            self._record_cooldown(result["retry_after"])
             raise HermesRateLimitError(retry_after=result["retry_after"])
         return result["status"] == "reachable"
 
     def _record_cooldown(self, seconds):
-        self.client.backoff.until = max(self.client.backoff.until, time.time() + seconds)
-        if self.journal:
-            seconds = self.journal.record_cooldown(seconds)
-        self.client.backoff.until = max(self.client.backoff.until, time.time() + seconds)
+        self.client.record_cooldown(seconds)
 
     def generate(self, role, instructions, context, on_tick):
         deadline = time.monotonic() + self.time_limit
@@ -212,7 +227,7 @@ class HermesProvider:
         except BaseException as error:
             # Stop is best effort: network failure can leave remote execution uncertain.
             # No automatic readmission under a new key.
-            if isinstance(error, HermesRateLimitError):
+            if isinstance(error, HermesRateLimitError) and not error.recorded:
                 try:
                     self._record_cooldown(error.retry_after)
                 except Exception:

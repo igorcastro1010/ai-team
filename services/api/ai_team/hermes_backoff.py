@@ -9,6 +9,7 @@ class HermesRateLimitError(RuntimeError):
     def __init__(self, message="Cota do provedor Hermes indisponível", *, retry_after=60):
         super().__init__(message)
         self.retry_after = retry_after
+        self.recorded = False
 
 
 def retry_delay(value=None, failures=1, now=None):

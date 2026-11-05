@@ -25,14 +25,18 @@ def cached_jobs(request: Request, owner: Owner):
 
 @router.post("/inspect", response_model=JobsView)
 def inspect_jobs(request: Request, owner: Owner):
-    return HermesJobs(request.app.state.database, HermesClient(request.app.state.settings)).inspect(
+    return HermesJobs(request.app.state.database, HermesClient(
+        request.app.state.settings, database=request.app.state.database,
+    )).inspect(
         owner
     )
 
 
 @router.post("/{job_id}/pause", response_model=PauseView)
 def pause_job(job_id: str, data: PauseDecision, request: Request, owner: Owner):
-    return HermesJobs(request.app.state.database, HermesClient(request.app.state.settings)).pause(
+    return HermesJobs(request.app.state.database, HermesClient(
+        request.app.state.settings, database=request.app.state.database,
+    )).pause(
         job_id,
         owner,
     )

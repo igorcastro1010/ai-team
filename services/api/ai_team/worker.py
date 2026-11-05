@@ -141,7 +141,7 @@ def main():
         codex,
         providers={
             "codex": codex,
-            "hermes": HermesProvider(HermesClient(settings)),
+            "hermes": HermesProvider(HermesClient(settings, database=database)),
         },
     )
     github_worker = GitHubWorker(database, tick=lambda: worker.store.heartbeat(worker.id))

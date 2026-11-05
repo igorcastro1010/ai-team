@@ -71,6 +71,30 @@ def test_durable_cooldown_blocks_before_any_remote_admission(journal):
         provider.ready()
 
 
+def test_independent_clients_share_http_and_cleanup_cooldowns(journal):
+    import httpx
+
+    from ai_team.hermes import HermesClient, HermesRateLimitError
+
+    store, _ = journal
+    settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
+
+    def handler(request):
+        delay = "3600" if request.url.path.endswith("/stop") else "120"
+        return httpx.Response(429, headers={"Retry-After": delay})
+
+    first = HermesClient(settings, database=store.database, transport=httpx.MockTransport(handler))
+    with pytest.raises(HermesRateLimitError):
+        first.request("GET", "/v1/runs/run_test")
+    with pytest.raises(HermesRateLimitError):
+        first.request("POST", "/v1/runs/run_test/stop")
+    assert store.cooldown_remaining() >= 3599
+    second = HermesClient(settings, database=store.database,
+                          transport=httpx.MockTransport(lambda _: pytest.fail("admission")))
+    with pytest.raises(HermesRateLimitError):
+        second.request("POST", "/v1/runs")
+
+
 @pytest.mark.parametrize("scope", ["python_code", "nextjs_code", "host_shell"])
 def test_admission_scope_allowlist_includes_generated_python_only(journal, scope):
     from ai_team.models import Run

@@ -225,7 +225,7 @@ def main():
     database = Database(settings)
     if settings.environment != "production":
         database.initialize()
-    monitor = HermesMonitor(database, settings, HermesClient(settings))
+    monitor = HermesMonitor(database, settings, HermesClient(settings, database=database))
     print(
         "Monitor Hermes: consultas de estado; nenhuma inferência ou interrupção automática.",
         flush=True,
