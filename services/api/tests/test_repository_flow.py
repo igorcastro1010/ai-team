@@ -186,3 +186,35 @@ def test_publication_requires_distinct_exact_approval_and_cannot_replay(setup):
     assert store.view(run.id)["state"]["delivery"]["status"] == "authorized"
     with pytest.raises(HTTPException):
         store.request_publication(run.id, view["digest"], "owner")
+
+
+def test_approved_github_delivery_does_not_require_an_available_model(setup, monkeypatch):
+    from test_repository_delivery import Client
+
+    from ai_team.worker import Worker
+
+    store, queue, run = setup
+    for _ in range(5):
+        advance(store, queue)
+    store.decide(run.id, store.view(run.id)["digest"], True, "owner")
+    advance(store, queue)
+    advance(store, queue)
+    store.decide(run.id, store.view(run.id)["digest"], True, "owner")
+    store.request_publication(run.id, store.view(run.id)["digest"], "owner")
+    client = Client()
+    client.close = lambda: None
+    monkeypatch.setattr("ai_team.github_client.GitHubClient", lambda: client)
+
+    class UnavailableModel:
+        def ready(self):
+            return False
+
+        def generate(self, *args):
+            raise AssertionError("Publicação não deve chamar o modelo")
+
+    settings = Settings(environment="test")
+    assert Worker(store.database, settings, UnavailableModel()).once()
+    view = store.view(run.id)
+    assert view["run"]["status"] == "completed"
+    assert view["state"]["delivery"]["status"] == "published"
+    assert view["run"]["calls"] == 6
