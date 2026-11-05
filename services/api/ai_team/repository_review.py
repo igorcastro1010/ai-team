@@ -17,6 +17,13 @@ def prepare_publication(view, workspace_root):
         or state.get("delivery") or state.get("proposal", {}).get("published") is not False
     ):
         raise ValueError("Checkpoint não está disponível para revisão local")
+    if run["status"] == "completed":
+        before_review = dict(state)
+        reviewed_digest = before_review.pop("reviewed_digest", None)
+        expected_review = fingerprint({"id": run["id"], "stage": run["stage"],
+                                       "steps": run["steps"], "state": before_review})
+        if reviewed_digest != expected_review:
+            raise ValueError("Aprovação final não corresponde ao checkpoint")
     execution = execution_bundle(state)
     bundle = RepositoryBundle.model_validate(state["bundle"])
     if (

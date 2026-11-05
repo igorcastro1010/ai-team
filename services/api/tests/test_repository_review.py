@@ -48,3 +48,16 @@ def test_manifest_rejects_stale_approval_failed_tests_and_workspace_changes(setu
                                       "steps": run["steps"], "state": view["state"]})
     with pytest.raises(ValueError):
         prepare_publication(view, store.root)
+
+
+def test_completed_review_must_still_match_its_approved_checkpoint(setup):
+    store, view = reviewed(setup)
+    store.decide(view["run"]["id"], view["digest"], True, "owner")
+    view = store.view(view["run"]["id"])
+    assert prepare_publication(view, store.root)["published"] is False
+    view["state"]["reviewed_digest"] = "0" * 64
+    run = view["run"]
+    view["digest"] = fingerprint({"id": run["id"], "stage": run["stage"],
+                                  "steps": run["steps"], "state": view["state"]})
+    with pytest.raises(ValueError):
+        prepare_publication(view, store.root)
