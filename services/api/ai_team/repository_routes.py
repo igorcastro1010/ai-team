@@ -66,6 +66,15 @@ def cancel(run_id: str, request: Request, owner: Owner):
     return store.view(run_id)
 
 
+@router.post("/{run_id}/publish")
+def publish_run(run_id: str, data: Decision, request: Request, owner: Owner):
+    if not data.approve:
+        raise HTTPException(422, "Publicação exige autorização afirmativa")
+    return RepositoryStore(request.app.state.database).request_publication(
+        run_id, data.digest, owner
+    )
+
+
 @router.get("/{run_id}/artifacts")
 def artifacts(run_id: str, request: Request, owner: Owner):
     state = RepositoryStore(request.app.state.database).view(run_id)["state"]

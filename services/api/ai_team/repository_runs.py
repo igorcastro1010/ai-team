@@ -259,6 +259,48 @@ class RepositoryStore:
             db.commit()
         return self.view(run_id)
 
+    def request_publication(self, run_id, digest, actor):
+        view = self.view(run_id)
+        state = dict(view["state"])
+        if (
+            view["digest"] != digest
+            or view["run"]["status"] != "completed"
+            or view["run"]["stage"] != 6
+            or not state.get("reviewed_digest")
+            or state.get("delivery")
+            or state.get("test_result", {}).get("status") != "passed"
+            or state.get("approved_execution") != execution_bundle(state).digest
+        ):
+            raise HTTPException(409, "Entrega precisa de revisão atual e testes aprovados")
+        with self.database.session() as db:
+            changed = db.execute(
+                update(Run)
+                .where(
+                    Run.id == run_id,
+                    Run.scope == "repository_code",
+                    Run.status == "completed",
+                    Run.stage == 6,
+                )
+                .values(status="queued")
+            )
+            if changed.rowcount != 1:
+                raise HTTPException(409, "Autorização já consumida")
+            job = db.get(RepositoryJob, run_id)
+            if job.state != view["state"]:
+                raise HTTPException(409, "Conteúdo alterado")
+            state["delivery"] = {"status": "authorized", "digest": digest}
+            job.state = state
+            db.add(
+                Event(
+                    kind="repository.publish_authorized",
+                    resource_id=run_id,
+                    actor=actor,
+                    summary=f"PR rascunho autorizado: {digest}",
+                )
+            )
+            db.commit()
+        return self.view(run_id)
+
 
 class AgentState(TypedDict):
     context: dict
@@ -301,6 +343,56 @@ def execute_repository(store, run, provider, tick, sandbox=None, snapshot_reader
     state = dict(store.view(run.id)["state"])
     policy = RepositoryPolicy.model_validate(state["policy"])
     tick()
+    if run.stage == 6:
+        from .github_client import GitHubClient
+        from .repository_delivery import publish
+
+        if state.get("delivery", {}).get("status") != "authorized":
+            raise RuntimeError("Publicação sem autorização ou tentativa já iniciada")
+        state["delivery"] = {**state["delivery"], "status": "started"}
+        store.save(run, state)  # Journal before first mutation; no automatic replay.
+        client = None
+        try:
+            if (
+                state.get("approved_execution") != execution_bundle(state).digest
+                or state["test_result"].get("artifact_digest") != execution_bundle(state).digest
+                or state["test_result"].get("status") != "passed"
+            ):
+                raise ValueError("Conteúdo não corresponde aos testes aprovados")
+            client = GitHubClient()
+            client.tick = tick
+            body = (
+                "## Entrega AI TEAM\n\n"
+                + run.steps[-1]["deliverable"]
+                + "\n\n## Evidência\n\nBase: `"
+                + policy.base_sha
+                + "`\n\nArtefatos: `"
+                + state["approved_execution"]
+                + "`\n\nResultado do executor: passed. "
+                "Revisão humana obrigatória; sem merge ou deploy."
+            )
+            result = publish(
+                client,
+                run.id,
+                RepositoryBundle.model_validate(state["bundle"]),
+                state["proposal"]["title"],
+                body,
+            )
+            state["delivery"] = result
+            state["proposal"] = {**state["proposal"], "published": True}
+            store.save(run, state, status="completed")
+        except InterruptedError:
+            raise
+        except Exception:
+            state["delivery"] = {
+                "status": "uncertain" if client and client.mutation_attempted else "failed",
+                "retry_allowed": False,
+            }
+            store.save(run, state, status="failed")
+        finally:
+            if client:
+                client.close()
+        return
     if "snapshot" not in state:
         if snapshot_reader is None:
             from .github_client import GitHubClient
