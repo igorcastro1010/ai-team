@@ -6,6 +6,10 @@ Primeiro perfil: Python/biblioteca padrão e Markdown no repositório autorizado
 Seis chamadas Codex e sete testes Docker confirmados; veja
 [operação, limites e evidências](docs/v06-executors.md). Não houve merge ou deploy.
 
+**V0.6.1 em homologação:** [auditoria e resultados atuais](docs/v061-stabilization.md).
+Hermes real ainda não passou o fluxo completo; publicação supervisionada multifile
+aguarda resultado válido e autorização específica do conteúdo.
+
 Sala de operações em português para projetos, tarefas e agentes de IA. Plataforma independente para navegador no Windows e futura hospedagem Web. **V0.5: Codex próprio, propostas GitHub, consultas Vercel, recorrências e relatórios paginados.** A App própria cria branches, commits de documentos, issues e PRs somente no ai-team. Sem merge ou deploy.
 
 ## Hermes e escritório virtual
@@ -21,11 +25,11 @@ papéis ainda não provisionados são identificados. Veja [uso e limites](docs/p
 
 | Fase | Entrega e limite atual |
 |---|---|
-| 1 · Hermes | Adaptador Runs, journal, diagnóstico e Compose; contêiner oficial, autenticação e persistência homologados em CI; inferência real aguarda provedor |
+| 1 · Hermes | Adaptador Runs, journal, diagnóstico e Compose; contêiner oficial validado em CI; cinco etapas reais executadas, homologação completa pendente |
 | 2 · Equipe | Sete perfis provisionados e reconhecidos pelo runtime oficial em CI; Bot Mode e subagentes reais ainda não homologados |
 | 3 · Escritório | Interface responsiva ligada ao workflow existente, atualização a cada 5s, estados e resultados; não representa bots nativos sem configuração |
 | 4 · Telegram | Guia do gateway oficial, allowlist e pairing; token/usuário e mensagens reais pendentes |
-| 5 · Desenvolvimento | Codex e GitHub existentes preservados; execução de código/testes arbitrários continua bloqueada |
+| 5 · Desenvolvimento | Python em workspace isolado e testes Docker após aprovação exata; comandos livres, merge e deploy bloqueados; perfil de repositório TSX indisponível |
 | 6 · Automações | Agendas existentes preservadas; monitor separado com leases/backoff, consumo reportado e interrupção com confirmação; inventário e pausa de jobs nativos, sem criação/retomada pelo painel |
 | 7 · Produção | Compatibilidade PostgreSQL real validada em CI; arquitetura e critérios documentados; nenhum deploy ou infraestrutura paga contratada |
 

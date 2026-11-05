@@ -1,5 +1,9 @@
 # V0.6 — execução em repositório autorizado
 
+Atualização: [auditoria e homologação V0.6.1](v061-stabilization.md).
+As evidências abaixo preservam o histórico da V0.6; não representam homologação
+completa do Hermes nem publicação multifile remota.
+
 Plano de implementação incremental na branch `codex/ai-team/v06-agentes-executores`.
 
 ## Decisões de escopo
