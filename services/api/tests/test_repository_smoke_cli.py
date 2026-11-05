@@ -30,3 +30,14 @@ def test_live_smoke_selects_hermes_and_bounded_budget(harness):
 def test_invalid_budget_rejected_before_any_provider_call(harness, budget):
     with pytest.raises(SystemExit):
         harness["parse_args"](["--real", "--max-tokens", budget])
+
+
+def test_failed_live_runs_keep_reproducible_evidence_without_client_credentials(harness, tmp_path):
+    import json
+
+    view = {"run": {"id": "run-1", "status": "failed", "stage": 5}, "state": {}}
+    artifact = harness["write_evidence"](view, tmp_path / "private.db", "hermes", tmp_path)
+    data = json.loads(artifact.read_text(encoding="utf-8"))
+    assert data["view"] == view
+    assert data["kind"] == "live-hermes-github-read-docker"
+    assert set(data) == {"view", "kind", "database"}

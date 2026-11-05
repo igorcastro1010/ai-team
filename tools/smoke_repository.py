@@ -35,6 +35,16 @@ def provider_for(executor, settings):
     return HermesProvider(HermesClient(settings)) if executor == "hermes" else CodexProvider()
 
 
+def write_evidence(view, db_path, executor, output=None):
+    artifact = (output or ROOT / "artifacts") / f"v06-repository-{executor}-smoke.json"
+    artifact.parent.mkdir(exist_ok=True)
+    artifact.write_text(json.dumps(
+        {"kind": f"live-{executor}-github-read-docker", "view": view, "database": str(db_path)},
+        ensure_ascii=False, indent=2,
+    ), encoding="utf-8")
+    return artifact
+
+
 def main():
     args = parse_args()
     base = Settings()
@@ -125,6 +135,7 @@ def main():
                 )
             assert worker.once(), "Worker não admitiu tarefa"
             current = client.get(f"/repository-runs/{run_id}").json()
+            write_evidence(current, db_path, args.executor)
             if current["run"]["status"] in {"failed", "blocked", "cancelled"}:
                 raise RuntimeError(
                     "Homologação interrompida: " + current["run"]["error"]
@@ -138,20 +149,7 @@ def main():
             and state["proposal"]["published"] is False
         )
         assert client.get(f"/repository-runs/{run_id}/artifacts").status_code == 200
-        artifact = ROOT / "artifacts" / f"v06-repository-{args.executor}-smoke.json"
-        artifact.parent.mkdir(exist_ok=True)
-        artifact.write_text(
-            json.dumps(
-                {
-                    "kind": f"live-{args.executor}-github-read-docker",
-                    "view": view,
-                    "database": str(db_path),
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
+        artifact = write_evidence(view, db_path, args.executor)
         print(
             json.dumps(
                 {
