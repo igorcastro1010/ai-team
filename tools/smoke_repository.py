@@ -1,4 +1,4 @@
-"""Opt-in live V0.6 homologation: own Codex + App reads + Git + Docker, no publication."""
+"""Opt-in live repository homologation: own executor + App + Git + Docker; no publication."""
 
 import argparse
 import json
@@ -10,31 +10,45 @@ from ai_team.auth import create_owner
 from ai_team.codex_provider import CodexProvider
 from ai_team.config import ROOT, Settings
 from ai_team.db import Database
+from ai_team.hermes import HermesClient, HermesProvider
 from ai_team.main import create_app
 from ai_team.worker import Worker
 from fastapi.testclient import TestClient
 
 
-def main():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--real", action="store_true", help="Autoriza até seis chamadas reais"
     )
     parser.add_argument("--max-tokens", type=int, default=50000)
-    args = parser.parse_args()
+    parser.add_argument("--executor", choices=["codex", "hermes"], default="codex")
+    args = parser.parse_args(argv)
     if not args.real:
         parser.error("Use --real para autorizar consumo de até seis chamadas próprias")
-    provider = CodexProvider()
+    if not 16000 <= args.max_tokens <= 100000:
+        parser.error("O orçamento deve ficar entre 16000 e 100000 tokens")
+    return args
+
+
+def provider_for(executor, settings):
+    return HermesProvider(HermesClient(settings)) if executor == "hermes" else CodexProvider()
+
+
+def main():
+    args = parse_args()
+    base = Settings()
+    provider = provider_for(args.executor, base)
     if not provider.ready():
-        parser.exit(1, "Codex próprio indisponível.\n")
+        raise SystemExit(f"Executor próprio {args.executor} indisponível.")
     base_sha = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
     branch = subprocess.check_output(
         ["git", "branch", "--show-current"], cwd=ROOT, text=True
     ).strip()
-    db_path = ROOT / ".data" / f"v06-smoke-{uuid.uuid4()}.db"
-    settings = Settings(database_url=f"sqlite:///{db_path}", environment="test")
+    db_path = ROOT / ".data" / f"v06-{args.executor}-smoke-{uuid.uuid4()}.db"
+    settings = base.model_copy(update={"database_url": f"sqlite:///{db_path}", "environment": "test"})
     database = Database(settings)
     database.initialize()
     password = secrets.token_urlsafe(24)
@@ -51,7 +65,7 @@ def main():
         ).json()
         request = {
             "project_id": project["id"],
-            "executor": "codex",
+            "executor": args.executor,
             "consent": True,
             "prompt": (
                 "Melhore execution_limits.py preservando remaining_tokens, MAX_CALLS e MAX_TOKENS. "
@@ -124,12 +138,12 @@ def main():
             and state["proposal"]["published"] is False
         )
         assert client.get(f"/repository-runs/{run_id}/artifacts").status_code == 200
-        artifact = ROOT / "artifacts" / "v06-repository-smoke.json"
+        artifact = ROOT / "artifacts" / f"v06-repository-{args.executor}-smoke.json"
         artifact.parent.mkdir(exist_ok=True)
         artifact.write_text(
             json.dumps(
                 {
-                    "kind": "live-codex-github-read-docker",
+                    "kind": f"live-{args.executor}-github-read-docker",
                     "view": view,
                     "database": str(db_path),
                 },
