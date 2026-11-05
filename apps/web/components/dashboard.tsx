@@ -102,7 +102,7 @@ export function Dashboard({ view }: { view: View }) {
           {view === "ceo" && <><CeoConsole data={workspace} reload={load} /><RepositoryPanel data={workspace} /></>}
           {view === "execucoes" && <><RunList data={workspace} runs={workspace.runs} reload={load} /><RepositoryPanel data={workspace} /></>}
           {view === "agendamentos" && <SchedulePanel data={workspace} reload={load} />}
-          {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>As aprovações autorizam somente a etapa indicada e o escopo textual. Propostas GitHub são revisadas separadamente em Integrações.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /></>}
+          {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>Revise os artefatos e o digest antes de autorizar testes ou publicação. Cada decisão vale somente para o conteúdo exibido.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /><RepositoryPanel data={workspace} /></>}
         </>}
         <footer className="content-footer"><span>AI TEAM <span className="muted">/</span> Pense grande. Construa com direção.</span><span>Controle em cada etapa.</span></footer>
       </main>

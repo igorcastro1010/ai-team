@@ -34,7 +34,7 @@ export function CreationDialog({ kind, projects, close, created }: {
       </> : <>
         <label htmlFor="task-project">Projeto</label><select id="task-project" name="project_id" required>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select>
         <label htmlFor="task-title">Título da tarefa</label><input id="task-title" name="title" maxLength={200} required autoFocus />
-        <label htmlFor="task-agent">Agente responsável</label><select id="task-agent" name="agent" defaultValue="DEV">{["CEO", "DEV", "DESIGNER", "QA"].map(agent => <option key={agent}>{agent}</option>)}</select>
+        <label htmlFor="task-agent">Agente responsável</label><select id="task-agent" name="agent" defaultValue="DEV">{["CEO", "DEV", "DESIGNER", "QA", "PESQUISADOR"].map(agent => <option key={agent}>{agent}</option>)}</select>
       </>}
       <label htmlFor="description">Descrição</label><textarea id="description" name="description" rows={3} maxLength={5000} />
       {error && <p className="notice error" role="alert">{error}</p>}

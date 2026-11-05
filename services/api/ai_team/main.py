@@ -6,7 +6,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 
-from .agents import AGENTS
+from .agents import AGENTS, RESEARCHER
 from .auth import COOKIE_NAME, authenticate, digest, require_owner
 from .config import Settings
 from .db import Database
@@ -243,7 +243,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
             "events": [EventView.model_validate(e) for e in events(owner)],
-            "agents": AGENTS,
+            "agents": [*AGENTS, RESEARCHER],
             "runs": [RunView.model_validate(run) for run in runs],
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
             "usage": usage,

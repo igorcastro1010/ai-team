@@ -33,3 +33,18 @@ def test_repository_creation_is_authenticated_persistent_and_never_executes_in_h
     client.cookies.clear()
     assert client.get("/repository-runs").status_code == 401
     assert client.get("/repository-runs/" + view["run"]["id"]).status_code == 401
+
+
+def test_research_delegation_remains_visible_in_workspace(environment):
+    client, _, _ = environment
+    project = client.post("/projects", json={"name": "Research"}).json()
+    response = client.post(
+        "/tasks",
+        json={
+            "project_id": project["id"],
+            "title": "Pesquisar contratos autorizados",
+            "agent": "PESQUISADOR",
+        },
+    )
+    assert response.status_code == 201, response.text
+    assert client.get("/workspace").status_code == 200
