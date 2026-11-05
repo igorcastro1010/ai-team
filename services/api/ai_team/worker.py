@@ -4,6 +4,7 @@ import time
 from .config import Settings
 from .db import Database
 from .github_actions import GitHubWorker
+from .hermes import HermesRateLimitError
 from .models import new_id
 from .orchestration import Draft, build_graph
 from .workflow import WorkflowStore
@@ -101,6 +102,10 @@ class Worker:
             self.store.finish_error(run, "cancelled", "Execução interrompida pelo proprietário.")
         except TimeoutError:
             self.store.finish_error(run, "failed", "Timeout do executor. Chamada não repetida.")
+        except HermesRateLimitError:
+            self.store.finish_error(
+                run, "failed", "Cota do provedor Hermes indisponível. Chamada não repetida."
+            )
         except KeyboardInterrupt:
             self.store.finish_error(run, "failed", "Worker encerrado. Chamada não repetida.")
             raise

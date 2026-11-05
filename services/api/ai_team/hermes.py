@@ -19,6 +19,10 @@ MAX_RESPONSE = 200_000
 RUN_ID = re.compile(r"[A-Za-z0-9_-]{1,160}\Z")
 
 
+class HermesRateLimitError(RuntimeError):
+    """Provider quota exhausted; never carries its raw response to the panel."""
+
+
 class HermesClient:
     def __init__(self, settings, *, transport=None, request_timeout=5):
         self.settings = settings
@@ -169,6 +173,8 @@ class HermesProvider:
                 remote_terminal = status in TERMINAL
                 if attempt:
                     self.journal.observe(attempt.id, result)
+                if status == "failed" and "HTTP 429" in str(result.get("output", "")):
+                    raise HermesRateLimitError("Cota do provedor Hermes indisponível")
                 if status == "completed":
                     content = DraftContent.model_validate_json(result.get("output", ""))
                     usage = result.get("usage") or {}
