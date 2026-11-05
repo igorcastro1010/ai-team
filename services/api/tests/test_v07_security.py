@@ -35,3 +35,18 @@ def test_all_remote_issue_proposals_reject_credentials(prefix):
         Proposal(
             project_id="p", operation="issue", title="Revisar credenciais", body=prefix + "A" * 36
         )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"password": "synthetic-private-value"}',
+        '{"api_key":"synthetic-private-value"}',
+        "bearer " + "A" * 36,
+    ],
+)
+def test_quoted_json_credentials_and_auth_scheme_are_rejected(text):
+    from ai_team.memory_safety import validate_text
+
+    with pytest.raises(ValueError):
+        validate_text(text)
