@@ -4,10 +4,10 @@ from ai_team.models import Project, Run, Task
 
 
 def test_run_checkpoints_index_summaries_and_prepare_issues_without_publication(tmp_path):
-    from ai_team.knowledge_automation import index_run
     from ai_team.issue_store import IssueStore
-    from ai_team.memory_store import MemoryStore
+    from ai_team.knowledge_automation import index_run
     from ai_team.knowledge_automation_models import DelegatedTask
+    from ai_team.memory_store import MemoryStore
 
     database = Database(Settings(database_url=f"sqlite:///{tmp_path / 'automation.db'}"))
     database.initialize()
