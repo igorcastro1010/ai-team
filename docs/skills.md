@@ -1,5 +1,20 @@
 # Skills e pesquisa — 27/10/2026
 
+## Revisão V0.6 — 04/11/2026
+
+Find Skills local foi relida e a descoberta `npx skills find hermes --owner nousresearch`
+localizou `nousresearch/hermes-agent@hermes-agent`. A skill oficial MIT, versão 3.3.0,
+foi lida na origem para revisar compatibilidade, sem instalação nem execução de conteúdo
+remoto. Reutilizados os adaptadores oficiais existentes de Hermes/Codex, sem dar shell,
+skills ou credenciais aos modelos.
+
+Reutilizadas LangGraph fundamentals/referência Python (nós e checkpoints no banco do
+executor), Supabase (nova tabela privada com FK), segurança de prompts, UI UX Pro Max,
+React/Next.js e Playwright. Superpowers orientou TDD, investigação de regressão,
+verificação e revisão independente de código. OpenAI Docs e referências GitHub REST
+orientaram integração e limites reais, sem endpoints inventados. Nenhuma nova skill
+foi instalada. Graphify continua opcional; não é necessário ao runtime ou à homologação.
+
 Skills são ferramentas de desenvolvimento. Não são plugins executáveis pelos agentes da aplicação.
 
 | Capacidade | Origem revisada | Descoberta | Uso / limite |
