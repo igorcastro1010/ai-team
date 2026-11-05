@@ -28,6 +28,7 @@ class RepositoryPolicy(BaseModel):
     repository: Literal["igorcastro1010/ai-team"] = "igorcastro1010/ai-team"
     profile: Literal["python_stdlib"] = "python_stdlib"
     base_sha: str = Field(pattern=r"^[a-f0-9]{40}$")
+    max_tokens: int = Field(default=50000, ge=16000, le=100000, strict=True)
     base_branch: str = Field(default="main", pattern=r"^(?:main|codex/[a-z0-9][a-z0-9/_-]{0,100})$")
     directory: str = Field(min_length=1, max_length=160)
     read_paths: list[str] = Field(min_length=1, max_length=12)

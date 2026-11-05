@@ -30,7 +30,7 @@ export function RepositoryPanel({ data }: { data: Workspace }) {
     const paths = (name: string) => String(form.get(name)).split(",").map(s => s.trim()).filter(Boolean);
     setBusy(true); setError("");
     try {
-      await api("/repository-runs", { method: "POST", body: JSON.stringify({ project_id: form.get("project"), prompt: form.get("prompt"), executor: form.get("executor"), consent: form.get("consent") === "on", policy: { base_sha: form.get("sha"), base_branch: form.get("base"), directory: form.get("directory"), read_paths: paths("reads"), write_paths: paths("writes") } }) });
+      await api("/repository-runs", { method: "POST", body: JSON.stringify({ project_id: form.get("project"), prompt: form.get("prompt"), executor: form.get("executor"), consent: form.get("consent") === "on", policy: { base_sha: form.get("sha"), base_branch: form.get("base"), max_tokens: Number(form.get("budget")), directory: form.get("directory"), read_paths: paths("reads"), write_paths: paths("writes") } }) });
       await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível criar a tarefa."); }
     finally { setBusy(false); }
@@ -52,6 +52,7 @@ export function RepositoryPanel({ data }: { data: Workspace }) {
         <label htmlFor="repo-prompt">Pedido para o repositório</label><textarea id="repo-prompt" name="prompt" minLength={5} maxLength={5000} required />
         <label htmlFor="repo-base">Branch de origem</label><input id="repo-base" name="base" defaultValue="main" required />
         <label htmlFor="repo-sha">SHA de origem</label><input id="repo-sha" name="sha" pattern="[a-f0-9]{40}" maxLength={40} required />
+        <label htmlFor="repo-budget">Limite de tokens autorizado</label><input id="repo-budget" type="number" name="budget" defaultValue={50000} min={16000} max={100000} required /><p>O contexto inicial do provedor conta no consumo. O limite impede novas chamadas; uma resposta em andamento pode ultrapassá-lo. Reserve orçamento suficiente para seis etapas.</p>
         <label htmlFor="repo-directory">Pasta autorizada</label><input id="repo-directory" name="directory" placeholder="tools" required />
         <label htmlFor="repo-reads">Arquivos para leitura</label><input id="repo-reads" name="reads" placeholder="budget.py" required />
         <label htmlFor="repo-writes">Arquivos para escrita</label><input id="repo-writes" name="writes" placeholder="budget.py, test_budget.py, guide.md" required />

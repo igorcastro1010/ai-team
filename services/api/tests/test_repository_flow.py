@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 from ai_team.config import Settings
 from ai_team.db import Database
-from ai_team.models import Project
+from ai_team.models import Project, Run
 from ai_team.orchestration import Draft
 from ai_team.repository_policy import RepositoryPolicy
 from ai_team.repository_runs import RepositoryStore, execute_repository
@@ -105,6 +105,18 @@ def test_cancelled_lease_cannot_persist_generated_files(setup):
     assert store.view(run.id)["run"]["calls"] == 0
 
 
+def test_nearly_exhausted_budget_does_not_start_another_paid_call(setup):
+    store, queue, run = setup
+    with store.database.session() as db:
+        current = db.get(Run, run.id)
+        current.input_tokens = 49000
+        db.commit()
+    claimed = queue.claim()
+    with pytest.raises(RuntimeError):
+        store.reserve(claimed)
+    assert store.view(run.id)["run"]["calls"] == 0
+
+
 def test_legacy_decision_cannot_bypass_repository_digest(setup):
     store, queue, run = setup
     for _ in range(5):
@@ -134,3 +146,43 @@ def test_recovery_confirms_cleanup_without_repeating_uncertain_test(setup):
     assert cleaned == [Sandbox.new_name()]
     assert store.view(run.id)["state"]["cleanup_confirmed"]
     assert store.view(run.id)["run"]["status"] == "failed"
+
+
+def test_expired_running_sandbox_is_checked_before_another_admission(setup):
+    store, queue, run = setup
+    for _ in range(5):
+        advance(store, queue)
+    store.decide(run.id, store.view(run.id)["digest"], True, "owner")
+    claimed = queue.claim()
+    state = dict(store.view(run.id)["state"])
+    state.update(execution_started=True, container_name=Sandbox.new_name(), cleanup_confirmed=False)
+    store.save(claimed, state)
+    with store.database.session() as db:
+        db.get(Run, run.id).lease_expires_at = 1
+        db.commit()
+
+    class Unavailable:
+        def cleanup(self, name):
+            raise RuntimeError("Docker unavailable")
+
+    assert not store.recover(Unavailable())
+    assert not store.view(run.id)["state"]["cleanup_confirmed"]
+
+
+def test_publication_requires_distinct_exact_approval_and_cannot_replay(setup):
+    store, queue, run = setup
+    for _ in range(5):
+        advance(store, queue)
+    with pytest.raises(HTTPException):
+        store.request_publication(run.id, store.view(run.id)["digest"], "owner")
+    store.decide(run.id, store.view(run.id)["digest"], True, "owner")
+    advance(store, queue)
+    advance(store, queue)
+    store.decide(run.id, store.view(run.id)["digest"], True, "owner")
+    view = store.view(run.id)
+    with pytest.raises(HTTPException):
+        store.request_publication(run.id, "0" * 64, "owner")
+    store.request_publication(run.id, view["digest"], "owner")
+    assert store.view(run.id)["state"]["delivery"]["status"] == "authorized"
+    with pytest.raises(HTTPException):
+        store.request_publication(run.id, view["digest"], "owner")

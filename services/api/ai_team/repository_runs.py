@@ -165,6 +165,7 @@ class RepositoryStore:
             db.commit()
 
     def reserve(self, run):
+        budget = self.view(run.id)["state"]["policy"].get("max_tokens", MAX_TOKENS)
         with self.database.session() as db:
             changed = db.execute(
                 update(Run)
@@ -175,7 +176,7 @@ class RepositoryStore:
                     Run.stage == run.stage,
                     Run.lease_token == run.lease_token,
                     Run.calls < MAX_CALLS,
-                    Run.input_tokens + Run.output_tokens < MAX_TOKENS,
+                    Run.input_tokens + Run.output_tokens <= budget - 16000,
                 )
                 .values(calls=Run.calls + 1)
             )
@@ -428,7 +429,10 @@ def execute_repository(store, run, provider, tick, sandbox=None, snapshot_reader
     store.reserve(run)
     draft = generate(provider, run, state, tick)
     tick()
-    if run.input_tokens + run.output_tokens + draft.input_tokens + draft.output_tokens > 50000:
+    if (
+        run.input_tokens + run.output_tokens + draft.input_tokens + draft.output_tokens
+        > policy.max_tokens
+    ):
         store.save(run, state, status="failed", tokens=(draft.input_tokens, draft.output_tokens))
         return
     if run.stage in {2, 3, 4}:
