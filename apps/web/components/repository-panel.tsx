@@ -43,7 +43,7 @@ export function RepositoryPanel({ data }: { data: Workspace }) {
   }
   return <section className="repository-console" aria-labelledby="repository-heading">
     <div className="section-toolbar"><h2 id="repository-heading">Executor de repositório</h2><span className="tag">PYTHON · V0.6</span></div>
-    <p>Alterações reais em igorcastro1010/ai-team. Autorize uma pasta e arquivos específicos. Até 6 chamadas e 50 mil tokens; testes sem rede, 1 CPU, 256 MiB e 30 segundos.</p>
+    <p>Alterações reais em igorcastro1010/ai-team. Autorize uma pasta, arquivos e orçamento específicos. Até 6 chamadas; testes sem rede, 1 CPU, 256 MiB e 30 segundos.</p>
     {error && <p className="notice error" role="alert">{error}</p>}
     <details className="panel" open={!items.length}><summary>Nova tarefa com workspace isolado</summary>
       <form className="ceo-form" onSubmit={submit}>
@@ -52,7 +52,7 @@ export function RepositoryPanel({ data }: { data: Workspace }) {
         <label htmlFor="repo-prompt">Pedido para o repositório</label><textarea id="repo-prompt" name="prompt" minLength={5} maxLength={5000} required />
         <label htmlFor="repo-base">Branch de origem</label><input id="repo-base" name="base" defaultValue="main" required />
         <label htmlFor="repo-sha">SHA de origem</label><input id="repo-sha" name="sha" pattern="[a-f0-9]{40}" maxLength={40} required />
-        <label htmlFor="repo-budget">Limite de tokens autorizado</label><input id="repo-budget" type="number" name="budget" defaultValue={50000} min={16000} max={100000} required /><p>O contexto inicial do provedor conta no consumo. O limite impede novas chamadas; uma resposta em andamento pode ultrapassá-lo. Reserve orçamento suficiente para seis etapas.</p>
+        <label htmlFor="repo-budget">Limite de tokens autorizado</label><input id="repo-budget" type="number" name="budget" defaultValue={100000} min={16000} max={100000} required /><p>O contexto inicial do provedor conta no consumo. O limite impede novas chamadas; uma resposta em andamento pode ultrapassá-lo. A homologação de seis etapas consumiu 82.689 tokens; revise o orçamento antes de autorizar.</p>
         <label htmlFor="repo-directory">Pasta autorizada</label><input id="repo-directory" name="directory" placeholder="tools" required />
         <label htmlFor="repo-reads">Arquivos para leitura</label><input id="repo-reads" name="reads" placeholder="budget.py" required />
         <label htmlFor="repo-writes">Arquivos para escrita</label><input id="repo-writes" name="writes" placeholder="budget.py, test_budget.py, guide.md" required />

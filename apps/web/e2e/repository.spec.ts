@@ -10,6 +10,7 @@ test("Repositório: autorização explícita persiste sem executar no HTTP", asy
   await page.request.post("/api/control/projects", { headers: { origin: "http://localhost:3100" },
     data: { name: "Repositório autorizado E2E", mode: "supervised" } });
   await page.goto("/ceo");
+  await expect(page.getByLabel("Limite de tokens autorizado")).toHaveValue("100000");
   await page.getByLabel("Projeto do executor").selectOption({ label: "Repositório autorizado E2E" });
   await page.getByLabel("Pedido para o repositório").fill("Valide o orçamento e escreva testes de erros.");
   await page.getByLabel("SHA de origem").fill("a".repeat(40));
