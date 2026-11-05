@@ -41,6 +41,36 @@ def test_cancelled_or_wrong_lease_cannot_admit(journal):
         store.begin(run, "ai-team-unique")
 
 
+def test_rate_limit_cooldown_survives_restart_without_extending_on_read(journal, monkeypatch):
+    store, _ = journal
+    monkeypatch.setattr("ai_team.hermes_journal.time.time", lambda: 1000)
+    assert store.cooldown_remaining() == 0
+    store.record_cooldown(120)
+    assert store.cooldown_remaining() == 120
+    store.database.engine.dispose()
+    monkeypatch.setattr("ai_team.hermes_journal.time.time", lambda: 1060)
+    reopened = HermesJournal(store.database)
+    assert reopened.cooldown_remaining() == 60
+    monkeypatch.setattr("ai_team.hermes_journal.time.time", lambda: 1121)
+    assert reopened.cooldown_remaining() == 0
+    reopened.record_cooldown(1)  # Repeated 429 uses exponential fallback.
+    assert reopened.cooldown_remaining() == 120
+
+
+def test_durable_cooldown_blocks_before_any_remote_admission(journal):
+    import httpx
+
+    from ai_team.hermes import HermesClient, HermesProvider, HermesRateLimitError
+
+    store, run = journal
+    store.record_cooldown(120)
+    settings = Settings(hermes_url="http://hermes:8642", hermes_key="x" * 40)
+    client = HermesClient(settings, transport=httpx.MockTransport(lambda _: pytest.fail("HTTP")))
+    provider = HermesProvider(client).for_run(store.database, run)
+    with pytest.raises(HermesRateLimitError):
+        provider.ready()
+
+
 @pytest.mark.parametrize("scope", ["python_code", "nextjs_code", "host_shell"])
 def test_admission_scope_allowlist_includes_generated_python_only(journal, scope):
     from ai_team.models import Run

@@ -110,6 +110,8 @@ class HermesClient:
                 result["status"] = "unsafe_configuration"
             else:
                 result["status"] = "reachable"
+        except HermesRateLimitError as error:
+            result.update(status="unavailable", retry_after=error.retry_after)
         except (httpx.HTTPError, RuntimeError, AttributeError, TimeoutError):
             result["status"] = "unavailable"
         return result
@@ -131,12 +133,25 @@ class HermesProvider:
         provider.local_run = run
         return provider
 
-    def ready(self):
-        return self.client.inspect()["status"] == "reachable"
+    def ready(self, *, deadline=None):
+        self.client.backoff.check()
+        if self.journal and (remaining := self.journal.cooldown_remaining()):
+            raise HermesRateLimitError(retry_after=remaining)
+        result = self.client.inspect(deadline=deadline)
+        if result.get("retry_after"):
+            self._record_cooldown(result["retry_after"])
+            raise HermesRateLimitError(retry_after=result["retry_after"])
+        return result["status"] == "reachable"
+
+    def _record_cooldown(self, seconds):
+        self.client.backoff.until = max(self.client.backoff.until, time.time() + seconds)
+        if self.journal:
+            seconds = self.journal.record_cooldown(seconds)
+        self.client.backoff.until = max(self.client.backoff.until, time.time() + seconds)
 
     def generate(self, role, instructions, context, on_tick):
         deadline = time.monotonic() + self.time_limit
-        if self.client.inspect(deadline=deadline)["status"] != "reachable":
+        if not self.ready(deadline=deadline):
             raise RuntimeError("Hermes indisponível ou ferramentas habilitadas")
         on_tick()
         identity = "ai-team-" + uuid.uuid4().hex
@@ -197,6 +212,11 @@ class HermesProvider:
         except BaseException as error:
             # Stop is best effort: network failure can leave remote execution uncertain.
             # No automatic readmission under a new key.
+            if isinstance(error, HermesRateLimitError):
+                try:
+                    self._record_cooldown(error.retry_after)
+                except Exception:
+                    pass  # Preserve best-effort stop even when the durable store is unavailable.
             if attempt:
                 status = (
                     "uncertain"
