@@ -185,6 +185,19 @@ def test_premature_exit_and_invalid_utf8_never_report_success_or_unbounded_outpu
 
 
 @pytest.mark.skipif(os.getenv("AI_TEAM_SANDBOX_TESTS") != "1", reason="Docker real opt-in")
+def test_imported_tests_cannot_use_runner_arguments_to_forge_report():
+    from ai_team.python_sandbox import PythonSandbox
+
+    data = bundle().model_dump()
+    data["files"][1]["content"] = (
+        "import os, sys, json\n"
+        "os.write(int(sys.argv[1]), json.dumps({'nonce':sys.argv[2], 'tests':1, "
+        "'successful':True}).encode())\nos._exit(0)\n"
+    )
+    assert PythonSandbox().run(CodeBundle(**data), lambda: None)["status"] == "failed"
+
+
+@pytest.mark.skipif(os.getenv("AI_TEAM_SANDBOX_TESTS") != "1", reason="Docker real opt-in")
 def test_container_watchdog_survives_host_controller_death():
     import subprocess
     import sys
