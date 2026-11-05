@@ -19,6 +19,7 @@ from .integrations import integration_statuses
 from .issue_routes import router as issues_router
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
+from .optimizer_routes import router as optimizer_router
 from .report_routes import router as report_router
 from .repository_routes import router as repository_router
 from .run_routes import RunView
@@ -73,6 +74,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(hermes_router)
     app.include_router(hermes_jobs_router)
     app.include_router(issues_router)
+    app.include_router(optimizer_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):

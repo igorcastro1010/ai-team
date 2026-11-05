@@ -44,6 +44,10 @@ class Worker:
                     run, "blocked", "Executor indisponível. Confira a configuração própria."
                 )
                 return True
+            if not delivery_only:
+                from .token_optimizer import OptimizedProvider
+
+                provider = OptimizedProvider(provider, self.store.database, run)
             last_heartbeat = 0
 
             def tick():

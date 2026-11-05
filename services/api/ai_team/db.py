@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from . import (  # noqa: F401 - register additive tables
     issue_models,
     memory_models,  # noqa: F401 - register additive tables
+    optimizer_models,
 )
 from .config import Settings
 from .models import Base
