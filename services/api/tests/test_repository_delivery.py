@@ -11,6 +11,7 @@ class Client:
         self.current, self.calls = current, []
         self.entries = []
         self.tamper = None
+        self.unchanged = set()
 
     def verify(self):
         return {}
@@ -30,12 +31,16 @@ class Client:
                     "parents": [{"sha": "f" * 40 if self.tamper == "parent" else "a" * 40}]}
         if "/compare/" in path:
             files = [{"filename": f["path"], "sha": blob_sha(f["content"]), "status": "modified"}
-                     for f in self.entries]
+                     for f in self.entries if f["path"] not in self.unchanged]
             if self.tamper == "content":
                 files[0]["sha"] = "f" * 40
             if self.tamper == "extra":
                 files.append({"filename": "secrets.txt", "sha": "e" * 40, "status": "added"})
             return {"status": "ahead", "ahead_by": 1, "total_commits": 1, "files": files}
+        if "/contents/" in path:
+            file = next(f for f in self.entries if f["path"] in path)
+            return {"type": "file", "sha": "f" * 40 if self.tamper == "unchanged"
+                    else blob_sha(file["content"])}
         if path.endswith("/trees"):
             body = kwargs["body"]
             assert body["base_tree"] == "b" * 40
@@ -115,3 +120,23 @@ def test_remote_content_mismatch_never_creates_branch_or_pr(tamper):
     with pytest.raises(ValueError):
         publish(client, "00000000-0000-4000-8000-000000000001", bundle(), "feat: budget", "tests")
     assert not any(path.endswith(("/refs", "/pulls")) for _, path, _ in client.calls)
+
+
+@pytest.mark.parametrize("tamper", [None, "unchanged"])
+def test_unchanged_generated_file_still_has_immutable_readback(tamper):
+    from ai_team.repository_policy import RepositoryFile
+
+    data = bundle()
+    data.policy.write_paths.append("guide.md")
+    data.files.append(RepositoryFile(path="guide.md", content="# Existing guide\n"))
+    client = Client()
+    client.unchanged = {"tools/guide.md"}
+    client.tamper = tamper
+    args = (client, "00000000-0000-4000-8000-000000000001", data, "feat: budget", "tests")
+    if tamper:
+        with pytest.raises(ValueError):
+            publish(*args)
+        assert not any(path.endswith("/refs") for _, path, _ in client.calls)
+    else:
+        assert publish(*args)["bundle_digest"] == data.digest
+    assert any("/contents/tools/guide.md?ref=" + "d" * 40 in p for _, p, _ in client.calls)
