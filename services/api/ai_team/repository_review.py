@@ -56,6 +56,13 @@ def prepare_publication(view, workspace_root):
         raise ValueError("Índice Git não corresponde aos bytes aprovados")
     return {
         "published": False, "external_approval_required": True,
+        "usage": {"input_tokens": run["input_tokens"], "output_tokens": run["output_tokens"],
+                  "admissions": run["calls"]},
+        "tests": {"status": state["test_result"]["status"],
+                  "exit_code": state["test_result"].get("exit_code"),
+                  "output_sha256": hashlib.sha256(
+                      state["test_result"]["output"].encode("utf-8")
+                  ).hexdigest()},
         "checkpoint_digest": checkpoint, "execution_digest": execution.digest,
         "bundle_digest": bundle.digest, "base_sha": bundle.policy.base_sha,
         "base_branch": bundle.policy.base_branch, "branch": branch,

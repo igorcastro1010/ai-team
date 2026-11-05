@@ -28,6 +28,9 @@ def test_multifile_manifest_matches_real_git_index_and_never_publishes(setup):
     assert result["checkpoint_digest"] == view["digest"]
     assert len(result["local_tree_sha"]) == 40
     assert all(file["path"].startswith("tools/") for file in result["files"])
+    assert result["usage"] == {"input_tokens": 24, "output_tokens": 18, "admissions": 6}
+    assert result["tests"]["status"] == "passed"
+    assert len(result["tests"]["output_sha256"]) == 64
 
 
 @pytest.mark.parametrize("tamper", ["checkpoint", "content", "tests", "workspace"])
