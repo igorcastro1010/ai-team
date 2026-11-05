@@ -150,7 +150,10 @@ def test_real_docker_limits(code, status):
         + code
         + "\n"
     )
-    result = PythonSandbox(time_limit=2).run(CodeBundle(files=files), lambda: None)
+    # Docker Desktop cold starts can exceed 2 s; retain the short deadline for
+    # the deliberate infinite loop and stay below the production 30 s limit.
+    limit = 2 if status == "timeout" else 10
+    result = PythonSandbox(time_limit=limit).run(CodeBundle(files=files), lambda: None)
     assert result["status"] == status, result
     assert len(result["output"].encode("utf-8")) <= 32768
 
