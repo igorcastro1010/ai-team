@@ -34,6 +34,11 @@ def test_memory_api_auth_csrf_scope_and_vault_incremental_sync(tmp_path):
         assert client.post(f"/memory/{project}/{note['id']}/export", json={}).status_code == 200
         synced = client.post(f"/memory/{project}/sync").json()
         assert synced["imported"] == 0
+        mirror = tmp_path / "vault" / project / (note["id"] + ".md")
+        mirror.write_text(data["content"] + " Alteração concorrente.", encoding="utf-8")
+        assert client.post(f"/memory/{project}/sync").json()["rejected"] == 1
+        assert client.get(f"/memory/{project}/{note['id']}").json()["version"] == 1
+        mirror.write_text(data["content"], encoding="utf-8")
         file = tmp_path / "vault" / project / "external.md"
         file.write_text("# Decisão\nPostgreSQL privado.", encoding="utf-8")
         assert client.post(f"/memory/{project}/sync").json()["imported"] == 1

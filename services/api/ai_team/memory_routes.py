@@ -61,7 +61,10 @@ def sync_vault(database, project_id, vault):
                     continue
                 # Exported own notes already exist and must not create duplicates.
                 own = db.get(MemoryEntry, name.removesuffix(".md"))
-                if own and own.project_id == project_id and content == own.content:
+                if own and own.project_id == project_id:
+                    if own.archived or own.quarantined or content != own.content:
+                        rejected += 1
+                    # Exported IDs require explicit review of conflicting mirror edits.
                     continue
             result = store.put(
                 project_id,
