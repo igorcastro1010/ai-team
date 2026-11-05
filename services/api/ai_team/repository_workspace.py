@@ -44,7 +44,7 @@ class TaskWorkspace:
             (self.path / entry.path).write_text(entry.content, encoding="utf-8", newline="")
         if entries:
             self.git("add", "--", *[entry.path for entry in entries])
-        self.git("commit", "--allow-empty", "-m", "chore(snapshot): authorized source")
+        self.git("commit", "-m", "chore(snapshot): authorized source")
 
     def apply(self, bundle):
         bundle = RepositoryBundle.model_validate(bundle.model_dump())

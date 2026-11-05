@@ -201,6 +201,21 @@ class RepositoryStore:
             )
             for job in jobs:
                 state = dict(job.state)
+                if state.get("delivery", {}).get("status") == "started":
+                    state["delivery"] = {
+                        **state["delivery"],
+                        "status": "uncertain",
+                        "retry_allowed": False,
+                    }
+                    job.state = state
+                    db.add(
+                        Event(
+                            kind="repository.delivery_uncertain",
+                            resource_id=job.run_id,
+                            actor="worker",
+                            summary="Escrita remota interrompida; revisar GitHub",
+                        )
+                    )
                 if not state.get("execution_started") or state.get("cleanup_confirmed"):
                     continue
                 try:

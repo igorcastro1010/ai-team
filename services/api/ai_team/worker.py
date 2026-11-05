@@ -43,7 +43,8 @@ class Worker:
             def tick():
                 nonlocal last_heartbeat
                 current = self.store.get(run.id)
-                if current.status != "running" or current.lease_token != run.lease_token:
+                if (current.status != "running" or current.lease_token != run.lease_token
+                        or current.lease_expires_at <= int(time.time())):
                     raise InterruptedError("Execução cancelada")
                 if time.monotonic() - last_heartbeat >= 5:
                     self.store.heartbeat(self.id)

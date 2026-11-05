@@ -16,7 +16,7 @@ def fingerprint(value):
 
 def filename(path):
     if re.fullmatch(r"[a-z][a-z0-9_]{0,50}\.md", path):
-        if path[:-3] in {"con", "prn", "aux", "nul"}:
+        if path[:-3] in {"con", "prn", "aux", "nul"} or re.fullmatch(r"(com|lpt)[0-9]", path[:-3]):
             raise ValueError("Nome reservado")
         return path
     CodeFile(path=path, content="validated")
