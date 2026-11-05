@@ -2,12 +2,14 @@
 
 import json
 import time
+import uuid
 from typing import TypedDict
 
 from fastapi import HTTPException
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import or_, select, update
+from sqlalchemy.exc import IntegrityError
 
 from .config import ROOT
 from .execution_limits import MAX_CALLS, MAX_TOKENS
@@ -186,6 +188,32 @@ class RepositoryStore:
             db.commit()
             if changed.rowcount != 1:
                 raise RuntimeError("Limite de chamadas ou tokens")
+
+    def record_usage(self, run, input_tokens, output_tokens):
+        """Account an admitted response once, even if cancellation discards its content."""
+        if any(type(value) is not int or value < 0 for value in (input_tokens, output_tokens)):
+            raise ValueError("Consumo inválido")
+        event_id = str(uuid.uuid5(uuid.UUID(run.id), f"usage:{run.stage}:{run.lease_token}"))
+        try:
+            with self.database.session() as db:
+                if db.scalar(select(Event).where(Event.id == event_id)) is not None:
+                    return
+                db.add(Event(
+                    id=event_id, kind="repository.usage", resource_id=run.id, actor="worker",
+                    summary=f"Etapa {run.stage}: entrada {input_tokens}, saída {output_tokens}",
+                ))
+                db.flush()  # Unique event serializes duplicate reports before updating counters.
+                db.execute(update(Run).where(
+                    Run.id == run.id, Run.scope == "repository_code",
+                ).values(
+                    input_tokens=Run.input_tokens + input_tokens,
+                    output_tokens=Run.output_tokens + output_tokens,
+                ))
+                db.commit()
+        except IntegrityError:
+            with self.database.session() as db:
+                if db.scalar(select(Event).where(Event.id == event_id)) is None:
+                    raise
 
     def recover(self, sandbox):
         with self.database.session() as db:
@@ -446,12 +474,13 @@ def execute_repository(store, run, provider, tick, sandbox=None, snapshot_reader
         return
     store.reserve(run)
     draft = generate(provider, run, state, tick)
+    store.record_usage(run, draft.input_tokens, draft.output_tokens)
     tick()
     if (
         run.input_tokens + run.output_tokens + draft.input_tokens + draft.output_tokens
         > policy.max_tokens
     ):
-        store.save(run, state, status="failed", tokens=(draft.input_tokens, draft.output_tokens))
+        store.save(run, state, status="failed")
         return
     if run.stage in {2, 3, 4}:
         parsed = json.loads(draft.deliverable)
@@ -505,5 +534,5 @@ def execute_repository(store, run, provider, tick, sandbox=None, snapshot_reader
         status=status,
         steps=[*run.steps, step],
         stage=stage,
-        tokens=(draft.input_tokens, draft.output_tokens),
     )
+

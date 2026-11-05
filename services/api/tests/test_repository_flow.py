@@ -124,6 +124,36 @@ def test_combined_snapshot_size_is_rejected_before_approval():
         execution_bundle(state)
 
 
+def test_invalid_model_output_keeps_authoritative_usage(setup):
+    store, queue, run = setup
+    advance(store, queue)
+    advance(store, queue)
+    claimed = queue.claim()
+
+    class InvalidProvider:
+        def generate(self, *args):
+            return Draft(summary="Invalid", deliverable="not JSON", tasks=[],
+                         input_tokens=5000, output_tokens=1000)
+
+    with pytest.raises(ValueError):
+        execute_repository(store, claimed, InvalidProvider(), lambda: None)
+    assert store.view(run.id)["run"]["input_tokens"] == 5008
+    assert store.view(run.id)["run"]["output_tokens"] == 1006
+
+
+def test_usage_is_idempotent_and_survives_cancellation_without_restoring_lease(setup):
+    store, queue, run = setup
+    claimed = queue.claim()
+    store.reserve(claimed)
+    queue.cancel(run.id, "owner")
+    store.record_usage(claimed, 123, 45)
+    store.record_usage(claimed, 123, 45)
+    view = store.view(run.id)
+    assert view["run"]["status"] == "cancelled"
+    assert view["run"]["input_tokens"] == 123
+    assert view["run"]["output_tokens"] == 45
+
+
 def test_nearly_exhausted_budget_does_not_start_another_paid_call(setup):
     store, queue, run = setup
     with store.database.session() as db:
