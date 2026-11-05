@@ -12,6 +12,7 @@ import uuid
 
 import httpx
 
+from .hermes_backoff import HermesBackoff, HermesRateLimitError
 from .hermes_journal import TERMINAL, HermesJournal
 from .orchestration import Draft, DraftContent
 
@@ -19,21 +20,21 @@ MAX_RESPONSE = 200_000
 RUN_ID = re.compile(r"[A-Za-z0-9_-]{1,160}\Z")
 
 
-class HermesRateLimitError(RuntimeError):
-    """Provider quota exhausted; never carries its raw response to the panel."""
-
-
 class HermesClient:
     def __init__(self, settings, *, transport=None, request_timeout=5):
         self.settings = settings
         self.transport = transport
         self.request_timeout = min(request_timeout, 5)
+        self.backoff = HermesBackoff()
 
     @property
     def configured(self):
         return bool(self.settings.hermes_url and self.settings.hermes_key.get_secret_value())
 
     def request(self, method, path, *, body=None, key=None, deadline=None):
+        # An explicit stop remains available to clean up an already-admitted run.
+        if not (method == "POST" and path.endswith("/stop")):
+            self.backoff.check()
         budget = self.request_timeout
         if deadline is not None:
             budget = min(budget, deadline - time.monotonic())
@@ -60,6 +61,9 @@ class HermesClient:
             ) as client,
         ):
             async with client.stream(method, path, json=body) as response:
+                if response.status_code == 429:
+                    delay = self.backoff.record(response.headers.get("Retry-After"))
+                    raise HermesRateLimitError(retry_after=delay)
                 if not 200 <= response.status_code < 300:
                     raise RuntimeError("Hermes recusou a solicitação")
                 data = bytearray()
@@ -174,7 +178,7 @@ class HermesProvider:
                 if attempt:
                     self.journal.observe(attempt.id, result)
                 if status == "failed" and "HTTP 429" in str(result.get("output", "")):
-                    raise HermesRateLimitError("Cota do provedor Hermes indisponível")
+                    raise HermesRateLimitError(retry_after=self.client.backoff.record())
                 if status == "completed":
                     content = DraftContent.model_validate_json(result.get("output", ""))
                     usage = result.get("usage") or {}
