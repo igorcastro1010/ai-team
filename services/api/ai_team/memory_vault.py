@@ -99,9 +99,8 @@ class Vault:
         with export_lock(target):
             return self._write_locked(project_id, relative_path, content, expected_digest)
 
-    def _write_locked(self, project_id, relative_path, content, expected_digest):
+    def _reviewed_target(self, project_id, relative_path, expected_digest):
         target = self._path(project_id, relative_path)
-        self._path(project_id, relative_path)
         if target.exists():
             current = self.read(project_id, relative_path)
             actual = hashlib.sha256(current.encode()).hexdigest()
@@ -109,6 +108,10 @@ class Vault:
                 raise VaultError("Arquivo já existe ou mudou; revise o digest antes de substituir")
         elif expected_digest:
             raise VaultError("Arquivo removido; revise antes de substituir")
+        return target
+
+    def _write_locked(self, project_id, relative_path, content, expected_digest):
+        target = self._reviewed_target(project_id, relative_path, expected_digest)
         temp_name = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -118,6 +121,10 @@ class Vault:
                 stream.write(content.encode("utf-8"))
                 stream.flush()
                 os.fsync(stream.fileno())
+            # Editors outside this lock can change the file while the temporary is written.
+            # Recheck the approved digest/absence and path immediately before replacement;
+            # this is not an atomic compare-and-swap against uncooperative external editors.
+            target = self._reviewed_target(project_id, relative_path, expected_digest)
             self._path(project_id, relative_path)
             os.replace(temp_name, target)
         finally:

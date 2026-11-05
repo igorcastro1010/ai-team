@@ -81,3 +81,24 @@ def test_another_process_cannot_write_while_export_lock_is_held(tmp_path):
         )
     assert result.returncode == 17, result.stderr
     assert vault.read("project", "note.md") == "Original"
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_external_edit_or_creation_during_export_is_preserved(tmp_path, monkeypatch, existing):
+    import ai_team.memory_vault as module
+
+    vault = Vault(tmp_path)
+    digest = vault.write("project", "note.md", "Original") if existing else None
+    original = module.tempfile.NamedTemporaryFile
+    target = tmp_path / "project" / "note.md"
+
+    def external_edit(*args, **kwargs):
+        target.write_text("Edição externa", encoding="utf-8")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module.tempfile, "NamedTemporaryFile", external_edit)
+    with pytest.raises(VaultError):
+        vault.write("project", "note.md", "SQL revisado", expected_digest=digest)
+    assert vault.read("project", "note.md") == "Edição externa"
+    assert not list(target.parent.glob("*.tmp"))
+    assert not (target.parent / ".note.md.lock").exists()
