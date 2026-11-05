@@ -62,13 +62,6 @@ class RepositoryFile(BaseModel):
         filename(self.path)
         if "\x00" in self.content:
             raise ValueError("Arquivo binário proibido")
-        if self.path.endswith(".py"):
-            try:
-                ast.parse(self.content, filename=self.path)
-            except (SyntaxError, ValueError, RecursionError):
-                raise ValueError(
-                    "Código Python inválido; confira o conteúdo e a redação do provedor"
-                ) from None
         return self
 
 
@@ -85,6 +78,16 @@ class RepositoryBundle(BaseModel):
             raise ValueError("Escrita fora da autorização")
         if sum(len(f.content.encode()) for f in self.files) > 49152:
             raise ValueError("Limite de 48 KiB")
+        # Snapshots may contain broken code that the task is meant to repair.
+        # Validate proposed source, without importing or executing it on the host.
+        for file in self.files:
+            if file.path.endswith(".py"):
+                try:
+                    ast.parse(file.content, filename=file.path)
+                except (SyntaxError, ValueError, RecursionError):
+                    raise ValueError(
+                        "Código Python inválido; confira o conteúdo e a redação do provedor"
+                    ) from None
         return self
 
     @property

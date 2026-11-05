@@ -6,8 +6,19 @@ from ai_team.repository_policy import RepositoryBundle, RepositoryFile, Reposito
 
 def test_corrupted_python_is_rejected_before_workspace_or_test_approval():
     with pytest.raises(ValueError, match="Python inválido"):
-        RepositoryFile(path="budget.py", content="MAX_TOKENS=*** remaining_tokens(used):\n")
+        RepositoryBundle(policy=policy(), files=[{
+            "path": "calculator.py", "content": "MAX_TOKENS=*** remaining_tokens(used):\n",
+        }])
     assert RepositoryFile(path="budget.py", content="MAX_TOKENS: int = 50_000\n")
+
+
+def test_snapshot_can_preserve_broken_source_for_agent_repair():
+    source = RepositoryFile(path="calculator.py", content="def broken(:\n")
+    assert source.content == "def broken(:\n"
+    repaired = RepositoryBundle(policy=policy(), files=[{
+        "path": source.path, "content": "def repaired():\n    return 1\n",
+    }])
+    assert repaired.files[0].content.startswith("def repaired")
 
 
 def policy(**values):
