@@ -133,3 +133,20 @@ Hermes de proteção de segredos e RFC 9110 sobre Retry-After. A própria imagem
 oficial executa a regressão de redator/JSON; não se desliga a proteção.
 O [relatório final](v061-final-homologation.md) distingue inferência real,
 testes de contrato, CI e publicação externa ainda não autorizada.
+
+## V0.7.1 — homologação final
+
+Find Skills: catálogo skills.sh consultado novamente; reutilizadas as skills
+locais já revisadas, sem instalação adicional ou ampliação de ferramentas.
+TDD, investigação sistemática e verificação antes de concluir (obra/superpowers):
+regressões vermelhas e verdes para concorrência, respostas antigas, busca vazia,
+reexportação e encoding Windows. Segurança de prompts: dados recuperados sem
+autoridade, cache e propostas sem credenciais conhecidas. LangGraph fundamentals:
+revisão dos contratos existentes, sem mudar o grafo nesta rodada.
+
+React/Vercel e documentação Next.js incluída na versão instalada: controle de
+respostas assíncronas e fronteira client/server. UI/UX Pro Max e Playwright:
+revisão explícita, foco, teclado, estados e testes do painel. Supabase Postgres:
+testes existentes no schema privado descartável; nenhuma migração nova.
+Limitações: skills não certificam segurança nem homologam integrações; revisão
+independente nesta rodada é automatizada, não humana. Ver evidências V0.7.1.
