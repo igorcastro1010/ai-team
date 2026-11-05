@@ -94,3 +94,17 @@ de legibilidade prevalecem sobre usar fonte pixel pequena nos resultados.
 Playwright e React Best Practices aplicados aos fluxos, stale state e acessibilidade.
 
 Skills são exclusivas do desenvolvimento; Hermes não as instala nem executa.
+
+## V0.6.1 — estabilização
+
+Find Skills executado com `npx skills find hermes --owner nousresearch`;
+nenhuma instalação adicional. Revisados o hub oficial NousResearch (MIT), sua
+referência `security-privacy.md` e o redator oficial `agent/redact.py`.
+Origem: https://github.com/NousResearch/hermes-agent/tree/main/skills/autonomous-ai-agents/hermes-agent.
+O runtime continua fixado por digest; descoberta não autoriza ferramentas novas.
+
+Aplicadas skills existentes: TDD (RED/GREEN nas correções), revisão independente
+somente leitura, verificação antes de concluir, segurança de prompts, LangGraph
+fundamentals, Supabase Postgres, Playwright, UI/UX Pro Max e React/Next.js.
+Inspeções e testes não equivalem a inferência Hermes homologada. Limites e
+resultados reais: [relatório V0.6.1](v061-stabilization.md).
