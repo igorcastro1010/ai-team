@@ -291,6 +291,16 @@ class OptimizerStore:
     ):
         try:
             validate_text(json.dumps([context, memories], ensure_ascii=False), maximum=250000)
+            pending = [context, memories]
+            while pending:
+                value = pending.pop()
+                if isinstance(value, str):
+                    validate_text(value, maximum=250000)
+                elif isinstance(value, dict):
+                    pending.extend(value.keys())
+                    pending.extend(value.values())
+                elif isinstance(value, list):
+                    pending.extend(value)
         except (ValueError, TypeError):
             raise HTTPException(
                 422, "Contexto inválido ou contém credenciais; não armazenado"
