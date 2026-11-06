@@ -52,3 +52,11 @@ class ModelCall(Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     retry_after: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[float] = mapped_column(Float, default=time.time, index=True)
+
+
+class ModelProbe(Base):
+    __tablename__ = "model_probes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="queued", index=True)
+    expires_at: Mapped[int] = mapped_column(Integer, default=0)

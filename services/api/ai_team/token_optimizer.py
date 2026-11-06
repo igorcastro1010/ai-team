@@ -388,7 +388,13 @@ class OptimizedProvider:
         on_tick()  # Cancellation before admission cannot leave an unused reservation.
         admission = store.reserve(self.run.project_id, role, self.run.id, amount)
         # Errors after dispatch intentionally retain conservative in-flight reservations.
-        draft = self.provider.generate(role, instructions, result["context"], on_tick)
+        try:
+            draft = self.provider.generate(role, instructions, result["context"], on_tick)
+        except Exception as error:
+            from .model_center import CentralDeferred
+            if isinstance(error, CentralDeferred) and error.not_dispatched:
+                store.refund(admission)
+            raise
         if draft.input_tokens + draft.output_tokens > 0:
             store.reconcile(admission, draft.input_tokens, draft.output_tokens)
         return draft

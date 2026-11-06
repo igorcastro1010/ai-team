@@ -121,6 +121,9 @@ class WorkflowStore:
                             "running",
                             "awaiting_approval",
                             "blocked",
+                            "waiting_model",
+                            "waiting_quota",
+                            "awaiting_codex",
                         ]
                     ),
                 )
