@@ -1,0 +1,138 @@
+name: ai-team-production
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: services/api/Dockerfile.production
+    target: runtime
+  platform: ${AI_TEAM_PLATFORM:-linux/arm64}
+  env_file: ${AI_TEAM_PRODUCTION_ENV_FILE:?Set private production env file path}
+  environment:
+    AI_TEAM_ENVIRONMENT: production
+    AI_TEAM_PUBLIC_ORIGIN: ${AI_TEAM_PUBLIC_ORIGIN:?Set external HTTPS frontend origin}
+    AI_TEAM_MEMORY_VAULT: /vault
+    AI_TEAM_VIDEO_ROOT: /data/videos
+  volumes:
+    - app-data:/data
+    - vault-data:/vault
+    - type: bind
+      source: ${AI_TEAM_SECRETS_DIRECTORY:?Set private app secrets directory}
+      target: /run/secrets
+      read_only: true
+      bind: {create_host_path: false}
+  networks: [control, outbound]
+  user: "10001:10001"
+  init: true
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m,mode=1777"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 128
+  mem_limit: 768m
+  cpus: 1.0
+  restart: unless-stopped
+  stop_signal: SIGTERM
+  stop_grace_period: 45s
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+x-health: &health
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 45s
+
+services:
+  api:
+    <<: *app
+    ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      <<: *health
+      test: [CMD, python, /app/production/healthcheck.py, api]
+  worker:
+    <<: *app
+    command: [python, -m, ai_team.worker]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      <<: *health
+      test: [CMD, python, /app/production/healthcheck.py, worker]
+  scheduler:
+    <<: *app
+    command: [python, -m, ai_team.scheduler]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      <<: *health
+      test: [CMD, python, /app/production/healthcheck.py, scheduler]
+  video-worker:
+    <<: *app
+    profiles: [video]
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile.production
+      target: video
+    command: [python, -m, ai_team.video_worker]
+    mem_limit: 1536m
+    cpus: 2.0
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=512m,mode=1777"]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      <<: *health
+      test: [CMD, python, /app/production/healthcheck.py, video_worker]
+  init-db:
+    <<: *app
+    profiles: [maintenance]
+    command: [python, -m, ai_team.cli, init-db]
+    restart: "no"
+  create-owner:
+    <<: *app
+    profiles: [maintenance]
+    command: [python, -m, ai_team.cli, create-owner]
+    restart: "no"
+    stdin_open: true
+    tty: true
+  postgres:
+    # Official PostgreSQL 17.11-bookworm index shared with PostgreSQL CI.
+    image: postgres@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+    platform: ${AI_TEAM_PLATFORM:-linux/arm64}
+    profiles: [local-db]
+    environment:
+      POSTGRES_DB: ai_team
+      POSTGRES_USER: ai_team_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    networks: [control]
+    user: postgres
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /var/run/postgresql:rw,nosuid,size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1.0
+    restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    healthcheck:
+      <<: *health
+      test: [CMD, pg_isready, -U, ai_team_admin, -d, ai_team]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+
+secrets:
+  postgres_password:
+    file: ${AI_TEAM_POSTGRES_PASSWORD_FILE:-/etc/ai-team/postgres_password}
+volumes:
+  app-data:
+  vault-data:
+  postgres-data:
+networks:
+  control: {internal: true}
+  outbound:
