@@ -50,3 +50,31 @@ def test_preflight_never_dispatches_when_permission_or_quota_is_unknown(client, 
         store.choose(run, "CEO")
     assert error.value.status == "waiting_model"
     assert store.snapshot(pid)["history"][0]["reason"]
+
+
+def test_shared_google_project_quota_serializes_across_ai_team_projects(client, app):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from ai_team.model_center import CentralDeferred, ModelCenter, Preference
+
+    store = ModelCenter(app.state.database)
+    first, second = project(client), project(client)
+    policy = Preference(enabled=True, quotas_confirmed=True)
+    for pid in (first, second):
+        store.configure(pid, "CEO", policy, "owner")
+    runs = [
+        store.request(pid, str(index), "Plano de tarefa simples", "owner")
+        for index, pid in enumerate((first, second, first))
+    ]
+
+    def admit(run):
+        try:
+            return store.admit(run, "CEO", "123456789", 1000)
+        except CentralDeferred:
+            return None
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        outcomes = list(pool.map(admit, runs))
+    assert sum(value is not None for value in outcomes) == 2
+    with pytest.raises(CentralDeferred):
+        store.admit(runs[0], "CEO", "123456789", 1000)

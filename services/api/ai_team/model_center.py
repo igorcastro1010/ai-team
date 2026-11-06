@@ -184,6 +184,106 @@ class ModelCenter:
         self.log(run, agent, "gemini", GEMINI_MODEL, "waiting_model", reason)
         raise CentralDeferred(reason)
 
+    def admit(self, run, agent, cloud_project, estimated_tokens):
+        policy = self.choose(run, agent)
+        if type(estimated_tokens) is not int or not 1 <= estimated_tokens <= 40000:
+            raise CentralDeferred("Contexto excede o limite conservador local", "waiting_quota")
+        instant = time.time()
+        reason, status = "", "waiting_quota"
+        with self.database.session() as db:
+            db.execute(
+                update(ModelProviderState)
+                .where(ModelProviderState.id == "gemini")
+                .values(locked_at=int(instant))
+            )
+            # Lock precedes every read; shared Cloud quotas span all AI TEAM projects.
+            stage_calls = db.scalars(
+                select(ModelCall).where(
+                    ModelCall.run_id == run.id,
+                    ModelCall.stage == run.stage,
+                    ModelCall.admitted.is_(True),
+                )
+            ).all()
+            recent = db.scalars(
+                select(ModelCall).where(
+                    ModelCall.cloud_project == cloud_project,
+                    ModelCall.admitted.is_(True),
+                    ModelCall.created_at > instant - 86400,
+                )
+            ).all()
+            minute = [r for r in recent if r.created_at > instant - 60]
+            if any(r.status in {"started", "uncertain", "succeeded"} for r in stage_calls):
+                reason, status = (
+                    "Admissão anterior concluída ou incerta; repetição bloqueada",
+                    "uncertain",
+                )
+            elif len(stage_calls) >= 3:
+                reason = "Máximo de três admissões por etapa atingido"
+            elif any(r.retry_after > instant for r in recent):
+                reason = "Aguarde Retry-After do provedor antes de nova admissão"
+            elif len(minute) >= policy["rpm"] or len(recent) >= 10:
+                reason = "Cota compartilhada local por minuto/dia atingida"
+            elif sum(r.project_id == run.project_id for r in recent) >= policy["rpd"]:
+                reason = "Cota diária local do projeto atingida"
+            elif (
+                sum(
+                    r.reserved_tokens
+                    if r.input_tokens is None
+                    else r.input_tokens + (r.output_tokens or 0)
+                    for r in minute
+                )
+                + estimated_tokens
+                > policy["tpm"]
+            ):
+                reason = "Reserva conservadora excede tokens por minuto"
+            if not reason:
+                call = ModelCall(
+                    project_id=run.project_id,
+                    run_id=run.id,
+                    stage=run.stage,
+                    agent=agent,
+                    provider="gemini",
+                    model=GEMINI_MODEL,
+                    cloud_project=cloud_project,
+                    admitted=True,
+                    status="started",
+                    reserved_tokens=estimated_tokens,
+                    reason="Gemini gratuito verificado, autorizado e dentro dos limites",
+                )
+                db.add(call)
+                db.flush()
+                db.add(
+                    Event(
+                        kind="models.admitted",
+                        resource_id=run.id,
+                        actor=agent,
+                        summary="Admissão gratuita reservada no projeto compartilhado",
+                    )
+                )
+                db.commit()
+                return call.id
+        self.log(run, agent, "gemini", GEMINI_MODEL, status, reason)
+        raise CentralDeferred(reason, status)
+
+    def finish(self, call_id, status, *, draft=None, latency_ms=None, retry_after=0):
+        with self.database.session() as db:
+            row = db.get(ModelCall, call_id)
+            if row is None or row.status != "started":
+                return
+            row.status, row.latency_ms = status, latency_ms
+            row.retry_after = int(time.time()) + retry_after if retry_after else 0
+            if draft is not None and draft.input_tokens + draft.output_tokens > 0:
+                row.input_tokens, row.output_tokens = draft.input_tokens, draft.output_tokens
+            db.add(
+                Event(
+                    kind="models.finished",
+                    resource_id=row.run_id,
+                    actor=row.agent,
+                    summary="Chamada central: " + status,
+                )
+            )
+            db.commit()
+
     def snapshot(self, project_id):
         preferences = [self.preference(project_id, role) for role in ROLES]
         with self.database.session() as db:
