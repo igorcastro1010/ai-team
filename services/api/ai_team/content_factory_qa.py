@@ -1,6 +1,7 @@
 """Bounded inspection of local renderer outputs; no model or arbitrary commands."""
 
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -49,7 +50,8 @@ def inspect_mp4(path, document):
         w, h = w * 3 // 2, h * 3 // 2
     seconds = float(data["format"]["duration"])
     if (
-        len(video) != 1
+        not math.isfinite(seconds)
+        or len(video) != 1
         or video[0]["codec_name"] != "h264"
         or (video[0]["width"], video[0]["height"]) != (w, h)
         or abs(seconds - sum(s["duration"] for s in document["scenes"])) > 0.5

@@ -232,3 +232,33 @@ def test_failed_render_retry_requires_new_digest_and_approval(factory, monkeypat
     with pytest.raises(HTTPException):
         store.approve(project, job["id"], old["digest"])
     assert not FactoryWorker(store).once()
+
+
+@pytest.mark.parametrize("duration", ["nan", "inf", "-inf"])
+def test_qa_rejects_nonfinite_duration(tmp_path, monkeypatch, duration):
+    import json
+    from types import SimpleNamespace
+
+    from ai_team import content_factory_qa as qa
+
+    path = tmp_path / "artifact.mp4"
+    path.write_bytes(b"disposable-local-fixture")
+    monkeypatch.setattr(qa, "executable_path", lambda: "/fixture/ffmpeg")
+    monkeypatch.setattr(
+        qa.subprocess,
+        "run",
+        lambda *a, **k: SimpleNamespace(
+            stdout=json.dumps(
+                {
+                    "streams": [
+                        {"codec_type": "video", "codec_name": "h264", "width": 720, "height": 1280}
+                    ],
+                    "format": {"duration": duration},
+                }
+            ).encode()
+        ),
+    )
+    with pytest.raises(ValueError):
+        qa.inspect_mp4(
+            path, {"format": "vertical", "resolution": "720p", "scenes": [{"duration": 15}]}
+        )
