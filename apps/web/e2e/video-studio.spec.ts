@@ -10,6 +10,7 @@ test("estúdio edita timeline, salva rascunho e mantém limites", async ({ page 
   expect(response.status()).toBe(201);
   const project = (await response.json()).id;
   await page.goto("/videos");
+  await page.getByRole("button", { name: "Modo avançado", exact: true }).click();
   await page.getByLabel("Projeto dos vídeos").selectOption(project);
   await page.getByLabel("Título do vídeo").fill("Minha timeline");
   await page.getByLabel("Texto da cena 1", { exact: true }).fill("Abertura original");
@@ -20,6 +21,7 @@ test("estúdio edita timeline, salva rascunho e mantém limites", async ({ page 
   await expect(page.getByLabel("Texto da cena 1", { exact: true })).toHaveValue("Segunda parte");
   await expect(page.getByText("Rascunho salvo", { exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "Modo avançado", exact: true }).click();
   await page.getByLabel("Projeto dos vídeos").selectOption(project);
   await expect(page.getByLabel("Título do vídeo")).toHaveValue("Minha timeline");
   await page.getByRole("button", { name: "Selecionar cena 2" }).click();

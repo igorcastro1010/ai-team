@@ -12,6 +12,7 @@ test("vídeo exige revisão, permite cancelar e isola os projetos", async ({ pag
     expect(response.status()).toBe(201); ids.push((await response.json()).id);
   }
   await page.goto("/videos");
+  await page.getByRole("button", { name: "Modo avançado", exact: true }).click();
   await page.getByLabel("Projeto dos vídeos").selectOption(ids[0]);
   await expect(page.getByRole("status")).toContainText("Vídeos atualizados");
   await page.getByLabel("Título do vídeo").fill("Apresentação do projeto");

@@ -7,10 +7,11 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const targetPath = path.join("/");
   const repositoryAllowed = /^repository-runs(?:\/[a-f0-9-]{36}(?:\/(decision|cancel|artifacts|publish))?)?$/;
   const modelsAllowed = /^model-center\/[a-f0-9-]{36}(?:\/(?:check|requests|preferences\/(?:CEO|DEV|DESIGNER|QA|PESQUISADOR)|(?:resume|handoff)\/[a-f0-9-]{36}))?$/;
+  const factoryAllowed = /^content-factory(?:\/[a-f0-9-]{36}(?:\/[a-f0-9-]{36}(?:\/(?:approve|cancel|resume))?)?)?$/;
   const videosAllowed = /^videos(?:\/[a-f0-9-]{36}\/(?:decision|cancel|download))?$/;
   const studioAllowed = /^video-studio\/(?:fonts\/(?:sans|serif|mono)|[a-f0-9-]{36}\/(?:media(?:\/[a-f0-9-]{36}\/content)?|draft|templates|render))$/;
   const knowledgeAllowed = /^(?:memory\/[a-f0-9-]{36}(?:\/(?:search|sync|[a-f0-9-]{36}(?:\/(?:history|export))?))?|knowledge\/[a-f0-9-]{36}\/graph|issues(?:\/[a-f0-9-]{36}(?:\/sync)?)?|projects\/[a-f0-9-]{36}\/optimizer(?:\/(?:budgets|preview))?)$/;
-  if (!allowed.test(targetPath) && !repositoryAllowed.test(targetPath) && !knowledgeAllowed.test(targetPath) && !modelsAllowed.test(targetPath) && !videosAllowed.test(targetPath) && !studioAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
+  if (!factoryAllowed.test(targetPath) && !allowed.test(targetPath) && !repositoryAllowed.test(targetPath) && !knowledgeAllowed.test(targetPath) && !modelsAllowed.test(targetPath) && !videosAllowed.test(targetPath) && !studioAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
   const hasBody = !["GET", "HEAD"].includes(request.method);
   if (hasBody && request.headers.get("origin") !== request.nextUrl.origin) {
     return NextResponse.json({ detail: "Origem não autorizada" }, { status: 403 });

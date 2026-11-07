@@ -100,11 +100,11 @@ export function PixelOffice({ data, connected }: { data: Workspace; connected: b
 function AgentDetail({ current, place, fresh }: { current: OfficeAgent; place: string; fresh: boolean }) {
   return <section className="panel office-detail" aria-labelledby="office-agent-title"><div className="office-detail-summary">
     <div><p className="eyebrow">NA MESA DE {current.name} <span aria-hidden="true">/</span> {place}</p><h2 id="office-agent-title">{current.role}</h2><span className={`office-state state-${current.status}`}>{current.enabled ? activity(current) : "Papel preparado"}</span></div>
-    <Link href={current.status === "awaiting_approval" ? "/aprovacoes" : "/execucoes"} className="button">{current.status === "awaiting_approval" ? "Revisar aprovação" : "Abrir execuções"}<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+    <Link href={current.executor === "local" ? "/videos" : current.status === "awaiting_approval" ? "/aprovacoes" : "/execucoes"} className="button">{current.executor === "local" ? "Abrir produção" : current.status === "awaiting_approval" ? "Revisar aprovação" : "Abrir execuções"}<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
     {!current.enabled && <p>Perfil Hermes ainda não provisionado.</p>}
     {current.status === "working" && (!current.animate || !fresh) && <p className="notice">Execução registrada, sem sinal recente suficiente para animar atividade.</p>}
     {current.run_status === "queued" && <p>Solicitação na fila, aguardando o worker.</p>}
-    {current.executor && <p className="field-help">Executor autorizado: {current.executor === "central" ? "Central de IA" : current.executor === "hermes" ? "Hermes" : "Codex"}.</p>}
+    {current.executor && <p className="field-help">Executor autorizado: {current.executor === "local" ? "Processamento determinístico local, sem IA" : current.executor === "central" ? "Central de IA" : current.executor === "hermes" ? "Hermes" : "Codex"}.</p>}
     {current.error && <p className="notice error">{current.error}</p>}
     <h3>Histórico e resultados</h3>{!current.history.length && <p className="office-empty">Nenhum resultado registrado para este papel.</p>}
     {current.history.map((step, index) => <details key={`${step.run_id}-${index}`} className="office-result"><summary>{step.summary}</summary><small>{dateTime(step.created_at)} · {step.executor}</small><pre>{step.deliverable}</pre></details>)}

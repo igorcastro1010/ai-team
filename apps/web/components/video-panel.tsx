@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type Project } from "@/lib/api";
 import "@/styles/video.css";
 import { VideoStudio } from "./video-studio";
+import { ContentFactoryPanel } from "./content-factory-panel";
 import type { StudioDocument } from "@/lib/video-studio";
 
 type Scene = { text: string; duration: number };
@@ -12,11 +13,13 @@ type Snapshot = { items: Video[]; renderer: { available: boolean; reason: string
 const labels: Record<string, string> = { pending_approval: "Aguardando sua aprovação", queued: "Na fila do worker", rendering: "Renderizando no worker", completed: "MP4 pronto", cancelled: "Cancelado", failed: "Falha na renderização", blocked: "Renderização indisponível" };
 
 export function VideoPanel({ projects }: { projects: Project[] }) {
+  const [mode, setMode] = useState("automatic");
   const [selected, setSelected] = useState("");
   const project = selected || projects[0]?.id || "";
   return <section className="video-panel" aria-label="Produção de vídeos">
     <div className="video-toolbar"><label>Projeto dos vídeos<select value={project} onChange={event => setSelected(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><p>Roteiro, aprovação e MP4 em um só lugar.<br />Renderização local, sem chamadas de IA ou serviços pagos.</p></div>
-    {project ? <ProjectVideos key={project} project={project} /> : <p>Crie um projeto para preparar seu primeiro vídeo.</p>}
+    <div className="factory-mode" role="group" aria-label="Modo de criação"><button className="button" aria-pressed={mode === "automatic"} onClick={() => setMode("automatic")}>Modo automático</button><button className="button" aria-pressed={mode === "advanced"} onClick={() => setMode("advanced")}>Modo avançado</button></div>
+    {project ? mode === "automatic" ? <ContentFactoryPanel key={project} project={project} /> : <ProjectVideos key={project} project={project} /> : <p>Crie um projeto para preparar seu primeiro vídeo.</p>}
   </section>;
 }
 
