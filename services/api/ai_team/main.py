@@ -41,7 +41,9 @@ from .schemas import (
 )
 from .vercel_routes import observation_snapshot
 from .vercel_routes import router as vercel_router
+from .video_font_routes import router as video_font_router
 from .video_routes import router as video_router
+from .video_studio_routes import router as video_studio_router
 from .workflow import WorkflowStore
 
 TRANSITIONS = {
@@ -83,6 +85,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(knowledge_router)
     app.include_router(models_router)
     app.include_router(video_router)
+    app.include_router(video_studio_router)
+    app.include_router(video_font_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
