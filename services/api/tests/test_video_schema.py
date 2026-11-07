@@ -41,3 +41,22 @@ def test_studio_rejects_unbounded_styles_and_paths(patch):
 
     with pytest.raises(ValidationError):
         StudioDocument(title="Produto", scenes=[{"text": "Olá", "duration": 2, **patch}])
+
+
+def test_render_input_accepts_studio_document_but_rejects_empty_scene():
+    import uuid
+
+    from ai_team.video_routes import VideoInput
+
+    payload = dict(
+        project_id=uuid.uuid4(),
+        request_id=uuid.uuid4(),
+        title="Vídeo",
+        format="square",
+        resolution="720p",
+        consent=True,
+        scenes=[{"text": "Olá", "animation": "pan", "duration": 2}],
+    )
+    assert VideoInput(**payload).scenes[0].animation == "pan"
+    with pytest.raises(ValidationError):
+        VideoInput(**(payload | {"scenes": [{"text": "", "duration": 2}]}))
