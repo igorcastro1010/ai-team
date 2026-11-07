@@ -17,10 +17,15 @@ class VideoWorker:
     def __init__(self, store, output=None, executable=None):
         self.store, self.output, self.executable = store, output or artifact_root(), executable
         self.stopped = threading.Event()
+        from .content_factory import FactoryStore, FactoryWorker
+
+        self.factory = FactoryWorker(FactoryStore(store.database), self.output)
 
     def once(self):
         if self.stopped.is_set():
             return False
+        if self.factory.once():
+            return True
         job = self.store.claim()
         if not job:
             return False

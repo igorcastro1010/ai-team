@@ -1,0 +1,144 @@
+import uuid
+
+import pytest
+from fastapi import HTTPException
+
+from ai_team.config import Settings
+from ai_team.db import Database
+from ai_team.models import Project
+
+
+@pytest.fixture
+def factory(tmp_path, monkeypatch):
+    from ai_team.content_factory import FactoryStore
+
+    monkeypatch.setenv("AI_TEAM_VIDEO_ROOT", str(tmp_path / "media"))
+    db = Database(Settings(database_url=f"sqlite:///{tmp_path / 'factory.db'}"))
+    db.initialize()
+    project = str(uuid.uuid4())
+    with db.session() as session:
+        session.add(Project(id=project, name="Fábrica"))
+        session.commit()
+    return FactoryStore(db), project
+
+
+def request(project, **changes):
+    from ai_team.content_factory import ProductionInput
+
+    return ProductionInput(
+        project_id=project,
+        request_id=str(uuid.uuid4()),
+        prompt="Crie um Reels de 15 segundos com a logo FORTALAKA. Preto, branco e vermelho.",
+        **changes,
+    )
+
+
+def test_idempotency_secret_rejection_and_project_isolation(factory):
+    store, project = factory
+    data = request(project)
+    created = store.create(data)
+    assert store.create(data)["id"] == created["id"]
+    with pytest.raises(HTTPException):
+        store.get(str(uuid.uuid4()), created["id"])
+    with pytest.raises(HTTPException):
+        store.create(data.model_copy(update={"prompt": "api_key=" + "x" * 40}))
+    with pytest.raises(HTTPException):
+        store.create(data.model_copy(update={"prompt": "Outro conteúdo"}))
+
+
+def test_durable_stages_wait_for_media_and_cancel(factory):
+    from ai_team.content_factory import FactoryWorker
+
+    store, project = factory
+    row = store.create(request(project))
+    for _ in range(3):
+        assert FactoryWorker(type(store)(store.database)).once()
+    current = store.get(project, row["id"])
+    assert current["status"] == "waiting_media"
+    assert [step["agent"] for step in current["steps"]] == ["CEO", "PESQUISADOR", "DESIGNER"]
+    assert current["video_id"] is None
+    assert all(step["inference"] is False for step in current["steps"])
+    store.cancel(project, row["id"])
+    assert store.get(project, row["id"])["status"] == "cancelled"
+    assert not FactoryWorker(store).once()
+
+
+def upload_logo(store, project):
+    import base64
+    from ai_team.video_media import MediaStore
+
+    # Original disposable one-pixel fixture; not the user's FORTALAKA logo.
+    body = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jGv8AAAAASUVORK5CYII="
+    )
+    return MediaStore(store.database).upload(project, "fixture.png", "image/png", body)
+
+
+def test_review_digest_edit_isolation_and_real_mp4(factory):
+    from ai_team.content_factory import FactoryWorker
+    from ai_team.video_render import artifact_root, renderer_status
+    from ai_team.video_store import VideoStore
+    from ai_team.video_worker import VideoWorker
+
+    if not renderer_status()["available"]:
+        pytest.skip("FFmpeg e fonte locais necessários")
+    store, project = factory
+    asset = upload_logo(store, project)
+    row = store.create(request(project, media_ids=[asset["id"]]))
+    for _ in range(3):
+        assert FactoryWorker(store).once()
+    review = store.get(project, row["id"])
+    assert review["status"] == "awaiting_approval"
+    assert len(review["document"]["scenes"]) == 4
+    assert sum(s["duration"] for s in review["document"]["scenes"]) == 15
+    assert review["document"]["scenes"][0]["text"] == "FORTALAKA"
+    assert not VideoStore(store.database).snapshot(project)["items"]
+    edited = store.edit(project, row["id"], 0, {**review["document"], "title": "Minha revisão"})
+    with pytest.raises(HTTPException):
+        store.approve(project, row["id"], review["digest"])
+    store.approve(project, row["id"], edited["digest"])
+    with pytest.raises(HTTPException):
+        store.approve(project, row["id"], edited["digest"])
+    worker = VideoWorker(VideoStore(store.database), output=artifact_root())
+    for _ in range(5):
+        worker.once()
+    result = store.get(project, row["id"])
+    assert result["status"] == "completed", (
+        result["stage"],
+        result["steps"],
+        VideoStore(store.database).snapshot(project),
+    )
+    assert [step["agent"] for step in result["steps"]] == [
+        "CEO",
+        "PESQUISADOR",
+        "DESIGNER",
+        "DEV",
+        "QA",
+        "CEO",
+    ]
+    assert "720×1280" in result["steps"][-2]["summary"]
+    assert (artifact_root() / f"{result['video_id']}.mp4").is_file()
+
+
+def test_media_resume_and_cross_project_denial(factory, monkeypatch):
+    from ai_team import video_media
+    from ai_team.content_factory import FactoryWorker
+
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 1, "height": 1, "duration": None}
+    )
+    store, project = factory
+    asset = upload_logo(store, project)
+    with store.database.session() as db:
+        other = Project(name="Outro")
+        db.add(other)
+        db.commit()
+        other_id = other.id
+    with pytest.raises(HTTPException):
+        store.create(request(other_id, media_ids=[asset["id"]]))
+    row = store.create(request(project))
+    for _ in range(3):
+        FactoryWorker(store).once()
+    store.resume(project, row["id"], [asset["id"]])
+    assert FactoryWorker(store).once()
+    assert store.get(project, row["id"])["status"] == "awaiting_approval"

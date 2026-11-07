@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session
 
 from . import (  # noqa: F401 - register additive tables
+    content_factory_models,
     issue_models,
     knowledge_automation_models,
     memory_models,  # noqa: F401 - register additive tables

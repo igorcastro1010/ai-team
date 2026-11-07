@@ -22,6 +22,7 @@ from .memory_routes import router as memory_router
 from .model_routes import router as models_router
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
+from .content_factory_routes import router as content_factory_router
 from .optimizer_routes import router as optimizer_router
 from .report_routes import router as report_router
 from .repository_routes import router as repository_router
@@ -86,6 +87,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(models_router)
     app.include_router(video_router)
     app.include_router(video_studio_router)
+    app.include_router(content_factory_router)
     app.include_router(video_font_router)
 
     @app.middleware("http")
