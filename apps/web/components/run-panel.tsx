@@ -8,6 +8,7 @@ import { CodeArtifacts } from "./code-artifacts";
 const runLabels: Record<string, string> = {
   queued: "Na fila", running: "Executando", awaiting_approval: "Aguarda aprovação",
   completed: "Relatório entregue", cancelled: "Cancelada", failed: "Falha", blocked: "Bloqueada",
+  waiting_model: "Aguarda modelo autorizado", waiting_quota: "Aguarda cota", awaiting_codex: "Aguarda Codex supervisionado",
 };
 const codeScopes = new Set(["python_code", "nextjs_code"]);
 const stages = ["CEO · Planejamento", "DEV · Proposta técnica", "DESIGNER · Interface", "QA · Revisão", "CEO · Relatório"];
@@ -63,7 +64,8 @@ export function RunList({ data, runs, reload }: { data: Workspace; runs: Run[]; 
       {run.steps.map(step => <details className="run-artifact" key={step.stage} open={step.stage === 0 && run.status === "awaiting_approval"}><summary><span className="artifact-number">{String(step.stage + 1).padStart(2, "0")}</span><span><strong>{stages[step.stage]}</strong><small>{step.summary}</small></span><ChevronRight size={17} aria-hidden="true" /></summary><div className="artifact-content">{step.deliverable}</div></details>)}
       <CodeArtifacts run={run} />
       {run.status === "awaiting_approval" && <div className="run-approval"><p><ShieldCheck size={16} aria-hidden="true" />{codeScopes.has(run.scope) && run.stage === 4 ? "Revise os arquivos antes de autorizar os testes isolados desta versão." : "Revise o plano e os artefatos antes de autorizar a próxima etapa."}</p><div><button className="button" onClick={() => setPending({ run, action: "reject" })}>Rejeitar</button><button className="button primary" onClick={() => setPending({ run, action: "approve" })}><Check size={16} aria-hidden="true" />{codeScopes.has(run.scope) && run.stage === 4 ? (run.scope === "nextjs_code" ? "Aprovar build e testes" : "Aprovar execução dos testes") : "Aprovar próxima etapa"}</button></div></div>}
-      {["queued", "running", "blocked"].includes(run.status) && <div className="run-controls"><button className="text-button" onClick={() => setPending({ run, action: "cancel" })}>Cancelar execução</button>{run.status === "blocked" && <button className="button" onClick={() => setPending({ run, action: "resume" })}>Tentar após configurar</button>}</div>}
+      {run.executor === "central" && <Link href="/modelos" className="button">Configuração, cotas e encaminhamento na Central de IA</Link>}
+      {["queued", "running", "blocked", "waiting_model", "waiting_quota", "awaiting_codex"].includes(run.status) && <div className="run-controls"><button className="text-button" onClick={() => setPending({ run, action: "cancel" })}>Cancelar execução</button>{run.status === "blocked" && <button className="button" onClick={() => setPending({ run, action: "resume" })}>Tentar após configurar</button>}</div>}
       {run.status === "completed" && <p className="run-footnote">{codeScopes.has(run.scope) ? "Projeto e relatório entregues. Confira o resultado dos testes acima. Nenhum commit ou deploy foi realizado." : "Relatório textual entregue. Os artefatos são propostas e revisões; nenhuma alteração externa foi executada."}</p>}
     </article>)}</div>
     {pending && <RunConfirmation pending={pending} close={() => setPending(null)} reload={reload} />}
