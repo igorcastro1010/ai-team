@@ -13,7 +13,7 @@ const officeTools: { view: View; label: string }[] = [
   { view: "videos", label: "Estúdio de vídeos" }, { view: "projetos", label: "Projetos" },
   { view: "memoria", label: "Memória" }, { view: "modelos", label: "Modelos" },
   { view: "aprovacoes", label: "Aprovações" }, { view: "historico", label: "Histórico" },
-  { view: "integracoes", label: "Configurações" },
+  { view: "integracoes", label: "Integrações" },
 ];
 const stations: { view: View; label: string; x: number; y: number }[] = [
   { view: "ceo", label: "Mesa do CEO", x: 29, y: 22 },

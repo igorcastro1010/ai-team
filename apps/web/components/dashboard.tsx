@@ -86,7 +86,8 @@ export function Dashboard() {
   const meta = views[view];
   return <div className={`workspace-shell office-shell integrated-office ${menuOpen ? "navigation-open" : ""}`}>
     <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
-    <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+    <aside className={`sidebar ${menuOpen ? "open" : ""}`} inert={toolOpen}>
+      <button type="button" className="button" onClick={() => setMenuOpen(false)}>Recolher navegação</button>
       <Link href="/" className="brand" aria-label="AI TEAM início"><span className="brand-mark">ai</span><span>AI TEAM<small>INTELIGÊNCIA EM EQUIPE</small></span></Link>
       <div className="workspace-tag"><span className="workspace-avatar">I</span><div>Workspace pessoal<small>Proprietário único</small></div><ChevronRight size={15} aria-hidden="true" /></div>
       <nav aria-label="Navegação principal">{navigation.map(({ view: item, icon: Icon, group }) => <div key={item}>
@@ -98,13 +99,14 @@ export function Dashboard() {
       </div>
     </aside>
     <div className="workspace-body">
-      <header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label={menuOpen ? "Fechar navegação" : "Abrir navegação"} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button><span>Workspace</span><ChevronRight size={14} aria-hidden="true" /><strong>Escritório</strong></div><div className="topbar-right"><span className="private-badge"><ShieldCheck size={14} aria-hidden="true" /> AMBIENTE PRIVADO</span><button className="icon-button" aria-label="Atualizar workspace" onClick={() => void load()}><RefreshCw size={16} aria-hidden="true" /></button></div></header>
+      <header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label={menuOpen ? "Fechar navegação" : "Abrir navegação"} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button><span>Workspace</span><ChevronRight size={14} aria-hidden="true" /><strong>Escritório</strong></div><div className="topbar-right"><span className="private-badge"><ShieldCheck size={14} aria-hidden="true" /> AMBIENTE PRIVADO</span>{!toolOpen && <button className="icon-button" aria-label="Atualizar workspace" onClick={() => void load()}><RefreshCw size={16} aria-hidden="true" /></button>}</div></header>
       <main id="main-content" className="main-content">
         <div className="page-heading"><div><p className="eyebrow"><span className="tiny-square" /> SEU ESCRITÓRIO INTERATIVO</p><h1>{view === "escritorio" ? views.escritorio.title : views.overview.title}</h1><p className="page-description">Clique no time ou em uma sala para começar.</p></div><button className="button primary" onClick={() => setDialog("project")} disabled={!workspace}><Plus size={17} aria-hidden="true" /> Novo projeto</button></div>
         {error && <div className="notice error" role="alert">{error}<button className="text-button" onClick={() => void load()}>Tentar novamente</button></div>}
         {!workspace ? <div className="loading-state" role="status"><CircleDashed className="spin" size={24} aria-hidden="true" /><p>{error ? "Aguardando conexão com o serviço." : "Preparando sua sala de operações…"}</p></div> : <>
-          <PixelOffice data={workspace} connected={!error} openTool={target => router.push(href(target))} />
-          {toolOpen && <OfficeWindow label={meta.label} close={() => router.push("/")} back={() => router.back()}>
+          <div inert={toolOpen}><PixelOffice data={workspace} connected={!error} openTool={target => router.push(href(target))} /></div>
+          {toolOpen && <OfficeWindow label={meta.label} close={() => router.push("/")} back={() => router.back()} reload={load}
+            navigation={navigation.filter(item => !["overview", "escritorio"].includes(item.view)).map(item => <Link key={item.view} href={href(item.view)} aria-current={view === item.view ? "page" : undefined}>{views[item.view].label}</Link>)}>
           <div className="page-heading"><div><h2>{meta.title}</h2><p>{meta.description}</p></div></div>
           {view === "resumo" && <Overview data={workspace} create={() => setDialog("project")} newTask={newTask} />}
           {view === "projetos" && <Projects data={workspace} create={() => setDialog("project")} />}

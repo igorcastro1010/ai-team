@@ -33,7 +33,7 @@ test("Next.js: aprovar projeto e preservar resultado entre build e relatório", 
   await card.getByRole("link", { name: "Baixar projeto Next.js" }).click();
   expect((await download).suggestedFilename()).toBe("ai-team-nextjs.zip");
   await card.getByRole("button", { name: "Aprovar build e testes" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Autorizar validação Next.js", exact: true }).click();
+  await page.locator("dialog.creation-dialog").getByRole("button", { name: "Autorizar validação Next.js", exact: true }).click();
   advance(1);
   await expect(card.getByText("Validação Next.js: passou", { exact: true })).toBeVisible({ timeout: 12000 });
   advance(1);

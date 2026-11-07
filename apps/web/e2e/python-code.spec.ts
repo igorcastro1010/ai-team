@@ -41,7 +41,7 @@ test("Python: revisar arquivos, aprovar hash, baixar ZIP e ver resultado persist
   const archive = await page.request.get(`/api/control/runs/${run.id}/artifacts`);
   expect((await archive.body()).subarray(0, 2).toString()).toBe("PK");
   await card.getByRole("button", { name: "Aprovar execução dos testes" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.creation-dialog");
   await expect(dialog).toContainText(run.artifact_digest);
   await dialog.getByRole("button", { name: "Autorizar testes Python", exact: true }).click();
   advance(1);
