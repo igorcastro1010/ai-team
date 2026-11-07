@@ -1,5 +1,15 @@
 # Skills e pesquisa — 27/10/2026
 
+## Interface Pixel Art integrada — 07/11/2026
+
+Find Skills: catálogo https://skills.sh/ consultado; reutilizadas as skills locais
+revisadas UI/UX Pro Max (nextlevelbuilder), React (vercel-labs/agent-skills) e
+Playwright (currents.dev), sem instalar dependências ou conceder permissões.
+SKILL.md lidos; consulta UX local aplicada a foco, teclado e navegação móvel.
+Plano, TDD e diagnóstico de falhas orientaram layout persistente e regressões.
+Orientações são de desenvolvimento: não autorizam runtime, inferência, custo,
+deploy nem revisão humana. Auditoria Axe é automatizada e tem cobertura limitada.
+
 ## Revisão V0.7 — 05/11/2026
 
 Find Skills e leaderboard skills.sh consultados; `npx skills find obsidian --owner kepano`

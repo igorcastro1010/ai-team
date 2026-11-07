@@ -1,5 +1,10 @@
 # AI TEAM
 
+**Interface Pixel Art integrada:** após login, o escritório é a tela principal.
+Clique nos agentes, mesas ou atalhos para abrir ferramentas sobre o mapa sem
+reiniciar zoom e seleção. As rotas anteriores continuam disponíveis; o resumo
+de indicadores fica em `/resumo`. Veja [uso e limites](docs/pixel-interface.md).
+
 **V0.8.1 — Estúdio de Vídeos 2.0:** `/videos` agora tem biblioteca privada de
 imagens, clipes e áudio, editor de cenas com prévia, autosave, seis templates
 editáveis, animações, transições e exportação MP4 local. Formatos 9:16, 1:1 e
