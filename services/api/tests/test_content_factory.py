@@ -57,6 +57,8 @@ def test_durable_stages_wait_for_media_and_cancel(factory):
     assert current["status"] == "waiting_media"
     assert [step["agent"] for step in current["steps"]] == ["CEO", "PESQUISADOR", "DESIGNER"]
     assert current["video_id"] is None
+    assert current["steps"][0]["details"]["supplied_media"] == 0
+    assert current["steps"][1]["details"]["durations"] == [4, 4, 4, 3]
     assert all(step["inference"] is False for step in current["steps"])
     store.cancel(project, row["id"])
     assert store.get(project, row["id"])["status"] == "cancelled"

@@ -36,7 +36,20 @@ def production_office(database, agents):
                         agent["status"] = "completed"
             if agent["status"] in {"working", "awaiting_approval"}:
                 continue
-            for row in rows:
+            ordered = sorted(
+                rows,
+                key=lambda row: (
+                    0
+                    if row.status in {"running", "waiting_render"}
+                    else 1
+                    if row.status in {"awaiting_approval", "waiting_media"}
+                    else 2
+                    if row.status == "queued"
+                    else 3,
+                    -row.created_at,
+                ),
+            )
+            for row in ordered:
                 owner = (
                     "DESIGNER"
                     if row.status in {"waiting_media", "awaiting_approval"}

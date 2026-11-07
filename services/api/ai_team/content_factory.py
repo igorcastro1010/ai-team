@@ -284,8 +284,8 @@ class FactoryStore:
         return self.get(project, production)
 
 
-def montage(request):
-    """Four editable scenes; never claims generated or photographed product media."""
+def storyboard(request):
+    """Compute the researcher's bounded, editable local narrative and timing."""
     prompt = request["prompt"]
     brand = re.search(r"\blogo\s+(?:do\s+|da\s+)?([\w-]+)", prompt, re.IGNORECASE)
     title = (brand.group(1) if brand else prompt[:90]).strip()
@@ -295,23 +295,34 @@ def montage(request):
     if request["style"] == "tutorial":
         texts = [title, "Passo 1 · Prepare", "Passo 2 · Confira", "Revise o resultado"]
     q, remainder = divmod(request["duration"], 4)
+    return {
+        "title": title,
+        "texts": texts,
+        "colors": colors,
+        "durations": [q + (index < remainder) for index in range(4)],
+    }
+
+
+def montage(request, plan=None):
+    """Apply only supplied media to the researcher's plan."""
+    plan = plan or storyboard(request)
     assets = request["media_ids"]
     document = StudioDocument(
-        title=title,
+        title=plan["title"],
         format=request["format"],
         scenes=[
             {
                 "text": text,
-                "duration": q + (index < remainder),
+                "duration": plan["durations"][index],
                 "media_id": assets[index % len(assets)],
-                "background": colors[index],
+                "background": plan["colors"][index],
                 "color": "#000000" if index == 3 else "#ffffff",
                 "y": 78,
                 "animation": "zoom",
                 "transition": "fade",
                 "text_animation": "fade",
             }
-            for index, text in enumerate(texts)
+            for index, text in enumerate(plan["texts"])
         ],
         audio=(
             {"media_id": request["audio_id"], "volume": 0.35} if request.get("audio_id") else None
@@ -399,6 +410,7 @@ class FactoryWorker:
                 "created_at": time.time(),
                 "summary": summary,
                 "inference": False,
+                "details": result.pop("details", {}),
             }
             with self.store.database.session() as db:
                 changed = db.execute(
@@ -444,9 +456,25 @@ class FactoryWorker:
 
     def execute(self, stage, job):
         if stage == 0:
-            return {"summary": "CEO: requisitos registrados; processamento determinístico, sem IA"}
+            data = ProductionInput(
+                project_id=job["project_id"], request_id=job["request_id"], **job["request"]
+            )
+            validate_text(data.prompt, maximum=2000)
+            self.store.assets(job["project_id"], job["request"])
+            return {
+                "summary": "CEO: requisitos validados; processamento determinístico, sem IA",
+                "details": {
+                    "duration": data.duration,
+                    "format": data.format,
+                    "style": data.style,
+                    "supplied_media": len(data.media_ids),
+                },
+            }
         if stage == 1:
-            return {"summary": "PESQUISADOR: estrutura local de quatro cenas e duração definida"}
+            return {
+                "summary": "PESQUISADOR: roteiro local e distribuição de duração calculados",
+                "details": storyboard(job["request"]),
+            }
         if stage == 2:
             if not job["request"]["media_ids"]:
                 return {
@@ -454,7 +482,10 @@ class FactoryWorker:
                     "summary": "DESIGNER: forneça logo, foto ou vídeo próprio",
                 }
             self.store.assets(job["project_id"], job["request"])
-            document = montage(job["request"])
+            plan = next(
+                (step.get("details") for step in reversed(job["steps"]) if step["stage"] == 1), None
+            )
+            document = montage(job["request"], plan)
             return {
                 "document": document,
                 "digest": self.store.fingerprint(job["project_id"], document, job["revision"]),
@@ -504,6 +535,11 @@ class FactoryWorker:
                 raise ValueError("Renderização não concluída")
             result = inspect_mp4(self.output / f"{job['video_id']}.mp4", job["document"])
             return {"summary": "QA: MP4 H.264 validado · " + result}
+        if (
+            not any(step["stage"] == 4 for step in job["steps"])
+            or VideoStore(self.store.database).get(job["video_id"])["status"] != "completed"
+        ):
+            raise ValueError("Entrega sem validação QA")
         return {
             "status": "completed",
             "summary": "CEO: MP4 validado disponível para download autenticado",
