@@ -1,5 +1,11 @@
 # AI TEAM
 
+**V0.8.1 — Estúdio de Vídeos 2.0:** `/videos` agora tem biblioteca privada de
+imagens, clipes e áudio, editor de cenas com prévia, autosave, seis templates
+editáveis, animações, transições e exportação MP4 local. Formatos 9:16, 1:1 e
+16:9; 720p padrão e 1080p mediante configuração de recursos. Sem inferência,
+API paga ou geração automática de voz/música. Veja [uso, limites e evidências](docs/v081-video-studio.md).
+
 **V0.8 — Central de IA e estúdio de vídeos locais:** `/modelos` reúne preferências,
 roteamento supervisionado, prova de elegibilidade Gemini e cotas persistentes;
 `/videos` prepara cenas e legendas, exige aprovação do roteiro e renderiza MP4

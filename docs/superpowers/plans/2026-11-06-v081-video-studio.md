@@ -29,13 +29,15 @@ Assets imutáveis; manifesto de hashes entra na aprovação. Upload máximo25MB,
 100 arquivos/500MB por projeto, formatos allowlist e probe local com timeout.
 720p padrão;1080p depende AI_TEAM_VIDEO_1080P=1 e recursos do operador.
 
-- [ ] Schema e regressões TDD; contrato de compatibilidade V0.8.
-- [ ] Mídia privada, validação, rascunhos e seis templates, testes API/isolamento.
-- [ ] Renderer imagem/vídeo/animação/transição/áudio e testes FFmpeg reais.
-- [ ] Editor, timeline, prévia, autosave, biblioteca, templates e E2E direcionado.
-- [ ] Worker/progresso/manifesto, proxy autenticado, testes de integração.
-- [ ] Docs, CI completo, PR e evidências; commits atômicos e pushes regulares.
+- [x] Schema e regressões TDD; contrato de compatibilidade V0.8.
+- [x] Mídia privada, validação, rascunhos e seis templates, testes API/isolamento.
+- [x] Renderer imagem/vídeo/animação/transição/áudio e testes FFmpeg reais.
+- [x] Editor, timeline, prévia, autosave, biblioteca, templates e E2E direcionado.
+- [x] Worker/progresso/manifesto, proxy autenticado, testes de integração.
+- [x] Docs, CI completo, PR e evidências; commits atômicos e pushes regulares.
 
 Aplicação de subagent-driven-development: módulos com arquivos separados e
 contratos explícitos. Coordenador integra e verifica; nenhum subagente altera main,
 faz merge/deploy ou executa inferências. Preserve trabalho alheio e estágio exato.
+
+Testes locais direcionados concluídos; suíte completa e PostgreSQL no CI. Status final, SHAs e limites no PR e em docs/v081-video-studio.md. Nenhuma inferência, merge ou deploy.
