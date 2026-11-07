@@ -267,3 +267,39 @@ def test_builtin_templates_cover_the_six_requested_use_cases():
     assert all(not scene["media_id"] for item in templates for scene in item["document"]["scenes"])
     templates[0]["document"]["title"] = "Mutado"
     assert builtin_templates()[0]["document"]["title"] != "Mutado"
+
+
+@pytest.mark.parametrize(
+    ("mime", "extension", "source", "codec"),
+    [
+        ("image/jpeg", "jpg", "color=c=orange:s=32x32", None),
+        ("image/webp", "webp", "color=c=orange:s=32x32", "libwebp"),
+        ("video/webm", "webm", "color=c=orange:s=32x32:r=24", "libvpx-vp9"),
+        ("audio/mpeg", "mp3", "sine=frequency=440", "libmp3lame"),
+        ("audio/ogg", "ogg", "sine=frequency=440", "libvorbis"),
+    ],
+)
+def test_real_upload_matrix_for_advertised_formats(
+    studio, tmp_path, mime, extension, source, codec
+):
+    from test_video_render_studio import ffmpeg
+
+    from ai_team.video_render import executable_path
+
+    if not executable_path():
+        pytest.skip("Local FFmpeg required")
+    media, _, project = studio
+    path = tmp_path / f"sample.{extension}"
+    arguments = ["-f", "lavfi", "-i", source]
+    if mime.startswith("image/"):
+        arguments += ["-frames:v", "1"]
+    else:
+        arguments += ["-t", "0.25"]
+    if codec:
+        arguments += ["-c:a" if mime.startswith("audio/") else "-c:v", codec]
+    arguments += ["-threads", "1", str(path)]
+    ffmpeg(*arguments)
+    asset = media.upload(project, path.name, mime, path.read_bytes())
+    assert asset["mime"] == mime
+    assert asset["kind"] == mime.split("/")[0]
+    assert asset["bytes"] == path.stat().st_size

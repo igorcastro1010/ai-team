@@ -111,6 +111,7 @@ limites do provedor. API/worker/mídia privados não devem ir para Functions lon
 Executados localmente, sem inferências:
 
 - 47 testes direcionados de vídeo/schema/biblioteca/worker/fontes/renderer aprovados.
+- Mais cinco testes reais de upload aprovados: JPEG, WebP, WebM, MP3 e Ogg. PNG, MP4 e WAV estão no fluxo completo do worker.
 - 2 E2E do estúdio e fluxo V0.8 aprovados em 22,8s: reordenação, duplicação/exclusão,
   autosave/reload, conflito 409 real, upload PNG, prévia autenticada, templates,
   progresso numérico e viewport 390 sem overflow.
