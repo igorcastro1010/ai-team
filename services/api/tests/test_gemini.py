@@ -298,3 +298,13 @@ def test_cancellation_during_checks_prevents_generation_post(monkeypatch):
     with pytest.raises(InterruptedError):
         client.generate("DEV", "instructions", "context", cancelled_after_network, authorized=True)
     assert requests and all(r.method == "GET" for r in requests)
+
+
+def test_rate_limit_respects_future_retry_after_http_date(monkeypatch):
+    client, _ = setup_client(
+        monkeypatch,
+        lambda r: httpx.Response(429, headers={"Retry-After": "Fri, 06 Nov 2026 00:05:21 GMT"}),
+    )
+    with pytest.raises(GeminiRateLimited) as error:
+        client.check()
+    assert error.value.retry_after == 321

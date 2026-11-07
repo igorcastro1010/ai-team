@@ -1,10 +1,12 @@
 """Private text-only Gemini REST client; no billing activation or paid fallback."""
 
 import json
+import math
 import os
 import re
 import time
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 
 import httpx
 
@@ -70,7 +72,14 @@ class GeminiClient:
             ) as response:
                 if response.status_code == 429:
                     raw = response.headers.get("retry-after", "60")
-                    seconds = min(max(int(raw), 1), 86400) if raw.isdigit() else 60
+                    try:
+                        if raw.isdigit():
+                            seconds = max(int(raw), 1)
+                        else:
+                            retry_at = parsedate_to_datetime(raw)
+                            seconds = max(math.ceil((retry_at - now()).total_seconds()), 1)
+                    except (ValueError, TypeError, OverflowError):
+                        seconds = 60
                     raise GeminiRateLimited(seconds)
                 if sent and response.status_code >= 500:
                     raise GeminiUncertain("gemini_generation_uncertain")
