@@ -26,6 +26,17 @@ def test_preferences_are_project_scoped_and_default_to_no_inference(client, app)
             Preference(**data)
 
 
+def test_authorization_requires_boolean_intent_not_truthy_numbers():
+    from ai_team.model_center import Preference
+
+    for data in (
+        {"enabled": 1, "quotas_confirmed": True},
+        {"enabled": True, "quotas_confirmed": "true"},
+    ):
+        with pytest.raises(ValueError):
+            Preference(**data)
+
+
 def test_central_request_is_idempotent_and_requires_immutable_content(client, app):
     from ai_team.model_center import ModelCenter
 
@@ -78,3 +89,36 @@ def test_shared_google_project_quota_serializes_across_ai_team_projects(client, 
     assert sum(value is not None for value in outcomes) == 2
     with pytest.raises(CentralDeferred):
         store.admit(runs[0], "CEO", "123456789", 1000)
+
+
+def test_retry_after_is_preserved_beyond_local_daily_window(client, app):
+    import time
+
+    from ai_team.model_center import CentralDeferred, ModelCenter, Preference
+    from ai_team.model_center_models import ModelCall
+
+    pid = project(client)
+    store = ModelCenter(app.state.database)
+    store.configure(pid, "CEO", Preference(enabled=True, quotas_confirmed=True), "owner")
+    old = store.request(pid, "old", "Pedido anterior limitado", "owner")
+    with app.state.database.session() as db:
+        db.add(
+            ModelCall(
+                project_id=pid,
+                run_id=old.id,
+                stage=0,
+                agent="CEO",
+                provider="gemini",
+                model="gemini-2.5-flash-lite",
+                cloud_project="123456789",
+                admitted=True,
+                status="limited",
+                reason="test",
+                created_at=time.time() - 172800,
+                retry_after=int(time.time()) + 86400,
+            )
+        )
+        db.commit()
+    new = store.request(pid, "new", "Pedido novo sem repetição prematura", "owner")
+    with pytest.raises(CentralDeferred):
+        store.admit(new, "CEO", "123456789", 1000)

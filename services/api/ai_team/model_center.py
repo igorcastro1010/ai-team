@@ -5,7 +5,7 @@ import time
 from typing import Literal
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
@@ -45,8 +45,8 @@ class Preference(BaseModel):
     mode: Literal["automatic", "manual"] = "automatic"
     provider: Literal["gemini", "codex"] = "gemini"
     model: Literal["gemini-2.5-flash-lite", "codex-supervised"] = GEMINI_MODEL
-    enabled: bool = False
-    quotas_confirmed: bool = False
+    enabled: StrictBool = False
+    quotas_confirmed: StrictBool = False
     rpm: int = Field(default=2, ge=1, le=2)
     rpd: int = Field(default=10, ge=1, le=10)
     tpm: int = Field(default=40000, ge=1000, le=40000)
@@ -212,6 +212,15 @@ class ModelCenter:
                 )
             ).all()
             minute = [r for r in recent if r.created_at > instant - 60]
+            cooldown = db.scalar(
+                select(ModelCall.id)
+                .where(
+                    ModelCall.cloud_project == cloud_project,
+                    ModelCall.admitted.is_(True),
+                    ModelCall.retry_after > instant,
+                )
+                .limit(1)
+            )
             if any(r.status in {"started", "uncertain", "succeeded"} for r in stage_calls):
                 reason, status = (
                     "Admissão anterior concluída ou incerta; repetição bloqueada",
@@ -219,7 +228,7 @@ class ModelCenter:
                 )
             elif len(stage_calls) >= 3:
                 reason = "Máximo de três admissões por etapa atingido"
-            elif any(r.retry_after > instant for r in recent):
+            elif cooldown is not None:
                 reason = "Aguarde Retry-After do provedor antes de nova admissão"
             elif len(minute) >= policy["rpm"] or len(recent) >= 10:
                 reason = "Cota compartilhada local por minuto/dia atingida"

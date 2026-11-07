@@ -9,9 +9,21 @@ from .gemini import GeminiBlocked, GeminiClient, GeminiRateLimited
 from .memory_safety import validate_text
 from .model_center import GEMINI_MODEL, CentralDeferred, ModelCenter
 from .model_center_models import ModelProbe, ModelProviderState
-from .orchestration import STAGES
-from .token_optimizer import estimate
+from .orchestration import BOUNDARIES, STAGES, DraftContent
 from .workflow import WorkflowStore
+
+
+def reservation_estimate(role, instructions, context):
+    text = json.dumps(
+        {"role": role, "untrusted_context": json.dumps(context, ensure_ascii=False)},
+        ensure_ascii=False,
+    )
+    body = {
+        "system": instructions + BOUNDARIES,
+        "text": text,
+        "schema": DraftContent.model_json_schema(),
+    }
+    return len(json.dumps(body, ensure_ascii=False).encode()) + 8192
 
 
 def observe(database, observation):
@@ -102,7 +114,7 @@ class CentralProvider:
             self.run,
             role,
             proof["project_key"],
-            estimate(context) + len(instructions.encode()) + 8192,
+            reservation_estimate(role, instructions, context),
         )
         if not WorkflowStore(self.database).reserve_call(self.run):
             self.center.finish(call_id, "blocked")

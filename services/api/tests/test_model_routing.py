@@ -142,3 +142,32 @@ def test_central_waiting_request_can_be_cancelled(client, app):
     ).once()
     WorkflowStore(app.state.database).cancel(run.id, "owner")
     assert WorkflowStore(app.state.database).get(run.id).status == "cancelled"
+
+
+def test_stopping_worker_does_not_admit_or_publish(client, app):
+    from ai_team.model_router import CentralProvider
+    from ai_team.worker import Worker, process_cycle
+
+    worker = Worker(app.state.database, app.state.settings, CentralProvider(app.state.database))
+    worker.stopped.set()
+
+    class NoRemoteWork:
+        def once(self):
+            raise AssertionError("Shutdown must not start GitHub work")
+
+    assert process_cycle(worker, NoRemoteWork()) is False
+
+
+def test_reservation_accounts_for_nested_json_escaping_and_safety_instructions():
+    import json
+
+    from ai_team.model_router import reservation_estimate
+    from ai_team.orchestration import BOUNDARIES
+
+    context = {"request": '\\"' * 3000}
+    sent_text = json.dumps(
+        {"role": "CEO", "untrusted_context": json.dumps(context, ensure_ascii=False)},
+        ensure_ascii=False,
+    )
+    minimum = len(sent_text.encode()) + len(("safe" + BOUNDARIES).encode()) + 4096
+    assert reservation_estimate("CEO", "safe", context) >= minimum

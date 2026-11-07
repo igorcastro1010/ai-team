@@ -1,4 +1,6 @@
 import argparse
+import signal
+import threading
 import time
 
 from .config import Settings
@@ -18,8 +20,11 @@ class Worker:
         self.providers = providers
         self.sandbox = sandbox
         self.id = new_id()
+        self.stopped = threading.Event()
 
     def once(self):
+        if self.stopped.is_set():
+            return False
         self.store.heartbeat(self.id)
         from .model_router import check_pending
         check_pending(self.store.database)
@@ -57,6 +62,8 @@ class Worker:
 
             def tick():
                 nonlocal last_heartbeat
+                if self.stopped.is_set():
+                    raise InterruptedError("Worker em desligamento")
                 current = self.store.get(run.id)
                 if (
                     current.status != "running"
@@ -137,6 +144,8 @@ class Worker:
 
 def process_cycle(worker, github_worker):
     processed = worker.once()
+    if getattr(worker, "stopped", None) is not None and worker.stopped.is_set():
+        return processed
     github_processed = github_worker.once()
     return processed or github_processed
 
@@ -165,13 +174,15 @@ def main():
         },
     )
     github_worker = GitHubWorker(database, tick=lambda: worker.store.heartbeat(worker.id))
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(signum, lambda *_: worker.stopped.set())
     print("Worker AI TEAM: elaboração textual e propostas GitHub aprovadas.", flush=True)
-    while True:
+    while not worker.stopped.is_set():
         processed = process_cycle(worker, github_worker)
         if args.once:
             break
         if not processed:
-            time.sleep(2)
+            worker.stopped.wait(2)
 
 
 if __name__ == "__main__":
