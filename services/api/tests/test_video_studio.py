@@ -55,8 +55,9 @@ def test_media_scope_manifest_integrity_and_type(studio, monkeypatch):
     from ai_team import video_media
 
     media, _, project = studio
-    monkeypatch.setattr(video_media, "probe", lambda *_: {"width": 2, "height": 2,
-                                                         "duration": None})
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 2, "height": 2, "duration": None}
+    )
     asset = media.upload(project, "foto.png", "image/png", b"\x89PNG\r\n\x1a\nfixture")
     assert "path" not in asset and asset["kind"] == "image"
     data = document(scenes=[{"media_id": asset["id"], "duration": 2}])
@@ -72,12 +73,15 @@ def test_media_scope_manifest_integrity_and_type(studio, monkeypatch):
         media.resolve(project, manifest)
 
 
-@pytest.mark.parametrize("name,mime,body", [
-    ("x.svg", "image/svg+xml", b"<svg/>"),
-    ("x.png", "image/png", b"<svg/>"),
-    ("../x.png", "image/png", b"\x89PNG\r\n\x1a\n"),
-    ("x.gif", "image/gif", b"GIF89a"),
-])
+@pytest.mark.parametrize(
+    "name,mime,body",
+    [
+        ("x.svg", "image/svg+xml", b"<svg/>"),
+        ("x.png", "image/png", b"<svg/>"),
+        ("../x.png", "image/png", b"\x89PNG\r\n\x1a\n"),
+        ("x.gif", "image/gif", b"GIF89a"),
+    ],
+)
 def test_reject_unsafe_media(studio, name, mime, body):
     media, _, project = studio
     with pytest.raises(HTTPException):
@@ -89,8 +93,9 @@ def test_media_quotas_are_rejected(studio, monkeypatch, tmp_path):
     from ai_team import video_media
 
     media, _, project = studio
-    monkeypatch.setattr(video_media, "probe", lambda *_: {"width": 2, "height": 2,
-                                                         "duration": None})
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 2, "height": 2, "duration": None}
+    )
     monkeypatch.setattr(video_media, "MAX_FILES", 0)
     with pytest.raises(HTTPException) as error:
         media.upload(project, "foto.png", "image/png", b"\x89PNG\r\n\x1a\nfixture")
@@ -109,8 +114,9 @@ def test_media_missing_project_size_and_collision_fail_closed(studio, monkeypatc
 
     media, _, project = studio
     body = b"\x89PNG\r\n\x1a\nfixture"
-    monkeypatch.setattr(video_media, "probe", lambda *_: {"width": 2, "height": 2,
-                                                         "duration": None})
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 2, "height": 2, "duration": None}
+    )
     with pytest.raises(HTTPException) as error:
         media.upload(str(uuid.uuid4()), "foto.png", "image/png", body)
     assert error.value.status_code == 404
@@ -159,8 +165,9 @@ def test_api_auth_csrf_scope_range_and_revision(studio, monkeypatch):
     from ai_team.video_studio_routes import router
 
     media, _, project = studio
-    monkeypatch.setattr(video_media, "probe", lambda *_: {"width": 2, "height": 2,
-                                                         "duration": None})
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 2, "height": 2, "duration": None}
+    )
     app = create_app(media.database.settings, media.database)
     app.include_router(router)
     with media.database.session() as db:
@@ -168,35 +175,60 @@ def test_api_auth_csrf_scope_range_and_revision(studio, monkeypatch):
     base = f"/video-studio/{project}"
     with TestClient(app, headers={"origin": "http://localhost:3000"}) as client:
         assert client.get(base + "/media").status_code == 401
-        assert client.post("/auth/login", json={
-            "username": "owner", "password": "StudioTests123!Only"}).status_code == 200
+        assert (
+            client.post(
+                "/auth/login", json={"username": "owner", "password": "StudioTests123!Only"}
+            ).status_code
+            == 200
+        )
         body = b"\x89PNG\r\n\x1a\nfixture"
-        assert client.post(base + "/media?name=foto.png", content=body,
-                           headers={"origin": "http://evil", "content-type": "image/png"}
-                           ).status_code == 403
-        response = client.post(base + "/media?name=foto.png", content=body,
-                               headers={"content-type": "image/png"})
+        assert (
+            client.post(
+                base + "/media?name=foto.png",
+                content=body,
+                headers={"origin": "http://evil", "content-type": "image/png"},
+            ).status_code
+            == 403
+        )
+        response = client.post(
+            base + "/media?name=foto.png", content=body, headers={"content-type": "image/png"}
+        )
         assert response.status_code == 201, response.text
         asset = response.json()
         url = base + f"/media/{asset['id']}/content"
         ranged = client.get(url, headers={"range": "bytes=0-7"})
         assert ranged.status_code == 206 and ranged.content == body[:8]
-        assert client.get(f"/video-studio/{uuid.uuid4()}/media/{asset['id']}/content"
-                          ).status_code == 404
+        assert (
+            client.get(f"/video-studio/{uuid.uuid4()}/media/{asset['id']}/content").status_code
+            == 404
+        )
         data = {"revision": 0, "document": document()}
         assert client.put(base + "/draft", json=data).status_code == 200
         assert client.put(base + "/draft", json=data).status_code == 409
         assert client.get(base + "/draft").json()["revision"] == 1
-        assert client.post(base + "/render", json={"request_id": str(uuid.uuid4()),
-                           "document": document(), "consent": False}).status_code == 422
+        assert (
+            client.post(
+                base + "/render",
+                json={"request_id": str(uuid.uuid4()), "document": document(), "consent": False},
+            ).status_code
+            == 422
+        )
         request = {"request_id": str(uuid.uuid4()), "document": document(), "consent": True}
         response = client.post(base + "/render", json=request)
         assert response.status_code == 201, response.text
         assert response.json()["status"] == "pending_approval"
         assert client.post(base + "/render", json=request).json()["id"] == response.json()["id"]
-        assert client.post(base + "/render", json={**request, "request_id": str(uuid.uuid4()),
-                           "document": document(scenes=[{"text": "", "duration": 2}])}
-                           ).status_code == 422
+        assert (
+            client.post(
+                base + "/render",
+                json={
+                    **request,
+                    "request_id": str(uuid.uuid4()),
+                    "document": document(scenes=[{"text": "", "duration": 2}]),
+                },
+            ).status_code
+            == 422
+        )
 
 
 def test_real_probe_accepts_png_and_rejects_corruption(studio):
@@ -206,7 +238,8 @@ def test_real_probe_accepts_png_and_rejects_corruption(studio):
     # A real one pixel PNG, no decoder mocks.
     png = base64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1s"
-        "AAAAASUVORK5CYII=")
+        "AAAAASUVORK5CYII="
+    )
     try:
         asset = media.upload(project, "pixel.png", "image/png", png)
     except HTTPException as error:
@@ -216,3 +249,21 @@ def test_real_probe_accepts_png_and_rejects_corruption(studio):
     assert asset["width"] == asset["height"] == 1
     with pytest.raises(HTTPException):
         media.upload(project, "quebrado.png", "image/png", b"\x89PNG\r\n\x1a\ncorruption")
+
+
+def test_builtin_templates_cover_the_six_requested_use_cases():
+    from ai_team.video_templates import builtin_templates
+
+    templates = builtin_templates()
+    assert {item["name"] for item in templates} == {
+        "Reels de divulgação",
+        "Apresentação de produtos",
+        "Promoções",
+        "Tutorial rápido",
+        "Anúncios de serviços",
+        "Vídeo institucional",
+    }
+    assert all(len(item["document"]["scenes"]) >= 2 for item in templates)
+    assert all(not scene["media_id"] for item in templates for scene in item["document"]["scenes"])
+    templates[0]["document"]["title"] = "Mutado"
+    assert builtin_templates()[0]["document"]["title"] != "Mutado"

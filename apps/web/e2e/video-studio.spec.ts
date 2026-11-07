@@ -40,7 +40,7 @@ test("estúdio edita timeline, salva rascunho e mantém limites", async ({ page 
   await page.getByLabel("Nome do seu template").fill("Meu modelo reutilizável");
   await page.getByRole("button", { name: "Salvar como template" }).click();
   await expect(page.getByRole("button", { name: /Meu modelo reutilizável/ })).toBeVisible();
-  await page.getByRole("button", { name: /Apresentação 2 cenas/ }).click();
+  await page.getByRole("button", { name: /Reels de divulgação 3 cenas/ }).click();
   await expect(page.getByRole("button", { name: "Selecionar cena 2" })).toBeVisible();
   await expect(page.getByText("Nenhum vídeo neste projeto.")).toBeVisible();
   await page.getByLabel("Importar mídia local").setInputFiles({ name: "imagem-local.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jGv8AAAAASUVORK5CYII=", "base64") });
