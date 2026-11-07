@@ -97,7 +97,7 @@ def render(job, output, active, executable=None):
             lines = []
             for paragraph in scene["text"].splitlines():
                 lines.extend(textwrap.wrap(paragraph, width=27 if width == 720 else 48))
-            text.write_text("\n".join(lines), encoding="utf-8")
+            text.write_text("\n".join(lines), encoding="utf-8", newline="\n")
             caption = (
                 "drawtext=fontfile=font.ttf:"
                 f"textfile=caption{index}.txt:expansion=none:fontsize=36:"

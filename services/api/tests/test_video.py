@@ -237,3 +237,34 @@ def test_video_consent_requires_explicit_boolean_true():
     for consent in (1, "true", False):
         with pytest.raises(ValidationError):
             VideoInput(**payload(consent=consent))
+
+
+def test_real_ffmpeg_caption_files_use_single_line_breaks(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from ai_team.video_render import render, renderer_status
+
+    if not renderer_status()["available"]:
+        pytest.skip("FFmpeg/font not installed on this host")
+    original = Path.write_text
+    captions = []
+
+    def capture(path, *args, **kwargs):
+        result = original(path, *args, **kwargs)
+        if path.name.startswith("caption"):
+            captions.append(path.read_bytes())
+        return result
+
+    monkeypatch.setattr(Path, "write_text", capture)
+    render(
+        {
+            "format": "vertical",
+            "scenes": [
+                {"text": "Primeira linha de legenda. Segunda linha de legenda.", "duration": 1}
+            ],
+        },
+        tmp_path / "linebreak.mp4",
+        lambda: True,
+    )
+    assert captions and b"\n" in captions[0]
+    assert b"\r" not in captions[0]
