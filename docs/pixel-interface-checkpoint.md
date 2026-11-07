@@ -18,4 +18,10 @@ Janelas usam diálogo nativo, Escape, botão fechar, voltar e links diretos. Nav
 
 ## Estado
 
-Planejamento registrado. Implementação e homologação ainda pendentes. Agendamento solicitado para retomar neste chat às 03:46; consultar git status e os commits antes de continuar.
+Implementação, documentação e testes locais concluídos. Commits de implementação enviados: `36b5a16`, `11524cd`, `9e8a787`, `2f61abe`, `864a32b`. Ver também `docs/pixel-interface-validation.md`.
+
+PR [#15](https://github.com/igorcastro1010/ai-team/pull/15), empilhado sobre V0.8.1. Testes direcionados de escritório/mapa, vídeo, workspace, Python, Next.js e Hermes passaram em rodadas; lint, typecheck e build passaram. A regressão de Escape em confirmação aninhada foi reproduzida e corrigida, preservando a ferramenta e a aprovação pendente.
+
+Para retomar: ler git status, HEAD e os checks atuais do PR #15. Se o CI do HEAD estiver verde, marcar o PR pronto para revisão e encerrar a automação. Se falhar, corrigir somente regressões da interface e repetir checks relevantes. Não refazer commits, iniciar V0.9, fazer merge ou deploy. A retomada de 03:46 já disparou durante esta execução; não manter repetição diária após concluir.
+
+Não editar componentes durante E2E: Fast Refresh invalida estado em testes. Sem nova inferência externa, API paga, alterações de banco ou permissões.
