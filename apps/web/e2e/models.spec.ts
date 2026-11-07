@@ -30,6 +30,14 @@ test("central mantém autorização desligada e separa preferências dos projeto
   const snapshot = await page.request.get(`/api/control/model-center/${projects[0]}`);
   expect(snapshot.status()).toBe(200);
   expect((await snapshot.json()).history).toEqual([]);
+  // This suite shares a disposable worker queue with legacy workflow tests.
+  // Leave no central request for their contract providers to claim.
+  const runs = await (await page.request.get("/api/control/runs")).json();
+  const created = runs.find((run: { project_id: string }) => run.project_id === projects[0]);
+  expect(created.executor).toBe("central");
+  expect((await page.request.post(`/api/control/runs/${created.id}/cancel`, {
+    headers: { origin: "http://localhost:3100" },
+  })).status()).toBe(200);
   await page.getByRole("button", { name: "Verificar sem inferência" }).click();
   await expect(page.getByRole("status")).toContainText("Verificação enfileirada");
   await page.getByLabel("Projeto da central de IA").selectOption(projects[1]);
