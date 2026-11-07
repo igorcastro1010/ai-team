@@ -1,9 +1,11 @@
 """Separate, bounded local renderer process: python -m ai_team.video_worker --once."""
 
 import argparse
+import json
 import signal
 import threading
 
+from .memory_safety import validate_text
 from .video_render import RenderUnavailable, artifact_root, render
 from .video_routes import VideoInput
 from .video_store import VideoStore
@@ -23,6 +25,7 @@ class VideoWorker:
         job_id, token = job["id"], job["lease_token"]
         output = self.output / f"{job_id}.mp4"
         try:
+            validate_text(json.dumps(job, ensure_ascii=False), maximum=20000)
             # Executor revalidates bounded schema and consent, beyond approval at HTTP boundary.
             VideoInput(
                 **{

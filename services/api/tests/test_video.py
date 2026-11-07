@@ -51,6 +51,20 @@ def test_video_schema_rejects_unbounded_and_unapproved_inputs():
     ):
         with pytest.raises(ValidationError):
             VideoInput(**payload(**change))
+
+
+def test_video_store_rejects_credentials_without_persisting(store):
+    from ai_team.video_routes import VideoInput
+
+    data = VideoInput(**payload(scenes=[{"text": "api_key=" + "x" * 30, "duration": 1}]))
+    with store.database.session() as db:
+        db.add(Project(id=str(data.project_id), name="Video"))
+        db.commit()
+    with pytest.raises(HTTPException) as rejected:
+        store.create(data)
+    assert rejected.value.status_code == 422
+    assert "x" * 30 not in rejected.value.detail
+    assert store.snapshot(str(data.project_id))["items"] == []
     assert VideoInput(**payload()).format == "vertical"
 
 

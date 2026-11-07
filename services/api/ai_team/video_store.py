@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
+from .memory_safety import validate_text
 from .models import Project
 from .video_models import VideoJob
 
@@ -40,6 +41,10 @@ class VideoStore:
 
     def create(self, data):
         payload = data.model_dump(mode="json")
+        try:
+            validate_text(json.dumps(payload, ensure_ascii=False), maximum=10000)
+        except ValueError:
+            raise HTTPException(422, "Roteiro inválido ou contém credenciais") from None
         project_id, request_id = payload.pop("project_id"), payload.pop("request_id")
         fingerprint = digest_payload({"project_id": project_id, **payload})
         with self.database.session() as db:
