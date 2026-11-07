@@ -22,7 +22,20 @@ def artifact_root():
 
 def executable_path(executable=None):
     candidate = executable or os.environ.get("AI_TEAM_FFMPEG", "ffmpeg")
-    return shutil.which(candidate)
+    found = shutil.which(candidate)
+    if found or executable or "AI_TEAM_FFMPEG" in os.environ:
+        return found
+    # Known user-scoped distributor only; never scan repositories or download binaries.
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        package = (
+            Path(local)
+            / "Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
+        )
+        for binary in sorted(package.glob("ffmpeg-*-full_build/bin/ffmpeg.exe"), reverse=True):
+            if binary.is_file() and not binary.is_symlink():
+                return str(binary)
+    return None
 
 
 def font_path():

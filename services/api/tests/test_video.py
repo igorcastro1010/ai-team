@@ -21,6 +21,24 @@ def payload(**changes):
     }
 
 
+def test_ffmpeg_discovers_reviewed_winget_package_without_overriding_config(tmp_path, monkeypatch):
+    from ai_team import video_render
+
+    binary = (
+        tmp_path
+        / "Microsoft/WinGet/Packages/Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
+        / "ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"
+    )
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"test fixture only")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.delenv("AI_TEAM_FFMPEG", raising=False)
+    monkeypatch.setattr(video_render.shutil, "which", lambda _: None)
+    assert video_render.executable_path() == str(binary)
+    monkeypatch.setenv("AI_TEAM_FFMPEG", "missing-explicit-binary")
+    assert video_render.executable_path() is None
+
+
 def test_video_schema_rejects_unbounded_and_unapproved_inputs():
     from ai_team.video_routes import VideoInput
 
