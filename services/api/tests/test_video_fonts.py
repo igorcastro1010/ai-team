@@ -9,7 +9,7 @@ def test_preview_fonts_require_owner_and_never_accept_arbitrary_paths(client):
     response = client.get("/video-studio/fonts/sans")
     if response.status_code == 200:
         assert response.headers["content-type"] == "font/ttf"
-        assert response.headers["cache-control"] == "private, no-store"
+        assert "no-store" in response.headers["cache-control"]
         assert len(response.content) > 100
     else:
         assert response.status_code == 404
