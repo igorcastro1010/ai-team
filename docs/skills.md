@@ -162,3 +162,15 @@ modelos ou hooks. O vídeo usa FFmpeg local com argumentos fixos; não chama Veo
 API de mídia paga. Skills orientam desenvolvimento e testes, não provam elegibilidade
 de cobrança, integração externa ou revisão humana. Nenhuma nova permissão de
 runtime foi concedida a agentes por esta descoberta.
+
+## V0.8.1 — editor local de vídeo
+
+Find Skills: catálogo skills.sh consultado; reutilizadas skills locais revisadas,
+sem instalar pacote/skill adicional. Superpowers TDD e plano por módulos com
+subagent-driven-development; UI/UX Pro Max, React/Vercel e Playwright para editor,
+preview, autosave e fluxos. Supabase Postgres para tabelas aditivas, CAS e testes
+privados. Revisão independente automatizada limitada ao novo pipeline de mídia;
+não é revisão humana nem revisão geral das versões anteriores. Remotion foi
+consultado como referência de editor, mas o runtime permanece FFmpeg existente,
+sem dependência/licença/serviço de renderização adicional. Referências técnicas:
+https://ffmpeg.org/ffmpeg-filters.html e https://skills.sh/.
