@@ -66,6 +66,7 @@ def renderer_status(executable=None):
         "reason": "" if available else "FFmpeg e fonte local necessários no worker",
         "max_seconds": 60,
         "fps": 24,
+        "supports_1080p": os.environ.get("AI_TEAM_VIDEO_1080P") == "1",
     }
 
 

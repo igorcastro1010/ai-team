@@ -249,3 +249,12 @@ def test_text_slide_moves_vertically_on_entrance_and_exit(tmp_path):
     assert abs(exit[0] - middle[0]) <= 2
     assert entry[1] > middle[1] + 5
     assert exit[1] < middle[1] - 5
+
+
+def test_renderer_status_advertises_only_operator_enabled_hd(monkeypatch):
+    monkeypatch.delenv("AI_TEAM_VIDEO_1080P", raising=False)
+    assert renderer_status().get("supports_1080p") is False
+    monkeypatch.setenv("AI_TEAM_VIDEO_1080P", "1")
+    assert renderer_status().get("supports_1080p") is True
+    monkeypatch.setenv("AI_TEAM_VIDEO_1080P", "true")
+    assert renderer_status().get("supports_1080p") is False
