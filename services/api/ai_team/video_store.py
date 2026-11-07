@@ -10,7 +10,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from .memory_safety import validate_text
-from .models import Project
+from .models import Event, Project
 from .video_models import VideoJob
 
 ACTIVE = ("pending_approval", "queued", "rendering")
@@ -39,7 +39,7 @@ class VideoStore:
     def __init__(self, database):
         self.database = database
 
-    def create(self, data):
+    def create(self, data, actor="owner"):
         payload = data.model_dump(mode="json")
         try:
             validate_text(json.dumps(payload, ensure_ascii=False), maximum=10000)
@@ -75,6 +75,15 @@ class VideoStore:
             )
             db.add(job)
             try:
+                db.flush()
+                db.add(
+                    Event(
+                        kind="video.requested",
+                        resource_id=job.id,
+                        actor=actor,
+                        summary="Roteiro preparado para revisão: " + fingerprint,
+                    )
+                )
                 db.commit()
             except IntegrityError:
                 db.rollback()
@@ -102,7 +111,7 @@ class VideoStore:
                 raise HTTPException(404, "Vídeo não encontrado")
             return view(job)
 
-    def decide(self, job_id, digest, approve):
+    def decide(self, job_id, digest, approve, actor="owner"):
         with self.database.session() as db:
             status = "queued" if approve else "cancelled"
             result = db.execute(
@@ -116,17 +125,34 @@ class VideoStore:
             )
             if result.rowcount != 1:
                 raise HTTPException(409, "Aprovação desatualizada; revise o roteiro")
+            db.add(
+                Event(
+                    kind="video.approved" if approve else "video.rejected",
+                    resource_id=job_id,
+                    actor=actor,
+                    summary="Decisão vinculada ao roteiro: " + digest,
+                )
+            )
             db.commit()
         return self.get(job_id)
 
-    def cancel(self, job_id):
+    def cancel(self, job_id, actor="owner"):
         self.get(job_id)
         with self.database.session() as db:
-            db.execute(
+            changed = db.execute(
                 update(VideoJob)
                 .where(VideoJob.id == job_id, VideoJob.status.in_(ACTIVE))
                 .values(status="cancelled", lease_token="")
             )
+            if changed.rowcount:
+                db.add(
+                    Event(
+                        kind="video.cancelled",
+                        resource_id=job_id,
+                        actor=actor,
+                        summary="Cancelamento revogou a execução local",
+                    )
+                )
             db.commit()
         return self.get(job_id)
 
@@ -163,6 +189,14 @@ class VideoStore:
                     .values(status="rendering", lease_token=token, lease_expires_at=now + 240)
                 )
                 if result.rowcount:
+                    db.add(
+                        Event(
+                            kind="video.rendering",
+                            resource_id=job.id,
+                            actor="video-worker",
+                            summary="Renderização local iniciada com aprovação válida",
+                        )
+                    )
                     db.commit()
                     return {**self.get(job.id), "lease_token": token}
             db.commit()
@@ -193,5 +227,14 @@ class VideoStore:
                 )
                 .values(status=status, error=error, lease_token="", lease_expires_at=0)
             )
+            if result.rowcount:
+                db.add(
+                    Event(
+                        kind="video.finished",
+                        resource_id=job_id,
+                        actor="video-worker",
+                        summary="Renderização local: " + status,
+                    )
+                )
             db.commit()
             return result.rowcount == 1

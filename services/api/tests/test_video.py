@@ -51,6 +51,7 @@ def test_video_schema_rejects_unbounded_and_unapproved_inputs():
     ):
         with pytest.raises(ValidationError):
             VideoInput(**payload(**change))
+    assert VideoInput(**payload()).format == "vertical"
 
 
 def test_video_store_rejects_credentials_without_persisting(store):
@@ -65,7 +66,24 @@ def test_video_store_rejects_credentials_without_persisting(store):
     assert rejected.value.status_code == 422
     assert "x" * 30 not in rejected.value.detail
     assert store.snapshot(str(data.project_id))["items"] == []
-    assert VideoInput(**payload()).format == "vertical"
+
+
+def test_video_approval_audit_is_atomic_and_bound_to_digest(store):
+    from sqlalchemy import select
+
+    from ai_team.models import Event
+
+    _, job = create(store)
+    with pytest.raises(HTTPException):
+        store.decide(job["id"], "0" * 64, True)
+    store.decide(job["id"], job["digest"], True)
+    with pytest.raises(HTTPException):
+        store.decide(job["id"], job["digest"], True)
+    with store.database.session() as db:
+        events = db.scalars(select(Event).where(Event.resource_id == job["id"])).all()
+        approvals = [event for event in events if event.kind == "video.approved"]
+        assert len(approvals) == 1
+        assert job["digest"] in approvals[0].summary
 
 
 @pytest.fixture

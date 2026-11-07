@@ -68,17 +68,19 @@ def videos(project_id: UUID, request: Request, owner: Owner):
 
 @router.post("", status_code=201)
 def create(data: VideoInput, request: Request, owner: Owner):
-    return VideoStore(request.app.state.database).create(data)
+    return VideoStore(request.app.state.database).create(data, owner)
 
 
 @router.post("/{job_id}/decision")
 def decide(job_id: UUID, data: DecisionInput, request: Request, owner: Owner):
-    return VideoStore(request.app.state.database).decide(str(job_id), data.digest, data.approve)
+    return VideoStore(request.app.state.database).decide(
+        str(job_id), data.digest, data.approve, owner
+    )
 
 
 @router.post("/{job_id}/cancel")
 def cancel(job_id: UUID, request: Request, owner: Owner):
-    return VideoStore(request.app.state.database).cancel(str(job_id))
+    return VideoStore(request.app.state.database).cancel(str(job_id), owner)
 
 
 @router.get("/{job_id}/download")
