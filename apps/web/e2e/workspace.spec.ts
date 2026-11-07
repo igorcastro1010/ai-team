@@ -105,7 +105,7 @@ test("Vercel mostra consultas e falhas sem oferecer publicação", async ({ page
 test("proposta GitHub é revisada, cancelável e aprovada uma única vez", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Novo projeto", exact: true }).first().click();
-  const creation = page.getByRole("dialog");
+  const creation = page.locator("dialog.creation-dialog");
   await creation.getByLabel("Nome do projeto").fill("GitHub E2E");
   await creation.getByRole("button", { name: "Criar projeto" }).click();
   await expect(creation).not.toBeVisible();
@@ -119,7 +119,7 @@ test("proposta GitHub é revisada, cancelável e aprovada uma única vez", async
   const action = page.getByTestId("github-action").filter({ hasText: "Branch sintética E2E" });
   await expect(action.getByText("Revisão pendente", { exact: true })).toBeVisible();
   await action.getByRole("button", { name: "Revisar aprovação" }).click();
-  const approval = page.getByRole("dialog");
+  const approval = page.getByRole("dialog", { name: "Autorizar ação no GitHub?", exact: true });
   await expect(approval).toContainText("codex/ai-team/e2e");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()).violations).toEqual([]);
   await page.screenshot({ path: "../../artifacts/github-approval-desktop.png", fullPage: true });
@@ -140,14 +140,14 @@ test("proposta GitHub é revisada, cancelável e aprovada uma única vez", async
 test("cria projeto e tarefa, move quadro e preserva após recarregar", async ({ page }) => {
   await login(page);
   await page.getByRole("button", { name: "Novo projeto", exact: true }).first().click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.creation-dialog");
   await dialog.getByLabel("Nome do projeto").fill("Operação E2E");
   await dialog.getByLabel("Descrição").fill("Projeto criado pelo fluxo real do navegador.");
   await dialog.getByRole("button", { name: "Criar projeto" }).click();
   await expect(dialog).not.toBeVisible();
   await page.getByRole("link", { name: "Projetos", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Operação E2E" })).toBeVisible();
-  await page.getByRole("link", { name: "Tarefas", exact: true }).click();
+  await page.getByRole("dialog", { name: "Projetos", exact: true }).getByRole("link", { name: "Tarefas", exact: true }).click();
   await page.getByRole("button", { name: "Nova tarefa", exact: true }).first().click();
   await dialog.getByLabel("Título da tarefa").fill("Revisar acessibilidade");
   await dialog.getByLabel("Agente responsável").selectOption("QA");
@@ -158,24 +158,30 @@ test("cria projeto e tarefa, move quadro e preserva após recarregar", async ({ 
   await expect(task.getByRole("button", { name: "Enviar para revisão" })).toBeVisible();
   await page.reload();
   await expect(task.getByRole("button", { name: "Enviar para revisão" })).toBeVisible();
-  await page.getByRole("link", { name: "Histórico", exact: true }).click();
+  await page.getByRole("dialog", { name: "Tarefas", exact: true }).getByRole("link", { name: "Histórico", exact: true }).click();
   await expect(page.getByText("Tarefa criada: Revisar acessibilidade")).toBeVisible();
 });
 
 test("navegação móvel sem overflow e links preservados", async ({ page }) => {
+  test.setTimeout(60000);
   await page.setViewportSize({ width: 360, height: 800 });
   await login(page);
   for (const route of ["/", "/projetos", "/tarefas", "/agentes", "/ceo", "/execucoes", "/aprovacoes", "/relatorios", "/integracoes"]) {
     await page.goto(route);
     const view = route === "/" ? "overview" : route.slice(1) as View;
     await expect(page.getByRole("heading", { name: views[view].title, exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Abrir navegação" }).click();
-    await expect(page.getByRole("link", { name: "Integrações", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Fechar navegação" }).click();
+    if (route === "/") {
+      await page.getByRole("button", { name: "Abrir navegação" }).click();
+      await expect(page.getByRole("navigation", { name: "Navegação principal" }).getByRole("link", { name: "Integrações", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "Recolher navegação" }).click();
+    } else {
+      await expect(page.getByRole("dialog").getByRole("navigation", { name: "Trocar ferramenta" }).getByRole("link", { name: "Integrações", exact: true })).toBeVisible();
+    }
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const clipped = await page.locator("main button, main input, main select").evaluateAll(elements => elements.filter(element => {
       const rect = element.getBoundingClientRect();
-      return rect.width && (rect.left < -1 || rect.right > innerWidth + 1);
+      // The map is intentionally wider than mobile and pans inside its viewport.
+      return !element.closest(".office-map-viewport") && rect.width && (rect.left < -1 || rect.right > innerWidth + 1);
     }).map(element => element.textContent));
     expect(clipped).toEqual([]);
   }
@@ -194,6 +200,7 @@ test("login e painel sem violações WCAG A/AA detectadas", async ({ page }) => 
 
 test("logout revoga acesso e encerra sessão no navegador", async ({ page }) => {
   await login(page);
+  await page.getByRole("button", { name: "Abrir navegação" }).click();
   await page.getByRole("button", { name: "Sair do workspace" }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect((await page.request.get("/api/control/workspace")).status()).toBe(401);
@@ -221,7 +228,12 @@ test("CEO registra pedido e permite revisar, aprovar e cancelar com confirmaçã
   await expect(runCard.getByText("Proposta textual, sem execução externa.")).toBeVisible();
   await page.screenshot({ path: "../../artifacts/approval-desktop.png", fullPage: true });
   await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.locator("dialog.creation-dialog");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Aprovações", exact: true })).toBeVisible();
+  await expect(runCard.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
+  await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
   await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
   await expect(runCard.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
   await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();

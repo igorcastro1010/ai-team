@@ -1,4 +1,5 @@
 export const views = {
+  resumo: { label: "Indicadores", title: "Uma visão do trabalho.", description: "Projetos, tarefas e decisões registradas no workspace." },
   modelos: { label: "Central de IA", title: "O modelo certo. Dentro dos seus limites.", description: "Provedores, preferências e cotas com bloqueio de custos não autorizados." },
   videos: { label: "Estúdio de vídeo", title: "Seu roteiro, pronto para ganhar movimento.", description: "Vídeos verticais com cenas e legendas, renderizados localmente." },
   memoria: { label: "Memória e contexto", title: "Conhecimento que acompanha o projeto.", description: "Decisões, tarefas e contexto relevante para cada especialista." },
