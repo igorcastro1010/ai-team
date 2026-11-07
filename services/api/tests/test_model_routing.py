@@ -41,6 +41,22 @@ def test_model_api_has_auth_csrf_and_no_inference_in_http(client):
     assert result.json()["calls"] == 0 and result.json()["executor"] == "central"
 
 
+def test_model_request_rejects_secrets_before_persistence(client, app):
+    from sqlalchemy import func, select
+
+    from ai_team.models import Run
+
+    pid = project(client)
+    result = client.post(
+        f"/model-center/{pid}/requests",
+        json={"request_id": "secret-rejected", "prompt": "api_key=" + "x" * 30, "consent": True},
+    )
+    assert result.status_code == 422
+    assert "x" * 30 not in result.text
+    with app.state.database.session() as db:
+        assert db.scalar(select(func.count()).select_from(Run).where(Run.project_id == pid)) == 0
+
+
 def test_free_dispatch_reports_usage_and_rate_limit_cannot_immediately_replay(client, app):
     from ai_team.gemini import GeminiRateLimited
     from ai_team.model_center import ModelCenter, Preference

@@ -102,9 +102,14 @@ def check(project_id: str, request: Request, owner: Owner):
 
 @router.post("/requests", response_model=RunView, status_code=201)
 def create_request(project_id: str, data: RequestInput, request: Request, owner: Owner):
-    return ModelCenter(request.app.state.database).request(
-        project_id, data.request_id, data.prompt, owner
-    )
+    try:
+        return ModelCenter(request.app.state.database).request(
+            project_id, data.request_id, data.prompt, owner
+        )
+    except ValueError:
+        raise HTTPException(
+            422, "Pedido inválido ou contém credenciais; nada foi armazenado"
+        ) from None
 
 
 @router.post("/resume/{run_id}", response_model=RunView)
@@ -144,7 +149,10 @@ def complete_handoff(
     run = scoped(request, project_id, run_id)
     if handoff_payload(run)["digest"] != data.digest:
         raise HTTPException(409, "Contexto diferente do revisado")
-    validate_text(data.draft.model_dump_json(), maximum=100000)
+    try:
+        validate_text(data.draft.model_dump_json(), maximum=100000)
+    except ValueError:
+        raise HTTPException(422, "Resultado inválido ou contém credenciais") from None
     with request.app.state.database.session() as db:
         token = new_id()
         changed = db.execute(
