@@ -2,10 +2,12 @@
 
 import argparse
 import json
+import os
 import signal
 import threading
 
 from .memory_safety import validate_text
+from .video_media import MediaStore
 from .video_render import RenderUnavailable, artifact_root, render
 from .video_routes import VideoInput
 from .video_store import VideoStore
@@ -27,17 +29,21 @@ class VideoWorker:
         try:
             validate_text(json.dumps(job, ensure_ascii=False), maximum=20000)
             # Executor revalidates bounded schema and consent, beyond approval at HTTP boundary.
-            VideoInput(
-                **{
-                    key: job[key]
-                    for key in ("project_id", "request_id", "title", "format", "scenes", "consent")
-                }
+            document = VideoInput(
+                **{key: job[key] for key in VideoInput.model_fields if key in job}
+            )
+            if document.resolution == "1080p" and os.environ.get("AI_TEAM_VIDEO_1080P") != "1":
+                raise RenderUnavailable("1080p não habilitado")
+            assets = MediaStore(self.store.database).resolve(
+                job["project_id"], job.get("_media", {})
             )
             render(
                 job,
                 output,
                 lambda: not self.stopped.is_set() and self.store.active(job_id, token),
                 self.executable,
+                assets=assets,
+                progress=lambda value, phase: self.store.progress(job_id, token, value, phase),
             )
             if not self.store.finish(job_id, token, "completed"):
                 output.unlink(missing_ok=True)
