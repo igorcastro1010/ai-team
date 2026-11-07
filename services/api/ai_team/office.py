@@ -54,9 +54,19 @@ def office_snapshot(runs, *, worker_online):
         active = [
             r
             for r in candidates
-            if r.status in {"running", "awaiting_approval", "queued", "blocked"}
+            if r.status
+            in {
+                "running",
+                "awaiting_approval",
+                "queued",
+                "blocked",
+                "waiting_model",
+                "waiting_quota",
+                "awaiting_codex",
+            }
         ]
         priority = {"running": 0, "awaiting_approval": 1, "queued": 2, "blocked": 3}
+        priority.update(waiting_model=3, waiting_quota=3, awaiting_codex=1)
         selected = (
             min(active, key=lambda r: priority[r.status])
             if active
@@ -69,6 +79,9 @@ def office_snapshot(runs, *, worker_online):
                 "awaiting_approval": "awaiting_approval",
                 "failed": "error",
                 "blocked": "error",
+                "waiting_model": "awaiting_approval",
+                "waiting_quota": "awaiting_approval",
+                "awaiting_codex": "awaiting_approval",
             }.get(selected.status, "available")
         if state == "available" and history and not active:
             state = "completed"

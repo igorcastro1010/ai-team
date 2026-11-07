@@ -552,3 +552,233 @@ def test_hermes_cooldown_survives_postgres_reconnect_and_blocks_http(postgres):
     )
     with pytest.raises(HermesRateLimitError):
         client.request("POST", "/v1/runs")
+
+
+def test_v08_preferences_and_concurrent_request_identity_survive_postgres_restart(postgres):
+    from fastapi import HTTPException
+
+    from ai_team.model_center import ModelCenter, Preference
+    from ai_team.model_center_models import ModelRequest
+
+    database, settings = postgres
+    with database.session() as session:
+        first, second = Project(name="V08 central PG A"), Project(name="V08 central PG B")
+        session.add_all([first, second])
+        session.commit()
+    center = ModelCenter(database)
+    center.configure(
+        first.id,
+        "CEO",
+        Preference(mode="manual", provider="codex", model="codex-supervised"),
+        "postgres-ci-owner",
+    )
+    assert not center.preference(first.id, "CEO")["enabled"]
+    assert center.preference(second.id, "CEO")["provider"] == "gemini"
+    assert center.preference(first.id, "QA")["provider"] == "gemini"
+    barrier = Barrier(2, timeout=10)
+
+    def request(_):
+        barrier.wait()
+        return center.request(first.id, "pg-v08-duplicate", "Proposta textual sem inferência", "ci")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(request, range(2)))
+    assert outcomes[0].id == outcomes[1].id
+    assert outcomes[0].executor == "central" and outcomes[0].calls == 0
+    with pytest.raises(HTTPException) as conflict:
+        center.request(first.id, "pg-v08-duplicate", "Conteúdo diferente deve ser rejeitado", "ci")
+    assert conflict.value.status_code == 409
+    other = center.request(second.id, "pg-v08-duplicate", "Proposta textual sem inferência", "ci")
+    assert other.id != outcomes[0].id
+    database.engine.dispose()
+    restarted = Database(settings)
+    try:
+        restored = ModelCenter(restarted)
+        assert restored.preference(first.id, "CEO")["provider"] == "codex"
+        assert restored.preference(second.id, "CEO")["provider"] == "gemini"
+        assert (
+            restored.request(
+                first.id, "pg-v08-duplicate", "Proposta textual sem inferência", "ci"
+            ).id
+            == outcomes[0].id
+        )
+        with restarted.session() as session:
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(ModelRequest)
+                    .where(
+                        ModelRequest.project_id == first.id,
+                        ModelRequest.request_id == "pg-v08-duplicate",
+                    )
+                )
+                == 1
+            )
+    finally:
+        restarted.engine.dispose()
+        for run in (outcomes[0], other):
+            WorkflowStore(database).cancel(run.id, "postgres-ci-owner")
+
+
+def test_v08_cloud_admission_serializes_two_rpm_across_postgres_projects(postgres, monkeypatch):
+    from ai_team.gemini import GeminiClient
+    from ai_team.model_center import CentralDeferred, ModelCenter, Preference
+    from ai_team.model_center_models import ModelCall
+
+    # Admission is a local transaction only. Any accidental provider access must fail.
+    def no_provider(*args, **kwargs):
+        pytest.fail("Provider access forbidden in PostgreSQL admission checks")
+
+    monkeypatch.setattr(GeminiClient, "check", no_provider)
+    monkeypatch.setattr(GeminiClient, "generate", no_provider)
+    database, _ = postgres
+    with database.session() as session:
+        projects = [Project(name=f"V08 shared quota PG {index}") for index in range(3)]
+        session.add_all(projects)
+        session.commit()
+    center = ModelCenter(database)
+    policy = Preference(enabled=True, quotas_confirmed=True, rpm=2)
+    runs = []
+    for index, project in enumerate(projects):
+        center.configure(project.id, "CEO", policy, "ci")
+        runs.append(center.request(project.id, f"quota-{index}", "Proposta sintética local", "ci"))
+    cloud = f"synthetic-pg-{secrets.token_hex(8)}"
+    barrier = Barrier(3, timeout=10)
+
+    def admit(run):
+        barrier.wait()
+        try:
+            return center.admit(run, "CEO", cloud, 1000)
+        except CentralDeferred as deferred:
+            assert deferred.status == "waiting_quota"
+            return None
+
+    try:
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            outcomes = list(pool.map(admit, runs))
+        assert sum(outcome is not None for outcome in outcomes) == 2
+        with database.session() as session:
+            admitted = session.scalars(
+                select(ModelCall).where(
+                    ModelCall.cloud_project == cloud, ModelCall.admitted.is_(True)
+                )
+            ).all()
+            assert len(admitted) == 2
+            assert len({row.project_id for row in admitted}) == 2
+            assert all(row.status == "started" for row in admitted)
+            assert all(row.input_tokens is None and row.output_tokens is None for row in admitted)
+        # Reconnection cannot release already reserved shared quota or duplicate a stage.
+        database.engine.dispose()
+        with pytest.raises(CentralDeferred):
+            center.admit(runs[0], "CEO", cloud, 1000)
+        assert sum(len(center.snapshot(project.id)["history"]) for project in projects) >= 3
+    finally:
+        for run in runs:
+            WorkflowStore(database).cancel(run.id, "postgres-ci-owner")
+
+
+def test_v08_video_digest_approval_and_single_claim_persist_on_postgres(postgres):
+    import uuid
+
+    from fastapi import HTTPException
+
+    from ai_team.video_routes import VideoInput
+    from ai_team.video_store import VideoStore
+
+    database, settings = postgres
+    with database.session() as session:
+        first, second = Project(name="V08 video PG A"), Project(name="V08 video PG B")
+        session.add_all([first, second])
+        session.commit()
+    store = VideoStore(database)
+    data = VideoInput(
+        project_id=first.id,
+        request_id=str(uuid.uuid4()),
+        title="Roteiro PG sintético",
+        format="vertical",
+        scenes=[{"text": "Sem renderização neste teste", "duration": 2}],
+        consent=True,
+    )
+    created = store.create(data)
+    assert created["status"] == "pending_approval" and len(created["digest"]) == 64
+    assert store.create(data)["id"] == created["id"]
+    with pytest.raises(HTTPException) as conflict:
+        store.create(data.model_copy(update={"title": "Outro roteiro"}))
+    assert conflict.value.status_code == 409
+    with pytest.raises(HTTPException) as stale:
+        store.decide(created["id"], "0" * 64, True)
+    assert stale.value.status_code == 409
+    assert store.get(created["id"])["status"] == "pending_approval"
+    assert store.snapshot(second.id)["items"] == []
+    assert store.claim() is None
+    assert store.decide(created["id"], created["digest"], True)["status"] == "queued"
+    database.engine.dispose()
+    restarted = Database(settings)
+    try:
+        restored = VideoStore(restarted)
+        assert restored.get(created["id"])["digest"] == created["digest"]
+        assert restored.snapshot(first.id)["items"][0]["status"] == "queued"
+        barrier = Barrier(2, timeout=10)
+
+        def claim(_):
+            barrier.wait()
+            return restored.claim()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(claim, range(2)))
+        claims = [item for item in outcomes if item is not None]
+        assert len(claims) == 1 and claims[0]["id"] == created["id"]
+        token = claims[0]["lease_token"]
+        assert restored.active(created["id"], token)
+        restored.cancel(created["id"])
+        assert not restored.active(created["id"], token)
+        assert not restored.finish(created["id"], token, "completed")
+        assert restored.get(created["id"])["status"] == "cancelled"
+    finally:
+        restarted.engine.dispose()
+
+
+def test_v08_private_tables_and_model_probe_survive_reinitialization(postgres):
+    from ai_team.model_center_models import (
+        ModelCall,
+        ModelPreference,
+        ModelProbe,
+        ModelProviderState,
+        ModelRequest,
+    )
+    from ai_team.video_models import VideoJob
+
+    database, _ = postgres
+    expected = {
+        model.__tablename__
+        for model in (
+            ModelCall,
+            ModelPreference,
+            ModelProbe,
+            ModelProviderState,
+            ModelRequest,
+            VideoJob,
+        )
+    }
+    assert expected <= set(Base.metadata.tables)
+    with database.session() as session:
+        project = Project(name="V08 private probe PG")
+        session.add(project)
+        session.flush()
+        probe = ModelProbe(project_id=project.id, status="queued")
+        session.add(probe)
+        session.commit()
+    database.engine.dispose()
+    database.initialize()
+    with database.session() as session:
+        assert session.get(ModelProbe, probe.id).project_id == project.id
+        assert session.get(ModelProbe, probe.id).status == "queued"
+    with database.engine.connect() as connection:
+        private_tables = set(
+            connection.scalars(text("SELECT tablename FROM pg_tables WHERE schemaname = 'ai_team'"))
+        )
+        public_tables = set(
+            connection.scalars(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))
+        )
+        assert expected <= private_tables
+        assert not expected.intersection(public_tables)

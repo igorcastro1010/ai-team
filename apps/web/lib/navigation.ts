@@ -1,4 +1,6 @@
 export const views = {
+  modelos: { label: "Central de IA", title: "O modelo certo. Dentro dos seus limites.", description: "Provedores, preferências e cotas com bloqueio de custos não autorizados." },
+  videos: { label: "Estúdio de vídeo", title: "Seu roteiro, pronto para ganhar movimento.", description: "Vídeos verticais com cenas e legendas, renderizados localmente." },
   memoria: { label: "Memória e contexto", title: "Conhecimento que acompanha o projeto.", description: "Decisões, tarefas e contexto relevante para cada especialista." },
   overview: { label: "Visão geral", title: "Sua sala de operações.", description: "Um lugar para pensar, coordenar e fazer acontecer." },
   escritorio: { label: "Escritório virtual", title: "Um escritório. Sete especialidades.", description: "Acompanhe o trabalho de verdade, com espaço para o time crescer." },

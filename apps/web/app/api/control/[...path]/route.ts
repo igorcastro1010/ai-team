@@ -6,8 +6,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const { path } = await context.params;
   const targetPath = path.join("/");
   const repositoryAllowed = /^repository-runs(?:\/[a-f0-9-]{36}(?:\/(decision|cancel|artifacts|publish))?)?$/;
+  const modelsAllowed = /^model-center\/[a-f0-9-]{36}(?:\/(?:check|requests|preferences\/(?:CEO|DEV|DESIGNER|QA|PESQUISADOR)|(?:resume|handoff)\/[a-f0-9-]{36}))?$/;
+  const videosAllowed = /^videos(?:\/[a-f0-9-]{36}\/(?:decision|cancel|download))?$/;
   const knowledgeAllowed = /^(?:memory\/[a-f0-9-]{36}(?:\/(?:search|sync|[a-f0-9-]{36}(?:\/(?:history|export))?))?|knowledge\/[a-f0-9-]{36}\/graph|issues(?:\/[a-f0-9-]{36}(?:\/sync)?)?|projects\/[a-f0-9-]{36}\/optimizer(?:\/(?:budgets|preview))?)$/;
-  if (!allowed.test(targetPath) && !repositoryAllowed.test(targetPath) && !knowledgeAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
+  if (!allowed.test(targetPath) && !repositoryAllowed.test(targetPath) && !knowledgeAllowed.test(targetPath) && !modelsAllowed.test(targetPath) && !videosAllowed.test(targetPath)) return NextResponse.json({ detail: "Rota não encontrada" }, { status: 404 });
   const hasBody = !["GET", "HEAD"].includes(request.method);
   if (hasBody && request.headers.get("origin") !== request.nextUrl.origin) {
     return NextResponse.json({ detail: "Origem não autorizada" }, { status: 403 });
@@ -24,7 +26,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const base = process.env.AI_TEAM_API_URL || "http://127.0.0.1:8000";
     const url = new URL(`/${targetPath}`, base);
     if (["reports", "hermes/executions"].includes(targetPath)) url.search = request.nextUrl.search;
-    if (knowledgeAllowed.test(targetPath)) {
+    if (knowledgeAllowed.test(targetPath) || videosAllowed.test(targetPath)) {
       for (const key of ["project_id", "q", "agent", "status", "priority", "limit"]) {
         const value = request.nextUrl.searchParams.get(key);
         if (value !== null) url.searchParams.set(key, value);
@@ -40,9 +42,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       },
     });
     const headers = new Headers({ "cache-control": "no-store", "content-type": "application/json" });
-    const binary = targetPath.endsWith("/artifacts") && upstream.ok && upstream.headers.get("content-type") === "application/zip";
+    const video = videosAllowed.test(targetPath) && targetPath.endsWith("/download") && upstream.ok && upstream.headers.get("content-type") === "video/mp4";
+    const binary = video || targetPath.endsWith("/artifacts") && upstream.ok && upstream.headers.get("content-type") === "application/zip";
     if (binary) {
-      headers.set("content-type", "application/zip");
+      headers.set("content-type", video ? "video/mp4" : "application/zip");
       const disposition = upstream.headers.get("content-disposition");
       headers.set("content-disposition", [
         'attachment; filename="ai-team-nextjs.zip"',
@@ -52,7 +55,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     for (const cookie of upstream.headers.getSetCookie()) headers.append("set-cookie", cookie);
     const retry = upstream.headers.get("retry-after");
     if (retry) headers.set("retry-after", retry);
-    return new Response(upstream.status === 204 ? null : binary ? await upstream.arrayBuffer() : await upstream.text(), { status: upstream.status, headers });
+    return new Response(upstream.status === 204 ? null : video ? upstream.body : binary ? await upstream.arrayBuffer() : await upstream.text(), { status: upstream.status, headers });
   } catch {
     return NextResponse.json({ detail: "API indisponível. Verifique se o serviço FastAPI está em execução." }, { status: 503 });
   }

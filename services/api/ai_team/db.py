@@ -8,7 +8,9 @@ from . import (  # noqa: F401 - register additive tables
     issue_models,
     knowledge_automation_models,
     memory_models,  # noqa: F401 - register additive tables
+    model_center_models,
     optimizer_models,
+    video_models,
 )
 from .config import Settings
 from .models import Base

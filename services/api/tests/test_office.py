@@ -3,6 +3,24 @@ from types import SimpleNamespace
 from ai_team.office import office_snapshot
 
 
+def test_central_quota_and_handoff_waits_never_look_like_completed_work():
+    for status in ("waiting_model", "waiting_quota", "awaiting_codex"):
+        snapshot = office_snapshot(
+            [
+                run(
+                    executor="central",
+                    status=status,
+                    stage=0,
+                    steps=[{"agent": "CEO", "summary": "Etapa anterior", "deliverable": "Plano"}],
+                )
+            ],
+            worker_online=True,
+        )
+        ceo = next(agent for agent in snapshot if agent["id"] == "CEO")
+        assert ceo["status"] == "awaiting_approval"
+        assert ceo["executor"] == "central" and not ceo["animate"]
+
+
 def test_repository_research_and_testing_are_real_stage_projections():
     researching = run(scope="repository_code", stage=1)
     snapshot = office_snapshot([researching], worker_online=True)

@@ -1,10 +1,13 @@
 import argparse
+import signal
+import threading
 import time
 
 from .config import Settings
 from .db import Database
 from .github_actions import GitHubWorker
 from .hermes import HermesRateLimitError
+from .model_center import CentralDeferred
 from .models import new_id
 from .orchestration import Draft, build_graph
 from .workflow import WorkflowStore
@@ -17,9 +20,14 @@ class Worker:
         self.providers = providers
         self.sandbox = sandbox
         self.id = new_id()
+        self.stopped = threading.Event()
 
     def once(self):
+        if self.stopped.is_set():
+            return False
         self.store.heartbeat(self.id)
+        from .model_router import check_pending
+        check_pending(self.store.database)
         from .python_sandbox import PythonSandbox
         from .repository_runs import RepositoryStore, execute_repository
 
@@ -45,6 +53,8 @@ class Worker:
                 )
                 return True
             if not delivery_only:
+                if hasattr(provider, "preflight"):
+                    provider.preflight()
                 from .token_optimizer import OptimizedProvider
 
                 provider = OptimizedProvider(provider, self.store.database, run)
@@ -52,6 +62,8 @@ class Worker:
 
             def tick():
                 nonlocal last_heartbeat
+                if self.stopped.is_set():
+                    raise InterruptedError("Worker em desligamento")
                 current = self.store.get(run.id)
                 if (
                     current.status != "running"
@@ -92,7 +104,7 @@ class Worker:
                     run = self.store.record_sandbox(run, result=result, release=release)
                     if release:
                         return True
-            if not self.store.reserve_call(run):
+            if run.executor != "central" and not self.store.reserve_call(run):
                 self.store.finish_error(
                     run, "failed", "Limite de execução atingido ou escopo inválido."
                 )
@@ -102,6 +114,8 @@ class Worker:
                 {"recursion_limit": 8},
             )
             self.store.save_step(run, Draft.model_validate(state["draft"]))
+        except CentralDeferred as error:
+            self.store.finish_error(run, error.status, str(error))
         except InterruptedError:
             self.store.finish_error(run, "cancelled", "Execução interrompida pelo proprietário.")
         except TimeoutError:
@@ -130,6 +144,8 @@ class Worker:
 
 def process_cycle(worker, github_worker):
     processed = worker.once()
+    if getattr(worker, "stopped", None) is not None and worker.stopped.is_set():
+        return processed
     github_processed = github_worker.once()
     return processed or github_processed
 
@@ -137,6 +153,7 @@ def process_cycle(worker, github_worker):
 def main():
     from .codex_provider import CodexProvider
     from .hermes import HermesClient, HermesProvider
+    from .model_router import CentralProvider
 
     parser = argparse.ArgumentParser(description="Worker separado do AI TEAM")
     parser.add_argument("--once", action="store_true")
@@ -153,16 +170,19 @@ def main():
         providers={
             "codex": codex,
             "hermes": HermesProvider(HermesClient(settings, database=database)),
+            "central": CentralProvider(database),
         },
     )
     github_worker = GitHubWorker(database, tick=lambda: worker.store.heartbeat(worker.id))
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(signum, lambda *_: worker.stopped.set())
     print("Worker AI TEAM: elaboração textual e propostas GitHub aprovadas.", flush=True)
-    while True:
+    while not worker.stopped.is_set():
         processed = process_cycle(worker, github_worker)
         if args.once:
             break
         if not processed:
-            time.sleep(2)
+            worker.stopped.wait(2)
 
 
 if __name__ == "__main__":

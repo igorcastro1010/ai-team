@@ -104,7 +104,7 @@ function AgentDetail({ current, place, fresh }: { current: OfficeAgent; place: s
     {!current.enabled && <p>Perfil Hermes ainda não provisionado.</p>}
     {current.status === "working" && (!current.animate || !fresh) && <p className="notice">Execução registrada, sem sinal recente suficiente para animar atividade.</p>}
     {current.run_status === "queued" && <p>Solicitação na fila, aguardando o worker.</p>}
-    {current.executor && <p className="field-help">Executor autorizado: {current.executor === "hermes" ? "Hermes" : "Codex"}.</p>}
+    {current.executor && <p className="field-help">Executor autorizado: {current.executor === "central" ? "Central de IA" : current.executor === "hermes" ? "Hermes" : "Codex"}.</p>}
     {current.error && <p className="notice error">{current.error}</p>}
     <h3>Histórico e resultados</h3>{!current.history.length && <p className="office-empty">Nenhum resultado registrado para este papel.</p>}
     {current.history.map((step, index) => <details key={`${step.run_id}-${index}`} className="office-result"><summary>{step.summary}</summary><small>{dateTime(step.created_at)} · {step.executor}</small><pre>{step.deliverable}</pre></details>)}

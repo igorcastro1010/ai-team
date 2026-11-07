@@ -150,3 +150,15 @@ revisão explícita, foco, teclado, estados e testes do painel. Supabase Postgre
 testes existentes no schema privado descartável; nenhuma migração nova.
 Limitações: skills não certificam segurança nem homologam integrações; revisão
 independente nesta rodada é automatizada, não humana. Ver evidências V0.7.1.
+
+## V0.8 — central e vídeo local
+
+Reutilizadas Find Skills (catálogo skills.sh, sem instalação adicional), TDD e
+verificação antes de concluir de obra/superpowers; revisão de segurança de prompts,
+Supabase Postgres, UI/UX Pro Max, React/Next.js e Playwright já revisadas localmente.
+Foram consultadas as referências oficiais Google Gemini/API Keys/Cloud Billing,
+autenticação Codex e FFmpeg. Não foram instaladas skills obtidas de respostas de
+modelos ou hooks. O vídeo usa FFmpeg local com argumentos fixos; não chama Veo ou
+API de mídia paga. Skills orientam desenvolvimento e testes, não provam elegibilidade
+de cobrança, integração externa ou revisão humana. Nenhuma nova permissão de
+runtime foi concedida a agentes por esta descoberta.

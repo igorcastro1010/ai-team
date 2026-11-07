@@ -19,6 +19,7 @@ from .integrations import integration_statuses
 from .issue_routes import router as issues_router
 from .knowledge_routes import router as knowledge_router
 from .memory_routes import router as memory_router
+from .model_routes import router as models_router
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
 from .optimizer_routes import router as optimizer_router
@@ -40,6 +41,7 @@ from .schemas import (
 )
 from .vercel_routes import observation_snapshot
 from .vercel_routes import router as vercel_router
+from .video_routes import router as video_router
 from .workflow import WorkflowStore
 
 TRANSITIONS = {
@@ -62,7 +64,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.7.1",
+        version="0.8.0",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
@@ -79,6 +81,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(optimizer_router)
     app.include_router(memory_router)
     app.include_router(knowledge_router)
+    app.include_router(models_router)
+    app.include_router(video_router)
 
     @app.middleware("http")
     async def protect_origin(request: Request, call_next):
@@ -94,7 +98,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.7.1"}
+        return {"status": "ok", "version": "0.8.0"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -246,7 +250,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         runs = store.all()
         usage = store.usage()
         return {
-            "version": "0.7.1",
+            "version": "0.8.0",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],

@@ -16,20 +16,26 @@ $apiProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'uvicorn',
 $workerProcess = $null
 $schedulerProcess = $null
 $monitorProcess = $null
+$videoProcess = $null
 try {
     Wait-AiTeamApi -ProcessId $apiProcess.Id -ExpectedVersion $expectedVersion
     $workerProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.worker' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'worker.stdout.log') -RedirectStandardError (Join-Path $dataPath 'worker.stderr.log')
     $schedulerProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.scheduler' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'scheduler.stdout.log') -RedirectStandardError (Join-Path $dataPath 'scheduler.stderr.log')
     $monitorProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.hermes_monitor' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'hermes-monitor.stdout.log') -RedirectStandardError (Join-Path $dataPath 'hermes-monitor.stderr.log')
+    $videoProcess = Start-Process -FilePath $pythonPath -ArgumentList '-m', 'ai_team.video_worker' -WorkingDirectory $projectRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $dataPath 'video-worker.stdout.log') -RedirectStandardError (Join-Path $dataPath 'video-worker.stderr.log')
     Start-Sleep -Milliseconds 400
     Assert-AiTeamChildRunning -Process $workerProcess -Name 'Worker'
     Assert-AiTeamChildRunning -Process $schedulerProcess -Name 'Scheduler'
     Assert-AiTeamChildRunning -Process $monitorProcess -Name 'Monitor Hermes'
+    Assert-AiTeamChildRunning -Process $videoProcess -Name 'Worker de vídeo'
     Assert-AiTeamChildRunning -Process $apiProcess -Name 'API'
     Set-Location -LiteralPath $projectRoot
-    Write-Host 'AI TEAM: abra http://localhost:3000. Ctrl+C encerra painel, API, worker, scheduler e monitor deste script.'
+    Write-Host 'AI TEAM: abra http://localhost:3000. Ctrl+C encerra os serviços e o worker de vídeo deste script.'
     npm.cmd run dev
 } finally {
+    if ($videoProcess -and -not $videoProcess.HasExited) {
+        & "$env:SystemRoot\System32\taskkill.exe" /PID $videoProcess.Id /T /F | Out-Null
+    }
     if ($monitorProcess -and -not $monitorProcess.HasExited) { Stop-Process -Id $monitorProcess.Id }
     if ($schedulerProcess -and -not $schedulerProcess.HasExited) { Stop-Process -Id $schedulerProcess.Id }
     if (-not $apiProcess.HasExited) { Stop-Process -Id $apiProcess.Id }

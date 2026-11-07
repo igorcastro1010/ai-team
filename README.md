@@ -1,5 +1,13 @@
 # AI TEAM
 
+**V0.8 — Central de IA e estúdio de vídeos locais:** `/modelos` reúne preferências,
+roteamento supervisionado, prova de elegibilidade Gemini e cotas persistentes;
+`/videos` prepara cenas e legendas, exige aprovação do roteiro e renderiza MP4
+vertical localmente. Sem API paga, fallback pago, inferência externa ou deploy
+nesta entrega. Codex central usa encaminhamento supervisionado; executores anteriores
+são preservados. Veja [central](docs/v08-model-center.md), [vídeos](docs/v08-video.md),
+[Linux ARM64](docs/v08-production.md) e [evidências e pendências](docs/v08-validation.md).
+
 **V0.7.1 — homologação:** revisão automatizada independente, correções de
 concorrência e reexportação Obsidian, painel estável e benchmark A/B preparado.
 Uma única [Issue real #12](https://github.com/igorcastro1010/ai-team/issues/12)
