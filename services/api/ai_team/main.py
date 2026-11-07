@@ -9,6 +9,8 @@ from sqlalchemy import select, update
 from .agents import AGENTS, RESEARCHER
 from .auth import COOKIE_NAME, authenticate, digest, require_owner
 from .config import Settings
+from .content_factory_office import production_office
+from .content_factory_routes import router as content_factory_router
 from .db import Database
 from .github_actions import GitHubStore
 from .github_routes import router as github_router
@@ -22,7 +24,6 @@ from .memory_routes import router as memory_router
 from .model_routes import router as models_router
 from .models import AuthSession, Event, Project, Task
 from .office import office_snapshot
-from .content_factory_routes import router as content_factory_router
 from .optimizer_routes import router as optimizer_router
 from .report_routes import router as report_router
 from .repository_routes import router as repository_router
@@ -265,7 +266,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "runs": [RunView.model_validate(run) for run in runs],
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
             "usage": usage,
-            "office": office_snapshot(runs, worker_online=usage["worker_online"]),
+            "office": production_office(database, office_snapshot(
+                runs, worker_online=usage["worker_online"])),
             "office_observed_at": int(time.time()),
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),

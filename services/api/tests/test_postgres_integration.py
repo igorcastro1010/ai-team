@@ -5,6 +5,7 @@ import secrets
 import time
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,6 +30,33 @@ pytestmark = pytest.mark.skipif(
     not os.environ.get("AI_TEAM_TEST_POSTGRES_URL"),
     reason="Requires explicit ephemeral PostgreSQL CI URL",
 )
+
+
+def test_v09_factory_checkpoints_restart_and_scope(postgres):
+    from ai_team.content_factory import FactoryStore, FactoryWorker, ProductionInput
+
+    database, settings = postgres
+    with database.session() as db:
+        project = Project(name="Factory PG")
+        db.add(project)
+        db.commit()
+        project_id = project.id
+    data = ProductionInput(project_id=project_id, request_id=uuid4(),
+                           prompt="Vídeo local com minha logo e aprovação humana")
+    store = FactoryStore(database)
+    job = store.create(data)
+    assert store.create(data)["id"] == job["id"]
+    for _ in range(3):
+        FactoryWorker(store).once()
+    restarted = Database(settings)
+    try:
+        result = FactoryStore(restarted).get(project_id, job["id"])
+        assert result["status"] == "waiting_media"
+        assert len(result["steps"]) == 3
+        FactoryStore(restarted).cancel(project_id, job["id"])
+        assert not FactoryWorker(FactoryStore(restarted)).once()
+    finally:
+        restarted.engine.dispose()
 
 
 def test_v07_memory_restart_scope_and_optimizer_budget(postgres):

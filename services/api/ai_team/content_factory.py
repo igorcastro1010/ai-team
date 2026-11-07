@@ -234,20 +234,52 @@ class FactoryStore:
             VideoStore(self.database).cancel(row["video_id"])
         return row
 
-    def resume(self, project, production, media_ids):
+    def resume(self, project, production, media_ids=None):
         row = self.get(project, production)
-        payload = {**row["request"], "media_ids": [str(i) for i in media_ids]}
+        payload = {
+            **row["request"],
+            "media_ids": [str(i) for i in media_ids]
+            if media_ids is not None
+            else row["request"]["media_ids"],
+        }
         self.assets(project, payload)
+        if row["status"] not in {"waiting_media", "failed"}:
+            raise HTTPException(409, "Produção não disponível para retomada")
+        if row["status"] == "failed" and row["video_id"]:
+            VideoStore(self.database).cancel(row["video_id"])
+        review = row["status"] == "failed" and row["document"] is not None
+        revision = row["revision"] + int(review)
+        fingerprint = self.fingerprint(project, row["document"], revision) if review else ""
         with self.database.session() as db:
             changed = db.execute(
                 update(ContentProduction)
                 .where(
-                    ContentProduction.id == production, ContentProduction.status == "waiting_media"
+                    ContentProduction.id == production,
+                    ContentProduction.status == row["status"],
+                    ContentProduction.revision == row["revision"],
                 )
-                .values(request=payload, stage=2, status="queued", error="")
+                .values(
+                    request=payload,
+                    stage=3 if review else 2 if row["status"] == "waiting_media" else row["stage"],
+                    status="awaiting_approval" if review else "queued",
+                    error="",
+                    approved_digest="",
+                    revision=revision,
+                    digest=fingerprint,
+                    video_id=None,
+                    retries=0,
+                )
             )
             if changed.rowcount != 1:
-                raise HTTPException(409, "Retomada disponível somente para mídia pendente")
+                raise HTTPException(409, "Estado alterado durante retomada")
+            db.add(
+                Event(
+                    kind="content.resumed",
+                    resource_id=production,
+                    actor="owner",
+                    summary="Retomada local; renderização exige nova aprovação",
+                )
+            )
             db.commit()
         return self.get(project, production)
 
@@ -315,9 +347,18 @@ class FactoryWorker:
             db.execute(
                 update(ContentProduction)
                 .where(
+                    ContentProduction.status == "running",
+                    ContentProduction.lease_expires_at < now,
+                    ContentProduction.retries >= 2,
+                )
+                .values(status="failed", lease_token="", error="Limite de recuperação atingido")
+            )
+            db.execute(
+                update(ContentProduction)
+                .where(
                     ContentProduction.status == "running", ContentProduction.lease_expires_at < now
                 )
-                .values(status="queued", lease_token="")
+                .values(status="queued", lease_token="", retries=ContentProduction.retries + 1)
             )
             candidates = list(
                 db.scalars(

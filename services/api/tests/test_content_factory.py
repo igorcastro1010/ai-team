@@ -65,6 +65,7 @@ def test_durable_stages_wait_for_media_and_cancel(factory):
 
 def upload_logo(store, project):
     import base64
+
     from ai_team.video_media import MediaStore
 
     # Original disposable one-pixel fixture; not the user's FORTALAKA logo.
@@ -142,3 +143,90 @@ def test_media_resume_and_cross_project_denial(factory, monkeypatch):
     store.resume(project, row["id"], [asset["id"]])
     assert FactoryWorker(store).once()
     assert store.get(project, row["id"])["status"] == "awaiting_approval"
+
+
+def test_expired_checkpoint_recovers_without_repeating_completed_steps(factory):
+    from ai_team.content_factory import FactoryWorker
+    from ai_team.content_factory_models import ContentProduction
+
+    store, project = factory
+    row = store.create(request(project))
+    FactoryWorker(store).once()
+    with store.database.session() as db:
+        record = db.get(ContentProduction, row["id"])
+        record.status, record.lease_token, record.lease_expires_at = "running", "stale", 1
+        db.commit()
+    FactoryWorker(store).once()
+    result = store.get(project, row["id"])
+    assert [step["agent"] for step in result["steps"]] == ["CEO", "PESQUISADOR"]
+
+
+def test_cancel_between_video_creation_and_approval_never_renders(factory, monkeypatch):
+    from ai_team import video_media
+    from ai_team.content_factory import FactoryWorker
+    from ai_team.video_store import VideoStore
+
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 1, "height": 1, "duration": None}
+    )
+    store, project = factory
+    asset = upload_logo(store, project)
+    row = store.create(request(project, media_ids=[asset["id"]]))
+    worker = FactoryWorker(store)
+    for _ in range(3):
+        worker.once()
+    store.approve(project, row["id"], store.get(project, row["id"])["digest"])
+    original = VideoStore.create
+
+    def cancel_before_link(self, *args, **kwargs):
+        video = original(self, *args, **kwargs)
+        store.cancel(project, row["id"])
+        return video
+
+    monkeypatch.setattr(VideoStore, "create", cancel_before_link)
+    worker.once()
+    assert store.get(project, row["id"])["status"] == "cancelled"
+    assert VideoStore(store.database).snapshot(project)["items"][0]["status"] == "cancelled"
+    assert VideoStore(store.database).claim() is None
+
+
+def test_office_reports_local_approval_without_inference(factory):
+    from ai_team.content_factory import FactoryWorker
+    from ai_team.content_factory_office import production_office
+    from ai_team.office import office_snapshot
+
+    store, project = factory
+    store.create(request(project))
+    for _ in range(3):
+        FactoryWorker(store).once()
+    result = production_office(store.database, office_snapshot([], worker_online=False))
+    designer = next(a for a in result if a["id"] == "DESIGNER")
+    assert designer["status"] == "awaiting_approval"
+    assert designer["executor"] == "local" and not designer["animate"]
+    assert "Sem inferência" in designer["history"][0]["deliverable"]
+
+
+def test_failed_render_retry_requires_new_digest_and_approval(factory, monkeypatch):
+    from ai_team import video_media
+    from ai_team.content_factory import FactoryWorker
+    from ai_team.content_factory_models import ContentProduction
+
+    monkeypatch.setattr(
+        video_media, "probe", lambda *_: {"width": 1, "height": 1, "duration": None}
+    )
+    store, project = factory
+    asset = upload_logo(store, project)
+    job = store.create(request(project, media_ids=[asset["id"]]))
+    for _ in range(3):
+        FactoryWorker(store).once()
+    old = store.get(project, job["id"])
+    with store.database.session() as db:
+        row = db.get(ContentProduction, job["id"])
+        row.status, row.stage = "failed", 4
+        db.commit()
+    resumed = store.resume(project, job["id"])
+    assert resumed["status"] == "awaiting_approval" and resumed["revision"] == 1
+    assert old["digest"] != resumed["digest"]
+    with pytest.raises(HTTPException):
+        store.approve(project, job["id"], old["digest"])
+    assert not FactoryWorker(store).once()

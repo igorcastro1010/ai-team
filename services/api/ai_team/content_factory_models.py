@@ -23,6 +23,7 @@ class ContentProduction(Base):
     status: Mapped[str] = mapped_column(String(24), default="queued")
     stage: Mapped[int] = mapped_column(Integer, default=0)
     revision: Mapped[int] = mapped_column(Integer, default=0)
+    retries: Mapped[int] = mapped_column(Integer, default=0)
     digest: Mapped[str] = mapped_column(String(64), default="")
     approved_digest: Mapped[str] = mapped_column(String(64), default="")
     video_id: Mapped[str | None] = mapped_column(ForeignKey("video_jobs.id"), nullable=True)

@@ -25,7 +25,7 @@ class ApprovalInput(BaseModel):
 
 class ResumeInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    media_ids: list[UUID] = Field(max_length=10)
+    media_ids: list[UUID] | None = Field(default=None, max_length=10)
 
 
 @router.post("", status_code=201)
