@@ -13,7 +13,11 @@ export function OfficeWindow({ label, close, back, reload, navigation, children 
     return () => dialog?.close();
   }, []);
   return <dialog ref={ref} className="office-tool-window" aria-label={label}
-    onCancel={event => { event.preventDefault(); close(); }}>
+    onCancel={event => {
+      // React propagates nested confirmation cancellation through its parent.
+      if (event.target !== event.currentTarget) return;
+      event.preventDefault(); close();
+    }}>
     <header className="office-window-bar">
       <button type="button" className="button" onClick={back} aria-label="Voltar no escritório"><ArrowLeft size={16} />Voltar</button>
       <strong>{label}</strong>

@@ -229,6 +229,11 @@ test("CEO registra pedido e permite revisar, aprovar e cancelar com confirmaçã
   await page.screenshot({ path: "../../artifacts/approval-desktop.png", fullPage: true });
   await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
   const dialog = page.locator("dialog.creation-dialog");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Aprovações", exact: true })).toBeVisible();
+  await expect(runCard.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
+  await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
   await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
   await expect(runCard.getByText("Aguarda aprovação", { exact: true })).toBeVisible();
   await runCard.getByRole("button", { name: "Aprovar próxima etapa" }).click();
