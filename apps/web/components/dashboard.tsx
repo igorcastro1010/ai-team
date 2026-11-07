@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   Activity, ArrowRight, ArrowUpRight, Bot, CheckCheck,
@@ -21,11 +21,13 @@ import { RepositoryPanel } from "./repository-panel";
 import { KnowledgePanel } from "./knowledge-panel";
 import { ModelsPanel } from "./models-panel";
 import { VideoPanel } from "./video-panel";
+import { OfficeWindow } from "./office-window";
 
 import { views, type View } from "@/lib/navigation";
 
 const navigation: { view: View; icon: LucideIcon; group: string }[] = [
   { view: "overview", icon: Grid2X2, group: "WORKSPACE" },
+  { view: "resumo", icon: Grid2X2, group: "" },
   { view: "escritorio", icon: Bot, group: "" },
   { view: "ceo", icon: MessageSquare, group: "" },
   { view: "memoria", icon: Layers3, group: "" },
@@ -43,7 +45,11 @@ const navigation: { view: View; icon: LucideIcon; group: string }[] = [
 ];
 const href = (view: View) => view === "overview" ? "/" : `/${view}`;
 
-export function Dashboard({ view }: { view: View }) {
+export function Dashboard() {
+  const pathname = usePathname();
+  const route = pathname.split("/")[1] || "overview";
+  const view: View = Object.hasOwn(views, route) ? route as View : "overview";
+  const toolOpen = view !== "overview" && view !== "escritorio";
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [error, setError] = useState("");
   const [dialog, setDialog] = useState<"project" | "task" | null>(null);
@@ -78,7 +84,7 @@ export function Dashboard({ view }: { view: View }) {
   }
   function newTask() { setDialog(workspace?.projects.length ? "task" : "project"); }
   const meta = views[view];
-  return <div className={`workspace-shell ${view === "escritorio" ? "office-shell" : ""}`}>
+  return <div className={`workspace-shell office-shell integrated-office ${menuOpen ? "navigation-open" : ""}`}>
     <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
     <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
       <Link href="/" className="brand" aria-label="AI TEAM início"><span className="brand-mark">ai</span><span>AI TEAM<small>INTELIGÊNCIA EM EQUIPE</small></span></Link>
@@ -92,16 +98,18 @@ export function Dashboard({ view }: { view: View }) {
       </div>
     </aside>
     <div className="workspace-body">
-      <header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label={menuOpen ? "Fechar navegação" : "Abrir navegação"} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button><span>Workspace</span><ChevronRight size={14} aria-hidden="true" /><strong>{meta.label}</strong></div><div className="topbar-right"><span className="private-badge"><ShieldCheck size={14} aria-hidden="true" /> AMBIENTE PRIVADO</span><button className="icon-button" aria-label="Atualizar workspace" onClick={() => void load()}><RefreshCw size={16} aria-hidden="true" /></button></div></header>
+      <header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-menu" aria-label={menuOpen ? "Fechar navegação" : "Abrir navegação"} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button><span>Workspace</span><ChevronRight size={14} aria-hidden="true" /><strong>Escritório</strong></div><div className="topbar-right"><span className="private-badge"><ShieldCheck size={14} aria-hidden="true" /> AMBIENTE PRIVADO</span><button className="icon-button" aria-label="Atualizar workspace" onClick={() => void load()}><RefreshCw size={16} aria-hidden="true" /></button></div></header>
       <main id="main-content" className="main-content">
-        <div className="page-heading"><div><p className="eyebrow"><span className="tiny-square" /> {view === "overview" ? "VISÃO AMPLA. PRÓXIMO PASSO CLARO." : meta.label.toUpperCase()}</p><h1>{meta.title}</h1><p className="page-description">{meta.description}</p></div><button className="button primary" onClick={() => setDialog("project")} disabled={!workspace}><Plus size={17} aria-hidden="true" /> Novo projeto</button></div>
+        <div className="page-heading"><div><p className="eyebrow"><span className="tiny-square" /> SEU ESCRITÓRIO INTERATIVO</p><h1>{view === "escritorio" ? views.escritorio.title : views.overview.title}</h1><p className="page-description">Clique no time ou em uma sala para começar.</p></div><button className="button primary" onClick={() => setDialog("project")} disabled={!workspace}><Plus size={17} aria-hidden="true" /> Novo projeto</button></div>
         {error && <div className="notice error" role="alert">{error}<button className="text-button" onClick={() => void load()}>Tentar novamente</button></div>}
         {!workspace ? <div className="loading-state" role="status"><CircleDashed className="spin" size={24} aria-hidden="true" /><p>{error ? "Aguardando conexão com o serviço." : "Preparando sua sala de operações…"}</p></div> : <>
-          {view === "overview" && <Overview data={workspace} create={() => setDialog("project")} newTask={newTask} />}
+          <PixelOffice data={workspace} connected={!error} openTool={target => router.push(href(target))} />
+          {toolOpen && <OfficeWindow label={meta.label} close={() => router.push("/")} back={() => router.back()}>
+          <div className="page-heading"><div><h2>{meta.title}</h2><p>{meta.description}</p></div></div>
+          {view === "resumo" && <Overview data={workspace} create={() => setDialog("project")} newTask={newTask} />}
           {view === "projetos" && <Projects data={workspace} create={() => setDialog("project")} />}
           {view === "tarefas" && <TaskBoard data={workspace} create={newTask} move={move} busy={updating} />}
           {view === "agentes" && <Agents data={workspace} />}
-          {view === "escritorio" && <PixelOffice data={workspace} connected={!error} />}
           {view === "memoria" && <KnowledgePanel projects={workspace.projects} />}
           {view === "modelos" && <ModelsPanel projects={workspace.projects} />}
           {view === "videos" && <VideoPanel projects={workspace.projects} />}
@@ -112,6 +120,7 @@ export function Dashboard({ view }: { view: View }) {
           {view === "execucoes" && <><RunList data={workspace} runs={workspace.runs} reload={load} /><RepositoryPanel data={workspace} /></>}
           {view === "agendamentos" && <SchedulePanel data={workspace} reload={load} />}
           {view === "aprovacoes" && <><div className="principle-strip"><ShieldCheck size={18} aria-hidden="true" /><span>Revise os artefatos e o digest antes de autorizar testes ou publicação. Cada decisão vale somente para o conteúdo exibido.</span></div><RunList data={workspace} runs={workspace.approvals} reload={load} /><RepositoryPanel data={workspace} /></>}
+          </OfficeWindow>}
         </>}
         <footer className="content-footer"><span>AI TEAM <span className="muted">/</span> Pense grande. Construa com direção.</span><span>Controle em cada etapa.</span></footer>
       </main>

@@ -5,6 +5,23 @@ import { ArrowUpRight, Radio, ShieldCheck, Pause, Play, Plus, Minus, Search, Act
 import { dateTime, type OfficeAgent, type Workspace } from "@/lib/api";
 import { AgentSprite, OfficeMap, agentPlaces } from "./office-map";
 import "@/styles/office.css";
+import type { View } from "@/lib/navigation";
+
+const agentTools: Record<string, View> = { CEO: "ceo", DEV: "execucoes", DESIGNER: "videos", QA: "execucoes", PESQUISADOR: "memoria" };
+const officeTools: { view: View; label: string }[] = [
+  { view: "ceo", label: "CEO" }, { view: "tarefas", label: "Tarefas" },
+  { view: "videos", label: "Estúdio de vídeos" }, { view: "projetos", label: "Projetos" },
+  { view: "memoria", label: "Memória" }, { view: "modelos", label: "Modelos" },
+  { view: "aprovacoes", label: "Aprovações" }, { view: "historico", label: "Histórico" },
+  { view: "integracoes", label: "Configurações" },
+];
+const stations: { view: View; label: string; x: number; y: number }[] = [
+  { view: "ceo", label: "Mesa do CEO", x: 29, y: 22 },
+  { view: "execucoes", label: "Computador de desenvolvimento", x: 67, y: 22 },
+  { view: "videos", label: "Sala de criação e vídeos", x: 29, y: 60 },
+  { view: "execucoes", label: "Bancada de validações QA", x: 72, y: 60 },
+  { view: "memoria", label: "Biblioteca de memória", x: 53, y: 60 },
+];
 
 const labels = { available: "Disponível", working: "Trabalhando", awaiting_approval: "Aguardando aprovação", completed: "Concluído", error: "Erro" };
 const colors = ["#b6ec81", "#83c6ff", "#dbabff", "#ffd185", "#81d8c8", "#ffa9be", "#b8bdff"];
@@ -21,7 +38,7 @@ function actorStyle(index: number): CSSProperties {
   } as CSSProperties;
 }
 
-export function PixelOffice({ data, connected }: { data: Workspace; connected: boolean }) {
+export function PixelOffice({ data, connected, openTool }: { data: Workspace; connected: boolean; openTool?: (view: View) => void }) {
   const [selected, setSelected] = useState("CEO");
   const [now, setNow] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -47,6 +64,7 @@ export function PixelOffice({ data, connected }: { data: Workspace; connected: b
   const filtered = agents.filter(agent => `${agent.name} ${agent.role}`.toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")));
   const events = [...data.events].sort((a, b) => b.created_at - a.created_at).slice(0, 5);
   return <>
+    <nav className="office-tool-dock" aria-label="Ferramentas do escritório">{officeTools.map(tool => <Link key={tool.view} href={`/${tool.view}`}>{tool.label}{tool.view === "aprovacoes" && data.approvals.length > 0 && <span className="office-pending-count">{data.approvals.length}</span>}</Link>)}</nav>
     <div className="office-campus" data-motion={motion}>
       <div className="office-commandbar">
         <div className="office-campus-brand"><span className="office-brand-grid" aria-hidden="true"><i /><i /><i /><i /></span><strong>ai<span>TEAM</span></strong><small>ESCRITÓRIO</small></div>
@@ -74,11 +92,12 @@ export function PixelOffice({ data, connected }: { data: Workspace; connected: b
           <section className="office-map-viewport" aria-label="Mapa do escritório virtual" tabIndex={0}>
             <div className="office-map-world" style={{ "--map-zoom": zoom / 100 } as CSSProperties}>
               <OfficeMap />
+              {stations.map(station => <button type="button" key={station.label} className="office-station-link" style={{ left: `${station.x}%`, top: `${station.y}%` }} aria-label={station.label} onClick={() => openTool?.(station.view)}>{station.label}</button>)}
               {agents.map((agent, index) => {
                 const working = fresh && agent.animate;
                 const walking = agent.enabled && ["available", "completed"].includes(agent.status) && !working;
                 return <span key={agent.id} className={`office-actor pixel-station ${working ? "is-working" : ""} ${walking ? "is-walking" : ""} ${!agent.enabled ? "is-prepared" : ""} ${selected === agent.id ? "is-selected" : ""}`} style={actorStyle(index)}>
-                  <button type="button" className="actor-travel" onClick={() => setSelected(agent.id)} aria-label={`Selecionar ${agent.name} no mapa`} aria-pressed={selected === agent.id}>{agent.status === "awaiting_approval" && <span className="actor-bubble approval-bubble">Sua aprovação</span>}{working && <span className="actor-bubble work-bubble">Trabalhando<span aria-hidden="true">…</span></span>}{agent.status === "error" && <span className="actor-bubble error-bubble">Precisa de atenção</span>}<AgentSprite variant={index} /><span className="actor-name"><i className={`office-dot state-${agent.status}`} />{agent.name}</span></button>
+                  <button type="button" className="actor-travel" onClick={() => { setSelected(agent.id); openTool?.(agent.status === "awaiting_approval" ? "aprovacoes" : agentTools[agent.id] || "agentes"); }} aria-label={`Selecionar ${agent.name} no mapa`} aria-pressed={selected === agent.id}>{agent.status === "awaiting_approval" && <span className="actor-bubble approval-bubble">Sua aprovação</span>}{working && <span className="actor-bubble work-bubble">Trabalhando<span aria-hidden="true">…</span></span>}{agent.status === "error" && <span className="actor-bubble error-bubble">Precisa de atenção</span>}<AgentSprite variant={index} /><span className="actor-name"><i className={`office-dot state-${agent.status}`} />{agent.name}</span></button>
                 </span>;
               })}
             </div>
