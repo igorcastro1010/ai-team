@@ -782,3 +782,46 @@ def test_v08_private_tables_and_model_probe_survive_reinitialization(postgres):
         )
         assert expected <= private_tables
         assert not expected.intersection(public_tables)
+
+
+def test_v081_studio_draft_concurrency_and_templates_survive_restart(postgres):
+    from fastapi import HTTPException
+
+    from ai_team.video_studio_routes import StudioStore
+
+    database, settings = postgres
+    with database.session() as db:
+        project = Project(name="V081 studio private PG")
+        other = Project(name="V081 isolated PG")
+        db.add_all([project, other])
+        db.commit()
+    store = StudioStore(database)
+    document = {
+        "title": "Rascunho PG",
+        "format": "square",
+        "scenes": [{"text": "Cena persistente", "duration": 2}],
+    }
+    barrier = Barrier(2, timeout=10)
+
+    def save(_):
+        barrier.wait()
+        try:
+            return store.save_draft(project.id, 0, document)["revision"]
+        except HTTPException as error:
+            assert error.status_code == 409
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert list(pool.map(save, range(2))).count(1) == 1
+    template = store.save_template(project.id, "Meu template PG", document)
+    database.engine.dispose()
+    restarted = Database(settings)
+    try:
+        restored = StudioStore(restarted)
+        assert restored.draft(project.id)["revision"] == 1
+        assert restored.draft(project.id)["document"]["format"] == "square"
+        assert restored.draft(other.id)["document"] is None
+        assert template in restored.templates(project.id)["items"]
+        assert template not in restored.templates(other.id)["items"]
+    finally:
+        restarted.engine.dispose()

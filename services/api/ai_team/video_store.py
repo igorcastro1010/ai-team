@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 import time
 import uuid
 
@@ -12,6 +13,8 @@ from sqlalchemy.exc import IntegrityError
 from .memory_safety import validate_text
 from .models import Event, Project
 from .video_models import VideoJob
+from .video_schema import StudioDocument
+from .video_studio_models import VideoProgress
 
 ACTIVE = ("pending_approval", "queued", "rendering")
 
@@ -22,7 +25,7 @@ def digest_payload(payload):
     ).hexdigest()
 
 
-def view(job):
+def view(job, progress=None):
     return {
         "id": job.id,
         "project_id": job.project_id,
@@ -32,6 +35,8 @@ def view(job):
         "status": job.status,
         "error": job.error,
         "created_at": job.created_at,
+        "progress": 100 if job.status == "completed" else progress.value if progress else 0,
+        "phase": progress.phase if progress and job.status == "rendering" else job.status,
     }
 
 
@@ -42,10 +47,16 @@ class VideoStore:
     def create(self, data, actor="owner"):
         payload = data.model_dump(mode="json")
         try:
-            validate_text(json.dumps(payload, ensure_ascii=False), maximum=10000)
+            validate_text(json.dumps(payload, ensure_ascii=False), maximum=20000)
         except ValueError:
             raise HTTPException(422, "Roteiro inválido ou contém credenciais") from None
         project_id, request_id = payload.pop("project_id"), payload.pop("request_id")
+        if payload.get("resolution") == "1080p" and os.environ.get("AI_TEAM_VIDEO_1080P") != "1":
+            raise HTTPException(409, "1080p exige habilitação explícita no servidor")
+        from .video_media import MediaStore
+
+        document = {key: payload[key] for key in StudioDocument.model_fields if key in payload}
+        payload["_media"] = MediaStore(self.database).manifest(project_id, document)
         fingerprint = digest_payload({"project_id": project_id, **payload})
         with self.database.session() as db:
             # Serialize project admission on both PostgreSQL and SQLite without a long transaction.
@@ -76,6 +87,7 @@ class VideoStore:
             db.add(job)
             try:
                 db.flush()
+                db.add(VideoProgress(job_id=job.id))
                 db.add(
                     Event(
                         kind="video.requested",
@@ -94,7 +106,7 @@ class VideoStore:
         with self.database.session() as db:
             return {
                 "items": [
-                    view(job)
+                    view(job, db.get(VideoProgress, job.id))
                     for job in db.scalars(
                         select(VideoJob)
                         .where(VideoJob.project_id == project_id)
@@ -109,7 +121,7 @@ class VideoStore:
             job = db.get(VideoJob, job_id)
             if not job:
                 raise HTTPException(404, "Vídeo não encontrado")
-            return view(job)
+            return view(job, db.get(VideoProgress, job.id))
 
     def decide(self, job_id, digest, approve, actor="owner"):
         with self.database.session() as db:
@@ -204,6 +216,19 @@ class VideoStore:
 
     def active(self, job_id, token):
         with self.database.session() as db:
+            now = int(time.time())
+            db.execute(
+                update(VideoJob)
+                .where(
+                    VideoJob.id == job_id,
+                    VideoJob.status == "rendering",
+                    VideoJob.lease_token == token,
+                    VideoJob.lease_expires_at >= now,
+                    VideoJob.lease_expires_at < now + 60,
+                )
+                .values(lease_expires_at=now + 240)
+            )
+            db.commit()
             return bool(
                 db.scalar(
                     select(VideoJob.id).where(
@@ -214,6 +239,37 @@ class VideoStore:
                     )
                 )
             )
+
+    def progress(self, job_id, token, value, phase):
+        if type(value) is not int or not 0 <= value <= 99:
+            return False
+        if not isinstance(phase, str) or len(phase) > 40:
+            return False
+        with self.database.session() as db:
+            if not db.scalar(
+                select(VideoJob.id).where(
+                    VideoJob.id == job_id,
+                    VideoJob.status == "rendering",
+                    VideoJob.lease_token == token,
+                    VideoJob.lease_expires_at >= int(time.time()),
+                )
+            ):
+                return False
+            row = db.get(VideoProgress, job_id)
+            if row is None:
+                row = VideoProgress(job_id=job_id, value=0)
+                db.add(row)
+                db.flush()
+            changed = db.execute(
+                update(VideoProgress)
+                .where(
+                    VideoProgress.job_id == job_id,
+                    VideoProgress.value <= value,
+                )
+                .values(value=value, phase=phase)
+            )
+            db.commit()
+            return changed.rowcount == 1
 
     def finish(self, job_id, token, status, error=""):
         with self.database.session() as db:
@@ -228,6 +284,11 @@ class VideoStore:
                 .values(status=status, error=error, lease_token="", lease_expires_at=0)
             )
             if result.rowcount:
+                db.execute(
+                    update(VideoProgress)
+                    .where(VideoProgress.job_id == job_id)
+                    .values(phase=status, **({"value": 100} if status == "completed" else {}))
+                )
                 db.add(
                     Event(
                         kind="video.finished",

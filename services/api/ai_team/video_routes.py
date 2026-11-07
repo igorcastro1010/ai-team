@@ -10,32 +10,16 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator, 
 
 from .auth import require_owner
 from .video_render import artifact_root, renderer_status
+from .video_schema import StudioDocument
 from .video_store import VideoStore
 
 router = APIRouter(prefix="/videos")
 Owner = Annotated[str, Depends(require_owner)]
 
 
-class SceneInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    text: str = Field(min_length=1, max_length=240)
-    duration: int = Field(ge=1, le=20, strict=True)
-
-    @field_validator("text")
-    @classmethod
-    def readable(cls, value):
-        if not value.strip() or any(ord(c) < 32 and c != "\n" for c in value):
-            raise ValueError("Texto inválido")
-        return value.strip()
-
-
-class VideoInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class VideoInput(StudioDocument):
     project_id: UUID
     request_id: UUID
-    title: str = Field(min_length=1, max_length=120)
-    format: Literal["vertical", "horizontal"] = "vertical"
-    scenes: list[SceneInput] = Field(min_length=1, max_length=6)
     consent: Literal[True]
 
     @field_validator("consent", mode="before")
@@ -46,9 +30,9 @@ class VideoInput(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def bounded(self):
-        if sum(scene.duration for scene in self.scenes) > 60 or not self.title.strip():
-            raise ValueError("Use até 60 segundos e informe um título")
+    def renderable(self):
+        if any(not scene.text and scene.media_id is None for scene in self.scenes):
+            raise ValueError("Cada cena precisa de texto ou mídia")
         return self
 
 

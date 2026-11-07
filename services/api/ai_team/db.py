@@ -11,6 +11,7 @@ from . import (  # noqa: F401 - register additive tables
     model_center_models,
     optimizer_models,
     video_models,
+    video_studio_models,
 )
 from .config import Settings
 from .models import Base

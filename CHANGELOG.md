@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 0.8.1
+
+- Biblioteca de mídia privada por projeto com uploads validados, hashes e limites.
+- Editor de cenas, timeline, prévia, posição/cores/fontes e autosave com controle de revisão.
+- Seis templates editáveis e templates próprios do projeto.
+- Imagem/vídeo, fade, zoom, pan, transições e entrada/saída de texto no FFmpeg.
+- Áudio local opcional com volume/fades; silêncio sem faixa selecionada.
+- Três proporções, 720p/1080p controlado pelo servidor, progresso real e download autenticado.
+- Testes direcionados, suíte completa no CI e evidências em `docs/v081-video-studio.md`.
+- V0.8 preservada, sem merge, deploy, contratação ou inferência externa.
+
 ## 0.8.0
 
 - Central `/modelos`, preferências por agente/projeto, fila supervisionada e histórico.
