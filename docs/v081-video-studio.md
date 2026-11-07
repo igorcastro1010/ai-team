@@ -100,7 +100,7 @@ explícita da versão do servidor. Dados já gravados sobrevivem a reinício da 
 Produção: as tabelas são aditivas (`video_media`, `video_drafts`, `video_templates`,
 `video_progress`); nenhuma coluna histórica é removida. Inicialize o banco antes
  de iniciar processos concorrentes. API e worker precisam compartilhar banco e
-`AI_TEAM_VIDEO_ROOT`; fontes DejaVu também estão na imagem da API. O Compose já
+`AI_TEAM_VIDEO_ROOT`; FFprobe e fontes DejaVu também estão na imagem da API. O Compose já
 prepara Linux ARM64, mas esta versão não provisionou hospedagem nem homologou
 hardware ARM64. Em Vercel, limites próprios de upload/streaming exigem revisão de
 hospedagem; uploads grandes foram validados no Next local, sem prometer superar
@@ -138,3 +138,12 @@ em `artifacts/` e `.data/`, ignorados pelo Git. Hash pode variar por plataforma.
 Nenhuma API paga, inferência, compra, faturamento, merge ou deploy foi realizado.
 Custos de energia, máquina e armazenamento do operador não são medição de custo
 zero de infraestrutura; nenhum serviço adicional foi contratado.
+
+Imagem Linux amd64 final: build aprovado; FFprobe da própria imagem validou PNG
+real e as três fontes foram encontradas. O smoke vertical também renderizou nessa
+imagem com rede desativada, rootfs somente leitura, usuário10001,2 CPU e1GB:
+H.264/AAC720×1280,6s,361361bytes;
+SHA-256 `569a049fd93212c3bc04a2c67ee1d30e8e403d517fc14c2202cfb5d5dee6c733`.
+Logs `artifacts/v081-image-probe.log` e `artifacts/v081-linux-render.log`.
+FFprobe precisa estar na API para validar uploads; ter o binário só no worker
+não é suficiente. O pacote não faz a API executar renderizações em requests.
