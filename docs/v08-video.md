@@ -39,3 +39,20 @@ A API e o worker precisam compartilhar o mesmo banco privado e diretório privad
 `python -m pytest services/api/tests/test_video.py -q` cobre schema/consentimento, idempotência, limites, aprovação/digest, cancelamento, leases, adulteração, autenticação, CSRF e bloqueio honesto sem FFmpeg. Dois testes de integração renderizam um MP4 real com legendas acentuadas/caracteres especiais e exercitam cancelamento quando FFmpeg/fonte estão disponíveis; caso contrário aparecem como `skipped`, nunca sucesso simulado.
 
 `apps/web/e2e/video.spec.ts` exerce o painel com backend real: criação de proposta, revisão, ausência de download antecipado, recusa e troca de projeto. A execução completa de lint, typecheck, build, pytest e E2E é coordenada na release. A existência desses arquivos de teste não equivale à evidência de execução. Nenhuma implantação de produção é feita pelo estúdio ou por esta implementação.
+
+O launcher Windows `tools/start.ps1` também inicia o worker de vídeo e o encerra
+junto aos demais serviços. A descoberta local reconhece PATH ou a instalação
+Gyan.FFmpeg do WinGet no perfil do proprietário; `AI_TEAM_FFMPEG` explícito tem
+precedência e falha se inválido. Nenhuma instalação automática ocorre ao usar o painel.
+
+Para reproduzir o smoke sem tocar no banco do proprietário:
+
+```powershell
+.venv\Scripts\python.exe tools\smoke-video.py --output artifacts\v08-demo-reels.mp4
+```
+
+O comando usa banco/diretório temporários, roteiro sintético, aprovação exata,
+worker real e ffprobe. Salva MP4 e JSON com digest/hash/resolução; não chama modelos.
+Aprovação, recusa, cancelamento e transições do worker registram eventos persistentes.
+Roteiros com padrões de credenciais conhecidos são rejeitados antes da gravação;
+a detecção por padrões não substitui a revisão do proprietário.
