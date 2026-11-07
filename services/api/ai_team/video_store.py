@@ -36,7 +36,7 @@ def view(job, progress=None):
         "error": job.error,
         "created_at": job.created_at,
         "progress": 100 if job.status == "completed" else progress.value if progress else 0,
-        "phase": progress.phase if progress else job.status,
+        "phase": progress.phase if progress and job.status == "rendering" else job.status,
     }
 
 

@@ -34,6 +34,7 @@ def test_1080_admission_is_disabled_until_server_enables_it(store, monkeypatch):
 def test_video_progress_is_persistent_monotonic_and_requires_active_lease(store):
     _, job = create(store)
     store.decide(job["id"], job["digest"], True)
+    assert store.get(job["id"])["phase"] == "queued"
     claimed = store.claim()
     assert not store.progress(job["id"], "wrong", 90, "encoding")
     assert store.progress(job["id"], claimed["lease_token"], 30, "encoding")
@@ -42,6 +43,7 @@ def test_video_progress_is_persistent_monotonic_and_requires_active_lease(store)
     store.database.engine.dispose()
     assert store.get(job["id"])["progress"] == 30
     store.cancel(job["id"])
+    assert store.get(job["id"])["phase"] == "cancelled"
     assert not store.progress(job["id"], claimed["lease_token"], 50, "encoding")
 
 
