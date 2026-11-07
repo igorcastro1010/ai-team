@@ -9,6 +9,8 @@ from sqlalchemy import select, update
 from .agents import AGENTS, RESEARCHER
 from .auth import COOKIE_NAME, authenticate, digest, require_owner
 from .config import Settings
+from .content_factory_office import production_office
+from .content_factory_routes import router as content_factory_router
 from .db import Database
 from .github_actions import GitHubStore
 from .github_routes import router as github_router
@@ -66,7 +68,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     app = FastAPI(
         title="AI TEAM",
-        version="0.8.1",
+        version="0.9.0",
         lifespan=lifespan,
         docs_url=None if settings.environment == "production" else "/docs",
     )
@@ -86,6 +88,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.include_router(models_router)
     app.include_router(video_router)
     app.include_router(video_studio_router)
+    app.include_router(content_factory_router)
     app.include_router(video_font_router)
 
     @app.middleware("http")
@@ -102,7 +105,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "version": "0.8.1"}
+        return {"status": "ok", "version": "0.9.0"}
 
     @app.post("/auth/login")
     def login(data: LoginInput, response: Response):
@@ -254,7 +257,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         runs = store.all()
         usage = store.usage()
         return {
-            "version": "0.8.1",
+            "version": "0.9.0",
             "owner": owner,
             "projects": [ProjectView.model_validate(p) for p in projects(owner)],
             "tasks": [TaskView.model_validate(t) for t in tasks(owner)],
@@ -263,7 +266,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "runs": [RunView.model_validate(run) for run in runs],
             "approvals": [RunView.model_validate(run) for run in WorkflowStore(database).pending()],
             "usage": usage,
-            "office": office_snapshot(runs, worker_online=usage["worker_online"]),
+            "office": production_office(database, office_snapshot(
+                runs, worker_online=usage["worker_online"])),
             "office_observed_at": int(time.time()),
             "integrations": integrations(owner),
             "github": GitHubStore(database).snapshot(),

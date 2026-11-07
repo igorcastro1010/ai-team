@@ -1,5 +1,15 @@
 # Skills e pesquisa — 27/10/2026
 
+## V0.9 — fábrica local supervisionada
+
+Find Skills e catálogo já revisados reutilizados, sem instalar skills ou pacotes.
+SKILL.md locais de LangGraph fundamentals/persistence, Supabase Postgres, UI/UX
+Pro Max, React e Playwright aplicados ao pipeline e editor. LangGraph é um
+despachante determinístico por etapa; persistência e aprovação ficam no SQL
+existente, sem alegar checkpoint nativo nem inferência Hermes/Codex. Origem e
+limitações das skills continuam nas seções anteriores. Testes e QA são técnicos,
+não revisão humana ou validação da logo real do proprietário.
+
 ## Revisão V0.7 — 05/11/2026
 
 Find Skills e leaderboard skills.sh consultados; `npx skills find obsidian --owner kepano`

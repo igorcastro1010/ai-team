@@ -1,5 +1,11 @@
 # AI TEAM
 
+**V0.9 — Fábrica de Conteúdo:** `/videos` abre o modo automático local: pedido,
+mídias próprias, montagem de quatro cenas, revisão por digest, FFmpeg, QA e MP4
+autenticado. Etapas e estados reais aparecem em `/escritorio`; o editor anterior
+continua no Modo avançado. Sem inferência de IA ou API paga nesta modalidade.
+Veja [uso, arquitetura e limites de homologação](docs/v09-content-factory.md).
+
 **V0.8.1 — Estúdio de Vídeos 2.0:** `/videos` agora tem biblioteca privada de
 imagens, clipes e áudio, editor de cenas com prévia, autosave, seis templates
 editáveis, animações, transições e exportação MP4 local. Formatos 9:16, 1:1 e
